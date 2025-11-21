@@ -1,6 +1,7 @@
 {
   "images" : [
     {
+      "filename" : "ChatGPT Image 21. Nov. 2025, 15_12_43.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -12,6 +13,7 @@
           "value" : "dark"
         }
       ],
+      "filename" : "Riftscore_Dark_AppIcon.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -23,6 +25,7 @@
           "value" : "tinted"
         }
       ],
+      "filename" : "Riftscore_Tinted_AppIcon.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"

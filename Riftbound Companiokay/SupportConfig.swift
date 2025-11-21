@@ -11,7 +11,7 @@ import MessageUI
 import SafariServices
 
 enum SupportConfig {
-    static let supportEmail: String = "okay.uenal@icloud.com"
+    static let supportEmail: String = "contact-okaydev@proton.me"
 
     static let donationURL: URL = URL(string: "https://ko-fi.com/okayunal")!
 }
@@ -66,7 +66,7 @@ struct DonationView: View {
             Button {
                 showSafari = true
             } label: {
-                Label("Donate", systemImage: "heart.fill")
+                Label("", systemImage: "heart.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
             }

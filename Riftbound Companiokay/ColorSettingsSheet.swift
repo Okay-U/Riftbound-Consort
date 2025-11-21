@@ -22,7 +22,7 @@ struct ColorSettingsSheet: View {
 
                     ForEach(visibleSlots, id: \.self) { slot in
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Tile \(slot + 1)")
+                            Text("Player \(slot + 1)")
                                 .font(.headline)
 
                             // Default / neutral
@@ -37,7 +37,7 @@ struct ColorSettingsSheet: View {
                                             RoundedRectangle(cornerRadius: 6)
                                                 .stroke(Color.black.opacity(0.08), lineWidth: 1)
                                         )
-                                    Text("Default (neutral)")
+                                    Text("Default")
                                     Spacer()
                                     if vm.colorIndex(for: slot) == -1 {
                                         Image(systemName: "checkmark")

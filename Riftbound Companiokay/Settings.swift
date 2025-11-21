@@ -35,7 +35,7 @@ struct Settings: View {
 
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Riftbound Consort: Score Tracker")
+                        Text("Riftcount: Score Tracker")
                             .font(.headline)
                         Text("Version \(Bundle.main.appVersion) (\(Bundle.main.appBuild))")
                             .foregroundStyle(.secondary)

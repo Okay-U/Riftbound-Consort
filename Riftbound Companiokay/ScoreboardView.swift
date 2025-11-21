@@ -12,6 +12,7 @@ struct ScoreboardView: View {
     @AppStorage("trueBlack") private var trueBlack: Bool = true
     @AppStorage("ninePointGame") private var ninePointGame: Bool = false
     @State private var showColorSheet = false
+    @State private var showQuickSettingsSheet = false
 
     private let outerVSpacing: CGFloat = 12
     private let gridSpacing: CGFloat = 12
@@ -64,6 +65,9 @@ struct ScoreboardView: View {
             ColorSettingsSheet(visibleSlots: visibleSlots(), showSheet: $showColorSheet)
                 .environmentObject(vm)
         }
+        .sheet(isPresented: $showQuickSettingsSheet) {
+            QuickSettingsSheet(ninePointGame: $ninePointGame)
+        }
     }
 
     private func visibleSlots() -> [Int] {
@@ -83,7 +87,7 @@ struct ScoreboardView: View {
             color: fill
         )
         .contextMenu {
-            Button("Default (neutral)") { vm.setColorIndex(-1, for: slot) }
+            Button("Default") { vm.setColorIndex(-1, for: slot) }
             Divider()
             ForEach(Array(Palette.colors.enumerated()), id: \.0) { pair in
                 let index = pair.0
@@ -92,8 +96,10 @@ struct ScoreboardView: View {
                     vm.setColorIndex(index, for: slot)
                 } label: {
                     HStack {
-                        Circle().fill(color).frame(width: 18, height: 18)
-                        Text("Color \(index + 1)")
+                        Circle()
+                            .fill(color)
+                            .frame(width: 18, height: 18)
+                        Text(Palette.name(for: index))
                     }
                 }
             }
@@ -124,10 +130,11 @@ struct ScoreboardView: View {
                 Label("", systemImage: "paintpalette")
             }
             .buttonStyle(.bordered)
-
-            Toggle("9 Points", isOn: $ninePointGame)
-                .toggleStyle(.switch)
-                .frame(maxWidth: 160)
+            
+            Button { showQuickSettingsSheet = true } label: {
+                Image(systemName: "gearshape")
+            }
+            .buttonStyle(.bordered)
 
             Spacer()
 

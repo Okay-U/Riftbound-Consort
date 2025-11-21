@@ -20,7 +20,7 @@ struct RoadmapView: View {
     private let items: [Item] = [
         .init(when: "Nov 2025", title: "Release Simple Scoreboard App", detail: nil, icon: "sparkles"),
         .init(when: "Christmas 2025", title: "Implement user feedback", detail: nil, icon: "gift"),
-        .init(when: "Q1 2026", title: "Maskot Update", detail: "Get ready for your little friend", icon: "pat.carrier.fill"),
+        .init(when: "Q1 2026", title: "Maskot Update", detail: "Get ready for your little friend", icon: "pawprint.fill"),
         .init(when: "Q2 2026", title: "Card Database Update", detail: "Turning the Scoreboard App into a Companion App", icon: "square.3.layers.3d")
     ]
 
