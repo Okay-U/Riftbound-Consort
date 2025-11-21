@@ -21,7 +21,7 @@ struct RoadmapView: View {
         .init(when: "Nov 2025", title: "Release Simple Scoreboard App", detail: nil, icon: "sparkles"),
         .init(when: "Christmas 2025", title: "Implement user feedback", detail: nil, icon: "gift"),
         .init(when: "Q1 2026", title: "Maskot Update", detail: "Get ready for your little friend", icon: "pawprint.fill"),
-        .init(when: "Q2 2026", title: "Card Database Update", detail: "Turning the Scoreboard App into a Companion App", icon: "square.3.layers.3d")
+        .init(when: "Q2 2026", title: "Card Scan Update", detail: "Scan cards and see their effects", icon: "square.3.layers.3d")
     ]
 
     var body: some View {
