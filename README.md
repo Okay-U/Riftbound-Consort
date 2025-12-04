@@ -9,4 +9,7 @@ planned features:
 - Dice
 - Maskots
 - Stat Tracking/Social: Profiles, Winrates, Friends
-- Card Database: Deckbuilding
+- Card Database: Scan Cards
+
+
+Data privacy: We do not use or save any data
