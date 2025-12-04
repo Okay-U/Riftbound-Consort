@@ -18,7 +18,7 @@ struct ScoreTile: View {
     // Settings
     @AppStorage("batterySaver")   private var batterySaver: Bool = false
     @AppStorage("soundsEnabled")  private var soundsEnabled: Bool = false
-    @AppStorage("ninePointGame")  private var ninePointGame: Bool = false
+    @AppStorage("targetScore")    private var targetScore: Int = 8
 
     // Visual feedback
     @State private var flashColor: Color? = nil
@@ -38,8 +38,13 @@ struct ScoreTile: View {
     private let outsideThicknessFlash: CGFloat = 14
     private let outsideThicknessWin: CGFloat = 16
     
-    private var maxScore: Int { ninePointGame ? 9 : 8 }
-    private var sparkScore: Int { maxScore - 1 }
+    // Win-Logik
+    private var maxScore: Int {
+        max(targetScore, 8)
+    }
+    private var sparkScore: Int {
+        max(maxScore - 1, 0)
+    }
 
     var body: some View {
         ZStack {

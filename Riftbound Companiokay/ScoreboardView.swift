@@ -10,7 +10,7 @@ import SwiftUI
 struct ScoreboardView: View {
     @EnvironmentObject var vm: ScoreboardViewModel
     @AppStorage("trueBlack") private var trueBlack: Bool = true
-    @AppStorage("ninePointGame") private var ninePointGame: Bool = false
+    @AppStorage("targetScore") private var targetScore: Int = 8
     @State private var showColorSheet = false
     @State private var showQuickSettingsSheet = false
 
@@ -66,7 +66,7 @@ struct ScoreboardView: View {
                 .environmentObject(vm)
         }
         .sheet(isPresented: $showQuickSettingsSheet) {
-            QuickSettingsSheet(ninePointGame: $ninePointGame)
+            QuickSettingsSheet(targetScore: $targetScore)
         }
     }
 
