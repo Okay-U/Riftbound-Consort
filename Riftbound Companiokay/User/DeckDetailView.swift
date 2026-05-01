@@ -14,6 +14,7 @@ struct DeckDetailView: View {
     @State private var newName: String = ""
     @State private var showEditor: Bool = false
     @State private var showExportToast: Bool = false
+    @State private var showDrawHand: Bool = false
 
     private var current: Decklist {
         store.lists.first(where: { $0.id == deck.id }) ?? deck
@@ -104,6 +105,11 @@ struct DeckDetailView: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
+                    showDrawHand = true
+                } label: {
+                    Image(systemName: "rectangle.portrait.on.rectangle.portrait")
+                }
+                Button {
                     exportToClipboard()
                 } label: {
                     Image(systemName: "square.and.arrow.up")
@@ -125,6 +131,10 @@ struct DeckDetailView: View {
         }
         .sheet(isPresented: $showEditor) {
             DeckEditorSheet(deckId: current.id)
+        }
+        .sheet(isPresented: $showDrawHand) {
+            DrawHandView(deck: current)
+                .environmentObject(cardStore)
         }
         .alert("Rename Deck", isPresented: $showRenameAlert) {
             TextField("Name", text: $newName)
@@ -333,6 +343,16 @@ struct DeckDetailView: View {
 
     private var statsPlaceholderSection: some View {
         Section("Stats") {
+            NavigationLink {
+                DeckStatsView(deck: current)
+            } label: {
+                Label("Deck stats", systemImage: "chart.bar.fill")
+            }
+            NavigationLink {
+                DrawProbabilityView(deck: current)
+            } label: {
+                Label("Draw odds", systemImage: "die.face.5")
+            }
             NavigationLink {
                 GameHistoryView(scope: .deck(current.id), title: current.name)
             } label: {
