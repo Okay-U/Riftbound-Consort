@@ -19,6 +19,7 @@ final class DeckBuilderState: ObservableObject {
         case battlefield
         case mainDeck
         case sideDeck
+        case runePool
         case finalize
 
         var title: String {
@@ -28,6 +29,7 @@ final class DeckBuilderState: ObservableObject {
             case .battlefield: return "Battlefields (3)"
             case .mainDeck:    return "Main Deck (39)"
             case .sideDeck:    return "Sideboard (0 or 8)"
+            case .runePool:    return "Rune Pool (12)"
             case .finalize:    return "Save Deck"
             }
         }
@@ -57,6 +59,9 @@ final class DeckBuilderState: ObservableObject {
     /// Maps each entry's specific printing id to its logical identity key,
     /// so copy limits are enforced across reprints / rarity variants / promos.
     @Published private(set) var idToIdentity: [String: String] = [:]
+    /// Rune counts per legend domain (lowercased). Seeded as even split
+    /// when the legend is chosen; user adjusts on the rune pool step.
+    @Published var runeCounts: [String: Int] = [:]
 
     // MARK: - Derived
 
@@ -87,10 +92,14 @@ final class DeckBuilderState: ObservableObject {
     /// normalises by stripping parenthesised content and known variant
     /// suffixes ("showcase", "promo", "overnumbered", etc.).
     func identityKey(for card: Card) -> String {
+        Self.identityKey(for: card)
+    }
+
+    static func identityKey(for card: Card) -> String {
         let raw = (card.metadata?.cleanName?.isEmpty == false
                    ? card.metadata!.cleanName!
                    : card.name)
-        return "name:" + Self.normaliseIdentity(raw)
+        return "name:" + normaliseIdentity(raw)
     }
 
     private static func normaliseIdentity(_ s: String) -> String {
@@ -166,6 +175,42 @@ final class DeckBuilderState: ObservableObject {
         battlefields = []
         mainDeck = []
         sideDeck = []
+        seedRuneCounts()
+    }
+
+    /// Even-split runes across legend domains. Total always == runeTotal.
+    private func seedRuneCounts() {
+        let domains = legendDomains
+        guard !domains.isEmpty else {
+            runeCounts = [:]
+            return
+        }
+        let base = Self.runeTotal / domains.count
+        var remainder = Self.runeTotal % domains.count
+        var counts: [String: Int] = [:]
+        for d in domains {
+            let key = d.lowercased()
+            var c = base
+            if remainder > 0 { c += 1; remainder -= 1 }
+            counts[key] = c
+        }
+        runeCounts = counts
+    }
+
+    var runeTotalCount: Int {
+        runeCounts.values.reduce(0, +)
+    }
+
+    func incRune(domain: String) {
+        guard runeTotalCount < Self.runeTotal else { return }
+        let key = domain.lowercased()
+        runeCounts[key, default: 0] += 1
+    }
+
+    func decRune(domain: String) {
+        let key = domain.lowercased()
+        guard let c = runeCounts[key], c > 0 else { return }
+        runeCounts[key] = c - 1
     }
 
     func setChampion(_ card: Card) {
@@ -228,6 +273,7 @@ final class DeckBuilderState: ObservableObject {
     var canAdvanceFromBattlefield: Bool { battlefields.count == Self.battlefieldTarget }
     var canAdvanceFromMain: Bool        { mainCount == Self.mainDeckTarget }
     var canAdvanceFromSide: Bool        { Self.sideDeckOptions.contains(sideCount) }
+    var canAdvanceFromRunes: Bool       { runeTotalCount == Self.runeTotal }
     var canSave: Bool {
         !deckName.trimmingCharacters(in: .whitespaces).isEmpty
             && canAdvanceFromLegend
@@ -235,6 +281,7 @@ final class DeckBuilderState: ObservableObject {
             && canAdvanceFromBattlefield
             && canAdvanceFromMain
             && canAdvanceFromSide
+            && canAdvanceFromRunes
     }
 
     // MARK: - Finalize
@@ -259,16 +306,118 @@ final class DeckBuilderState: ObservableObject {
         applyEntries(mainDeck,  to: new, slot: .mainDeck,  via: store)
         applyEntries(sideDeck,  to: new, slot: .sideDeck,  via: store)
 
-        // Auto-fill 12 runes (6 per domain) from the resolved pool.
+        // Apply user-chosen rune split (sum == 12) from the resolved pool.
         for domain in legendDomains {
-            guard let rune = Card.runeCard(forDomain: domain, in: runePool)
+            let key = domain.lowercased()
+            let count = runeCounts[key] ?? 0
+            guard count > 0,
+                  let rune = Card.runeCard(forDomain: domain, in: runePool)
             else { continue }
-            for _ in 0..<Self.runePerDomain {
+            for _ in 0..<count {
                 store.add(rune, to: new, slot: .rune)
             }
         }
 
         return store.lists.first(where: { $0.id == new.id })
+    }
+
+    // MARK: - Edit existing deck
+
+    /// Seeds this state from an existing deck so the wizard pickers can be
+    /// reused as an editor. Looks up Card refs from the supplied pool.
+    func loadFromExisting(_ deck: Decklist, cardPool: [Card]) {
+        deckName = deck.name
+        battlefields = []
+        mainDeck = []
+        sideDeck = []
+        signatureIds = []
+        idToIdentity = [:]
+
+        let lookup: (String) -> Card? = { id in
+            cardPool.first(where: { $0.id == id })
+        }
+
+        if let entry = deck.legend, let card = lookup(entry.cardId) {
+            legend = card
+        }
+        if let entry = deck.champion, let card = lookup(entry.cardId) {
+            champion = card
+        }
+        for entry in deck.battlefields {
+            if let card = lookup(entry.cardId) {
+                battlefields.append(card)
+            }
+        }
+        for entry in deck.mainDeck {
+            mainDeck.append(entry)
+            if let card = lookup(entry.cardId) {
+                trackIdentity(card)
+                trackSignature(card)
+            }
+        }
+        for entry in deck.sideDeck {
+            sideDeck.append(entry)
+            if let card = lookup(entry.cardId) {
+                trackIdentity(card)
+                trackSignature(card)
+            }
+        }
+
+        // Seed rune counts by mapping rune entries to their domains.
+        var counts: [String: Int] = [:]
+        for entry in deck.runes {
+            guard let card = lookup(entry.cardId),
+                  let domain = card.classification?.domain?.first?.lowercased()
+            else { continue }
+            counts[domain, default: 0] += entry.count
+        }
+        // Ensure every legend domain has an entry.
+        for d in legendDomains {
+            let key = d.lowercased()
+            if counts[key] == nil { counts[key] = 0 }
+        }
+        runeCounts = counts
+    }
+
+    /// Replaces the slots of an existing deck with this state's current
+    /// picks. Used by the edit-deck sheet.
+    func commitEdits(toDeckId deckId: UUID,
+                     in store: DecklistStore,
+                     runePool: [Card]) {
+        guard let deck = store.lists.first(where: { $0.id == deckId }) else { return }
+
+        // Wipe and reapply all editable slots.
+        for entry in deck.battlefields {
+            store.remove(entry, from: deck, slot: .battlefield)
+        }
+        for entry in deck.mainDeck {
+            store.remove(entry, from: deck, slot: .mainDeck)
+        }
+        for entry in deck.sideDeck {
+            store.remove(entry, from: deck, slot: .sideDeck)
+        }
+        for entry in deck.runes {
+            store.remove(entry, from: deck, slot: .rune)
+        }
+
+        guard let refreshed = store.lists.first(where: { $0.id == deckId }) else { return }
+
+        for bf in battlefields {
+            store.add(bf, to: refreshed, slot: .battlefield)
+        }
+        applyEntries(mainDeck, to: refreshed, slot: .mainDeck, via: store)
+        applyEntries(sideDeck, to: refreshed, slot: .sideDeck, via: store)
+
+        for domain in legendDomains {
+            let key = domain.lowercased()
+            let count = runeCounts[key] ?? 0
+            guard count > 0,
+                  let rune = Card.runeCard(forDomain: domain, in: runePool)
+            else { continue }
+            for _ in 0..<count {
+                store.add(rune, to: refreshed, slot: .rune)
+            }
+        }
     }
 
     // MARK: - Helpers

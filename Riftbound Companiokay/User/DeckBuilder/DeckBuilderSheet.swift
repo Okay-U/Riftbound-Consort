@@ -44,6 +44,7 @@ struct DeckBuilderSheet: View {
         case .battlefield: BattlefieldPickerView(state: state)
         case .mainDeck:    CardPoolPickerView(state: state, slot: .mainDeck)
         case .sideDeck:    CardPoolPickerView(state: state, slot: .sideDeck)
+        case .runePool:    RunePoolPickerView(state: state)
         case .finalize:    BuilderFinalizeView(state: state)
         }
     }
@@ -55,6 +56,7 @@ struct DeckBuilderSheet: View {
         case .battlefield: return state.canAdvanceFromBattlefield
         case .mainDeck:    return state.canAdvanceFromMain
         case .sideDeck:    return state.canAdvanceFromSide
+        case .runePool:    return state.canAdvanceFromRunes
         case .finalize:    return state.canSave
         }
     }

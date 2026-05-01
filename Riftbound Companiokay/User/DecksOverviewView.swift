@@ -4,10 +4,14 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct DecksOverviewView: View {
     @EnvironmentObject var store: DecklistStore
+    @EnvironmentObject var cardStore: CardStore
     @State private var showBuilder: Bool = false
+    @State private var showImportAlert: Bool = false
+    @State private var importMessage: String = ""
 
     var body: some View {
         Group {
@@ -34,7 +38,12 @@ struct DecksOverviewView: View {
         }
         .navigationTitle("Decks")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    importFromClipboard()
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
+                }
                 Button {
                     showBuilder = true
                 } label: {
@@ -45,6 +54,42 @@ struct DecksOverviewView: View {
         .sheet(isPresented: $showBuilder) {
             DeckBuilderSheet()
         }
+        .alert("Import", isPresented: $showImportAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(importMessage)
+        }
+        .onAppear { cardStore.loadIfNeeded() }
+    }
+
+    private func importFromClipboard() {
+        guard let text = UIPasteboard.general.string,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            importMessage = "Clipboard is empty."
+            showImportAlert = true
+            return
+        }
+        let parsed = DeckTextFormat.parse(text, cardPool: cardStore.allCards)
+        let hasContent = parsed.legend != nil
+            || parsed.champion != nil
+            || !parsed.mainDeck.isEmpty
+            || !parsed.battlefields.isEmpty
+            || !parsed.sideDeck.isEmpty
+            || !parsed.runeCounts.isEmpty
+        guard hasContent else {
+            importMessage = "Could not parse a deck from the clipboard."
+            showImportAlert = true
+            return
+        }
+        store.createFromImport(parsed, runePool: cardStore.allCards)
+        if parsed.unresolvedLines.isEmpty {
+            importMessage = "Deck imported."
+        } else {
+            let preview = parsed.unresolvedLines.prefix(5).joined(separator: "\n")
+            importMessage = "Imported with \(parsed.unresolvedLines.count) unresolved line(s):\n\(preview)"
+        }
+        showImportAlert = true
     }
 
     private var emptyState: some View {

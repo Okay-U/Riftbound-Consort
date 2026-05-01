@@ -48,6 +48,36 @@ final class DecklistStore: ObservableObject {
         save()
     }
 
+    /// Creates a new deck from a parsed text decklist. Auto-fills runes from
+    /// the parsed counts using rune cards looked up from `runePool`.
+    @discardableResult
+    func createFromImport(_ parsed: DeckTextFormat.ParsedDeck,
+                          runePool: [Card]) -> Decklist {
+        let new = create(name: parsed.name)
+        if let legend = parsed.legend {
+            add(legend, to: new, slot: .legend)
+        }
+        if let champion = parsed.champion {
+            add(champion, to: new, slot: .champion)
+        }
+        for bf in parsed.battlefields {
+            add(bf, to: new, slot: .battlefield)
+        }
+        for (card, count) in parsed.mainDeck {
+            for _ in 0..<count { add(card, to: new, slot: .mainDeck) }
+        }
+        for (card, count) in parsed.sideDeck {
+            for _ in 0..<count { add(card, to: new, slot: .sideDeck) }
+        }
+        for (domain, count) in parsed.runeCounts {
+            guard count > 0,
+                  let rune = Card.runeCard(forDomain: domain, in: runePool)
+            else { continue }
+            for _ in 0..<count { add(rune, to: new, slot: .rune) }
+        }
+        return lists.first(where: { $0.id == new.id }) ?? new
+    }
+
     // MARK: - Slot-aware mutations
 
     /// Adds the card to its preferred slot (or an explicit slot if provided).

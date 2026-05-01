@@ -4,24 +4,80 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct DeckDetailView: View {
     let deck: Decklist
     @EnvironmentObject var store: DecklistStore
+    @EnvironmentObject var cardStore: CardStore
     @State private var showRenameAlert: Bool = false
     @State private var newName: String = ""
+    @State private var showEditor: Bool = false
+    @State private var showExportToast: Bool = false
 
     private var current: Decklist {
         store.lists.first(where: { $0.id == deck.id }) ?? deck
     }
     private var legality: DeckLegality { DeckLegality.evaluate(current) }
 
+    private func card(for entry: DecklistEntry) -> Card? {
+        cardStore.allCards.first(where: { $0.id == entry.cardId })
+    }
+
+    private func mainSideIdentityCount(_ key: String) -> Int {
+        let entries = current.mainDeck + current.sideDeck
+        var n = entries
+            .filter { e in
+                guard let c = card(for: e) else { return false }
+                return DeckBuilderState.identityKey(for: c) == key
+            }
+            .reduce(0) { $0 + $1.count }
+        if let champEntry = current.champion,
+           let champCard = card(for: champEntry),
+           DeckBuilderState.identityKey(for: champCard) == key {
+            n += 1
+        }
+        return n
+    }
+
+    private func mainSideSignatureCount() -> Int {
+        let entries = current.mainDeck + current.sideDeck
+        return entries
+            .filter { e in card(for: e)?.metadata?.signature == true }
+            .reduce(0) { $0 + $1.count }
+    }
+
+    private func canIncrement(entry: DecklistEntry, slot: DeckSlot) -> Bool {
+        guard let c = card(for: entry) else { return false }
+
+        let mainTotal = current.mainDeck.reduce(0) { $0 + $1.count }
+        let sideTotal = current.sideDeck.reduce(0) { $0 + $1.count }
+        let bfTotal   = current.battlefields.reduce(0) { $0 + $1.count }
+        let runeTotal = current.runes.reduce(0) { $0 + $1.count }
+
+        switch slot {
+        case .mainDeck:    if mainTotal >= 39 { return false }
+        case .sideDeck:    if sideTotal >= 8  { return false }
+        case .battlefield: if bfTotal   >= 3  { return false }
+        case .rune:        if runeTotal >= 12 { return false }
+        case .champion, .legend: return false
+        }
+
+        if slot == .mainDeck || slot == .sideDeck {
+            let key = DeckBuilderState.identityKey(for: c)
+            if mainSideIdentityCount(key) >= DeckBuilderState.copyLimit { return false }
+            if c.metadata?.signature == true,
+               mainSideSignatureCount() >= DeckBuilderState.signatureLimit {
+                return false
+            }
+        }
+        return true
+    }
+
     var body: some View {
         List {
             legalitySection
-            singularSection(title: "Champion (1)",
-                            entry: current.champion,
-                            slot: .champion)
+            championSection
             singularSection(title: "Legend (1)",
                             entry: current.legend,
                             slot: .legend)
@@ -46,12 +102,29 @@ struct DeckDetailView: View {
         .navigationTitle(current.name)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    exportToClipboard()
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                Button("Edit") {
+                    showEditor = true
+                }
                 Button("Rename") {
                     newName = current.name
                     showRenameAlert = true
                 }
             }
+        }
+        .alert("Copied",
+               isPresented: $showExportToast) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Decklist copied to clipboard.")
+        }
+        .sheet(isPresented: $showEditor) {
+            DeckEditorSheet(deckId: current.id)
         }
         .alert("Rename Deck", isPresented: $showRenameAlert) {
             TextField("Name", text: $newName)
@@ -83,6 +156,102 @@ struct DeckDetailView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+            }
+        }
+    }
+
+    private func exportToClipboard() {
+        let text = DeckTextFormat.export(deck: current,
+                                         cardPool: cardStore.allCards)
+        UIPasteboard.general.string = text
+        showExportToast = true
+    }
+
+    // MARK: - Champion swap
+
+    private var championCandidates: [Card] {
+        guard let chosenEntry = current.champion,
+              let chosenCard  = card(for: chosenEntry) else { return [] }
+        var found: [Card] = [chosenCard]
+        var seen: Set<String> = [chosenCard.id]
+
+        guard let legendEntry = current.legend,
+              let legendCard  = card(for: legendEntry) else { return found }
+
+        for entry in current.mainDeck + current.sideDeck {
+            guard let c = card(for: entry),
+                  c.isChampion,
+                  c.matchesLegend(legendCard),
+                  !seen.contains(c.id) else { continue }
+            found.append(c)
+            seen.insert(c.id)
+        }
+        return found.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+    }
+
+    private func swapChampion(to newCard: Card) {
+        guard let oldEntry = current.champion,
+              newCard.id != oldEntry.cardId else { return }
+        guard let oldCard = card(for: oldEntry) else { return }
+
+        let mainEntry = current.mainDeck.first(where: { $0.cardId == newCard.id })
+        let sideEntry = current.sideDeck.first(where: { $0.cardId == newCard.id })
+
+        let sourceSlot: DeckSlot
+        let sourceEntry: DecklistEntry
+        if let e = mainEntry { sourceSlot = .mainDeck; sourceEntry = e }
+        else if let e = sideEntry { sourceSlot = .sideDeck; sourceEntry = e }
+        else { return }
+
+        // 1. Pull new card out of its source slot.
+        store.decrement(sourceEntry, in: current, slot: sourceSlot)
+        // 2. Put old champion back into main deck.
+        store.add(oldCard, to: current, slot: .mainDeck)
+        // 3. Replace champion slot with the new card.
+        store.add(newCard, to: current, slot: .champion)
+    }
+
+    @ViewBuilder
+    private var championSection: some View {
+        Section("Champion (1)") {
+            if let entry = current.champion {
+                let candidates = championCandidates
+                if candidates.count > 1 {
+                    Menu {
+                        ForEach(candidates, id: \.id) { c in
+                            Button {
+                                swapChampion(to: c)
+                            } label: {
+                                if c.id == entry.cardId {
+                                    Label(c.name, systemImage: "checkmark")
+                                } else {
+                                    Text(c.name)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(entry.cardName)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.up.chevron.down")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else {
+                    HStack {
+                        Text(entry.cardName)
+                        Spacer()
+                        Image(systemName: "chevron.up.chevron.down")
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            } else {
+                Text("Not set")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
             }
         }
     }
@@ -127,7 +296,7 @@ struct DeckDetailView: View {
                     HStack {
                         Text(entry.cardName)
                         Spacer()
-                        HStack(spacing: 8) {
+                        HStack(spacing: 10) {
                             Button {
                                 store.decrement(entry, in: current, slot: slot)
                             } label: {
@@ -137,6 +306,19 @@ struct DeckDetailView: View {
                             Text("×\(entry.count)")
                                 .font(.body.monospacedDigit())
                                 .foregroundStyle(.secondary)
+                                .frame(minWidth: 28)
+                            Button {
+                                if let c = card(for: entry) {
+                                    store.add(c, to: current, slot: slot)
+                                }
+                            } label: {
+                                Image(systemName: "plus.circle")
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(!canIncrement(entry: entry, slot: slot))
+                            .foregroundStyle(canIncrement(entry: entry, slot: slot)
+                                             ? .primary
+                                             : Color.secondary.opacity(0.4))
                         }
                     }
                 }
