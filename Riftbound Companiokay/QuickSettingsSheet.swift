@@ -9,14 +9,26 @@
 import SwiftUI
 
 struct QuickSettingsSheet: View {
-    @Binding var targetScore: Int      // kommt jetzt als Int-Binding rein
+    @Binding var targetScore: Int
+    @EnvironmentObject var vm: ScoreboardViewModel
     @Environment(\.dismiss) private var dismiss
 
-    private let allowedScores = Array(8...12) // 8–12, bei Bedarf ändern
+    private let allowedScores = Array(8...12)
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Players") {
+                    Picker("Number of Players", selection: Binding(
+                        get: { vm.playerCount },
+                        set: { vm.playerCount = $0 }
+                    )) {
+                        Text("2 Players").tag(2)
+                        Text("4 Players").tag(4)
+                    }
+                    .pickerStyle(.segmented)
+                }
+
                 Section("Scoring") {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Winning Score")

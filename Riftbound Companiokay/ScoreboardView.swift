@@ -9,10 +9,18 @@ import SwiftUI
 
 struct ScoreboardView: View {
     @EnvironmentObject var vm: ScoreboardViewModel
+    @EnvironmentObject var gameTimer: GameTimer
+    @EnvironmentObject var decklistStore: DecklistStore
+    @EnvironmentObject var cardStore: CardStore
+    @EnvironmentObject var gameRecordStore: GameRecordStore
     @AppStorage("trueBlack") private var trueBlack: Bool = true
     @AppStorage("targetScore") private var targetScore: Int = 8
+    @AppStorage("activeDeckId")   private var activeDeckId: String = ""
+    @AppStorage("activeOpponent") private var activeOpponent: String = ""
     @State private var showColorSheet = false
     @State private var showQuickSettingsSheet = false
+    @State private var showGameSetupSheet = false
+    @State private var lastGameEnd: TimeInterval = 0
 
     private let outerVSpacing: CGFloat = 12
     private let gridSpacing: CGFloat = 12
@@ -67,7 +75,44 @@ struct ScoreboardView: View {
         }
         .sheet(isPresented: $showQuickSettingsSheet) {
             QuickSettingsSheet(targetScore: $targetScore)
+                .environmentObject(vm)
         }
+        .sheet(isPresented: $showGameSetupSheet) {
+            GameSetupSheet()
+                .environmentObject(decklistStore)
+                .environmentObject(cardStore)
+        }
+    }
+
+    private var activeDeckName: String {
+        guard
+            let uuid = UUID(uuidString: activeDeckId),
+            let deck = decklistStore.lists.first(where: { $0.id == uuid })
+        else { return "No deck" }
+        return deck.name
+    }
+
+    private func activeDeck() -> Decklist? {
+        guard let uuid = UUID(uuidString: activeDeckId) else { return nil }
+        return decklistStore.lists.first(where: { $0.id == uuid })
+    }
+
+    private func endGame(_ result: GameResult) {
+        let deck = activeDeck()
+        let opponent = activeOpponent.trimmingCharacters(in: .whitespaces)
+        let now = gameTimer.elapsed
+        // If timer was manually reset since last record, fall back to full elapsed.
+        let delta = now >= lastGameEnd ? now - lastGameEnd : now
+        let record = GameRecord(
+            deckId: deck?.id,
+            deckName: deck?.name,
+            opponent: opponent,
+            result: result,
+            durationSeconds: Int(delta)
+        )
+        gameRecordStore.record(record)
+        lastGameEnd = now
+        vm.resetScores()
     }
 
     private func visibleSlots() -> [Int] {
@@ -107,16 +152,37 @@ struct ScoreboardView: View {
     }
 
     private var headerBar: some View {
-        HStack {
+        VStack(alignment: .leading, spacing: 6) {
             Text("Scoreboard")
                 .font(.system(size: 26, weight: .bold, design: .rounded))
-            Spacer()
-            Button(role: .destructive) { vm.resetScores() } label: {
-                Label("Reset", systemImage: "arrow.counterclockwise")
-            }
-            .buttonStyle(.bordered)
+            TimerBadgeView()
+            deckPill
         }
         .padding(.horizontal, 16)
+    }
+
+    private var deckPill: some View {
+        Button {
+            showGameSetupSheet = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "rectangle.stack")
+                    .font(.caption)
+                Text(activeDeckName)
+                    .font(.caption.weight(.medium))
+                if !activeOpponent.isEmpty {
+                    Text("vs \(activeOpponent)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule().fill(Color.secondary.opacity(0.18))
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var footerBar: some View {
@@ -130,7 +196,7 @@ struct ScoreboardView: View {
                 Label("", systemImage: "paintpalette")
             }
             .buttonStyle(.bordered)
-            
+
             Button { showQuickSettingsSheet = true } label: {
                 Image(systemName: "gearshape")
             }
@@ -138,15 +204,19 @@ struct ScoreboardView: View {
 
             Spacer()
 
-            Picker("Players", selection: Binding(
-                get: { vm.playerCount },
-                set: { vm.playerCount = $0 }
-            )) {
-                Text("2").tag(2)
-                Text("4").tag(4)
+            Button { endGame(.lost) } label: {
+                Text("Lost")
+                    .font(.headline)
+                    .foregroundStyle(.red)
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 160)
+            .buttonStyle(.bordered)
+
+            Button { endGame(.won) } label: {
+                Text("Won")
+                    .font(.headline)
+                    .foregroundStyle(.green)
+            }
+            .buttonStyle(.bordered)
         }
         .padding(.horizontal, 16)
     }

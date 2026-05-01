@@ -121,7 +121,7 @@ struct ScoreTile: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(PressDimButtonStyle())
+                .buttonStyle(HalfTilePressStyle())
 
                 Divider().opacity(0.14)
 
@@ -133,7 +133,7 @@ struct ScoreTile: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(PressDimButtonStyle())
+                .buttonStyle(HalfTilePressStyle())
             }
             .clipShape(shape)
         }
@@ -219,6 +219,19 @@ struct PressDimButtonStyle: ButtonStyle {
         configuration.label
             .opacity(configuration.isPressed ? 0.35 : 1.0)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+struct HalfTilePressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .overlay(
+                Color.black
+                    .opacity(configuration.isPressed ? 0.18 : 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .allowsHitTesting(false)
+            )
+            .animation(.easeInOut(duration: 0.20), value: configuration.isPressed)
     }
 }
 

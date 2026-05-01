@@ -13,12 +13,20 @@ struct Riftbound_CompaniokayApp: App {
     @AppStorage("trueBlack")    private var trueBlack: Bool = true
     @StateObject private var idleMgr = IdleTimerManager()
     @StateObject private var scoreboard = ScoreboardViewModel()
+    @StateObject private var gameTimer = GameTimer()
+    @StateObject private var decklistStore = DecklistStore()
+    @StateObject private var cardStore = CardStore()
+    @StateObject private var gameRecordStore = GameRecordStore()
 
     var body: some Scene {
         WindowGroup {
             RootTabView()
                 .environmentObject(scoreboard)
                 .environmentObject(idleMgr)
+                .environmentObject(gameTimer)
+                .environmentObject(decklistStore)
+                .environmentObject(cardStore)
+                .environmentObject(gameRecordStore)
                 .preferredColorScheme(.dark)
                 .background(trueBlack ? Color.black : Color(.systemBackground))
                 .onAppear {
@@ -34,6 +42,8 @@ struct Riftbound_CompaniokayApp: App {
 private enum TabKey {
     static let score    = "score"
     static let dice     = "dice"
+    static let cards    = "cards"
+    static let user     = "user"
     static let settings = "settings"
 }
 
@@ -49,6 +59,14 @@ struct RootTabView: View {
             DiceView()
                 .tabItem { Label("Dice", systemImage: "die.face.5") }
                 .tag(TabKey.dice)
+
+            CardsTabView()
+                .tabItem { Label("Cards", systemImage: "rectangle.stack") }
+                .tag(TabKey.cards)
+
+            UserTabView()
+                .tabItem { Label("User", systemImage: "person.crop.rectangle.stack") }
+                .tag(TabKey.user)
 
             Settings()
                 .tabItem { Label("Settings", systemImage: "gearshape") }

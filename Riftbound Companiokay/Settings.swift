@@ -26,11 +26,20 @@ struct Settings: View {
                     Toggle("Shake to roll dice", isOn: $diceShakeToRoll)
                 }
 
+                Section("Stats") {
+                    NavigationLink {
+                        GameHistoryView(scope: .all, title: "All Games")
+                    } label: {
+                        Label("Game history", systemImage: "clock.arrow.circlepath")
+                    }
+                }
+
                 Section("About") {
                     NavigationLink("Report Bug") { BugReportView() }
                     NavigationLink("Wish a Feature") { FeatureRequestView() }
                     NavigationLink("Roadmap") { RoadmapView() }
                     NavigationLink("Buy me a coffee") { DonationView() }
+                    NavigationLink("Acknowledgments") { AcknowledgmentsView() }
                 }
 
                 Section {
