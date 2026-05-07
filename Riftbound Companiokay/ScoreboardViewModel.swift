@@ -24,9 +24,16 @@ final class ScoreboardViewModel: ObservableObject {
         Player(name: "Player 2", score: 0)
     ]
 
-    private var history: [[Int]] = []
+    private struct Snapshot {
+        let scores: [Int]
+        let xps: [Int]
+    }
+    private var history: [Snapshot] = []
 
-    init() { applyPlayerCount(playerCount) }
+    init() {
+        applyPlayerCount(playerCount)
+        adoptSharedScoresIfAvailable()
+    }
 
     func applyPlayerCount(_ count: Int) {
         let clamped = count == 4 ? 4 : 2
@@ -40,10 +47,22 @@ final class ScoreboardViewModel: ObservableObject {
         }
         players = newPlayers
         history.removeAll()
+        pushShared()
+    }
+
+    private func pushShared() {
+        SharedScoreboard.writeScores(players.map(\.score))
+        SharedScoreboard.writePlayerCount(players.count)
+    }
+
+    func adoptSharedScoresIfAvailable() {
+        let shared = SharedScoreboard.readScores()
+        guard shared.count == players.count else { return }
+        for i in players.indices { players[i].score = shared[i] }
     }
 
     private func snapshot() {
-        history.append(players.map { $0.score })
+        history.append(Snapshot(scores: players.map(\.score), xps: players.map(\.xp)))
         if history.count > 50 { history.removeFirst() }
     }
 
@@ -52,6 +71,7 @@ final class ScoreboardViewModel: ObservableObject {
         snapshot()
         players[idx].score += value
         Haptics.light()
+        pushShared()
     }
 
     func decrement(_ player: Player, by value: Int = 1) {
@@ -59,18 +79,43 @@ final class ScoreboardViewModel: ObservableObject {
         snapshot()
         players[idx].score = max(0, players[idx].score - value)
         Haptics.light()
+        pushShared()
+    }
+
+    func incrementXP(_ player: Player, by value: Int = 1) {
+        guard let idx = players.firstIndex(of: player) else { return }
+        snapshot()
+        players[idx].xp += value
+        Haptics.light()
+    }
+
+    func decrementXP(_ player: Player, by value: Int = 1) {
+        guard let idx = players.firstIndex(of: player) else { return }
+        snapshot()
+        players[idx].xp = max(0, players[idx].xp - value)
+        Haptics.light()
     }
 
     func resetScores() {
         snapshot()
-        for i in players.indices { players[i].score = 0 }
+        for i in players.indices {
+            players[i].score = 0
+            players[i].xp = 0
+        }
         Haptics.warning()
+        pushShared()
     }
 
     func undo() {
-        guard let last = history.popLast(), last.count == players.count else { return }
-        for i in players.indices { players[i].score = last[i] }
+        guard let last = history.popLast(),
+              last.scores.count == players.count,
+              last.xps.count == players.count else { return }
+        for i in players.indices {
+            players[i].score = last.scores[i]
+            players[i].xp = last.xps[i]
+        }
         Haptics.medium()
+        pushShared()
     }
 
     // MARK: - Farben

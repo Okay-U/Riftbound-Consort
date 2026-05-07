@@ -21,6 +21,11 @@ struct ScoreboardView: View {
     @State private var showQuickSettingsSheet = false
     @State private var showGameSetupSheet = false
     @State private var lastGameEnd: TimeInterval = 0
+    @State private var xpModeAll: Bool = false
+    @State private var perSlotXP: [Bool] = [false, false, false, false]
+    @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var liveActivityDebounce: Task<Void, Never>?
 
     private let outerVSpacing: CGFloat = 12
     private let gridSpacing: CGFloat = 12
@@ -82,6 +87,40 @@ struct ScoreboardView: View {
                 .environmentObject(decklistStore)
                 .environmentObject(cardStore)
         }
+        .onChange(of: gameTimer.isRunning, initial: false) { _, _ in
+            syncLiveActivity()
+        }
+        .onChange(of: vm.players.map(\.score), initial: false) { _, _ in
+            syncLiveActivity()
+        }
+        .onChange(of: targetScore, initial: true) { _, _ in
+            SharedScoreboard.writeTargetScore(targetScore)
+            syncLiveActivity()
+        }
+        .onChange(of: activeDeckId, initial: true) { _, _ in
+            SharedScoreboard.writeDeckNames(my: currentDeckName(), opp: currentOpponent())
+            syncLiveActivity()
+        }
+        .onChange(of: activeOpponent, initial: true) { _, _ in
+            SharedScoreboard.writeDeckNames(my: currentDeckName(), opp: currentOpponent())
+            syncLiveActivity()
+        }
+        .onChange(of: scenePhase, initial: false) { _, phase in
+            if phase == .active {
+                vm.adoptSharedScoresIfAvailable()
+                syncLiveActivity()
+            }
+        }
+        .onChange(of: liveActivityEnabled, initial: false) { _, _ in
+            syncLiveActivity()
+        }
+        .onChange(of: vm.playerCount, initial: false) { _, _ in
+            // Reset XP mode tracking when player count changes — stale per-slot
+            // entries from removed slots would otherwise drive future tile state.
+            perSlotXP = [false, false, false, false]
+            xpModeAll = false
+            syncLiveActivity()
+        }
     }
 
     private var activeDeckName: String {
@@ -113,10 +152,72 @@ struct ScoreboardView: View {
         gameRecordStore.record(record)
         lastGameEnd = now
         vm.resetScores()
+        GameActivityController.shared.end()
+    }
+
+    private func currentDeckName() -> String? {
+        activeDeck()?.name
+    }
+
+    private func currentOpponent() -> String? {
+        let s = activeOpponent.trimmingCharacters(in: .whitespaces)
+        return s.isEmpty ? nil : s
+    }
+
+    private func syncLiveActivity() {
+        liveActivityDebounce?.cancel()
+        liveActivityDebounce = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 80_000_000)
+            if Task.isCancelled { return }
+            performLiveActivitySync()
+        }
+    }
+
+    private func performLiveActivitySync() {
+        guard liveActivityEnabled, vm.playerCount == 2 else {
+            if GameActivityController.shared.isActive {
+                GameActivityController.shared.end()
+            }
+            return
+        }
+        let scores = vm.players.map(\.score)
+        let running = gameTimer.isRunning
+        let elapsed = gameTimer.elapsed
+        let effective: Date? = running ? Date().addingTimeInterval(-elapsed) : nil
+
+        if GameActivityController.shared.isActive {
+            GameActivityController.shared.update(
+                scores: scores,
+                effectiveStart: .some(effective),
+                pausedElapsed: elapsed,
+                myDeck: .some(currentDeckName()),
+                oppDeck: .some(currentOpponent())
+            )
+        } else if running {
+            GameActivityController.shared.start(
+                playerCount: vm.playerCount,
+                targetScore: targetScore,
+                scores: scores,
+                effectiveStart: effective,
+                pausedElapsed: elapsed,
+                myDeck: currentDeckName(),
+                oppDeck: currentOpponent()
+            )
+        }
     }
 
     private func visibleSlots() -> [Int] {
         vm.playerCount == 2 ? [0, 1] : [0, 1, 2, 3]
+    }
+
+    private func syncToggleFromTiles() {
+        let states = visibleSlots().map { perSlotXP[$0] }
+        if states.allSatisfy({ $0 }) {
+            xpModeAll = true
+        } else if states.allSatisfy({ !$0 }) {
+            xpModeAll = false
+        }
+        // mixed states: leave xpModeAll unchanged
     }
 
     private func tileFor(slot: Int, rotation: Double) -> some View {
@@ -129,7 +230,14 @@ struct ScoreboardView: View {
             onIncrement: { vm.increment(p) },
             onDecrement: { vm.decrement(p) },
             rotation: rotation,
-            color: fill
+            color: fill,
+            onXPIncrement: { vm.incrementXP(p) },
+            onXPDecrement: { vm.decrementXP(p) },
+            desiredXPMode: xpModeAll,
+            onModeChange: { isXP in
+                perSlotXP[slot] = isXP
+                syncToggleFromTiles()
+            }
         )
         .contextMenu {
             Button("Default") { vm.setColorIndex(-1, for: slot) }
@@ -152,11 +260,31 @@ struct ScoreboardView: View {
     }
 
     private var headerBar: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Scoreboard")
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-            TimerBadgeView()
-            deckPill
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Scoreboard")
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                TimerBadgeView()
+                deckPill
+            }
+            Spacer()
+            Button { xpModeAll.toggle() } label: {
+                Text("XP")
+                    .font(.subheadline.weight(.bold))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.bordered)
+            .tint(xpModeAll ? .yellow : nil)
+            .accessibilityLabel(xpModeAll ? "Switch all tiles to score" : "Switch all tiles to XP")
+
+            Button { vm.resetScores() } label: {
+                Image(systemName: "arrow.counterclockwise")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.red)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Reset scores")
         }
         .padding(.horizontal, 16)
     }

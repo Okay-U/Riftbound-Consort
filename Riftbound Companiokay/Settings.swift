@@ -6,12 +6,26 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import ActivityKit
+#endif
 
 struct Settings: View {
     @AppStorage("batterySaver") private var batterySaver: Bool = false
     @AppStorage("hapticsEnabled") private var hapticsEnabled: Bool = true
     @AppStorage("soundsEnabled") private var soundsEnabled: Bool = false
     @AppStorage("diceShakeToRoll") private var diceShakeToRoll: Bool = true
+    @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
+    @AppStorage("didOnboard") private var didOnboard: Bool = false
+
+    private var systemLiveActivitiesAuthorized: Bool {
+        #if os(iOS)
+        ActivityAuthorizationInfo().areActivitiesEnabled
+        #else
+        false
+        #endif
+    }
+    @State private var showOnboarding: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -26,18 +40,41 @@ struct Settings: View {
                     Toggle("Shake to roll dice", isOn: $diceShakeToRoll)
                 }
 
-                Section("Stats") {
-                    NavigationLink {
-                        GameHistoryView(scope: .all, title: "All Games")
+                Section {
+                    Toggle("Live Activity", isOn: $liveActivityEnabled)
+                    if liveActivityEnabled, !systemLiveActivitiesAuthorized {
+                        Label("Live Activities are disabled in iOS Settings. Enable them in Settings → Riftcount → Live Activities.",
+                              systemImage: "exclamationmark.triangle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
+                } header: {
+                    Text("Live Activity")
+                } footer: {
+                    Text("Shows scoreboard on Lock Screen and Dynamic Island while a 2-player game timer is running. Tap +/− on lock screen to update scores.")
+                }
+
+                Section("Help") {
+                    Button {
+                        showOnboarding = true
                     } label: {
-                        Label("Game history", systemImage: "clock.arrow.circlepath")
+                        Label("Show tour again", systemImage: "sparkles")
                     }
                 }
 
                 Section("About") {
                     NavigationLink("Report Bug") { BugReportView() }
                     NavigationLink("Wish a Feature") { FeatureRequestView() }
-                    NavigationLink("Roadmap") { RoadmapView() }
+                    ShareLink(
+                        item: URL(string: "https://apps.apple.com/de/app/riftcount-score-tracker/id6755601459")!,
+                        subject: Text("Riftcount: Score Tracker"),
+                        message: Text("Score tracker for Riftbound TCG. Check it out!")
+                    ) {
+                        Label("Share this app with your friends!", systemImage: "square.and.arrow.up")
+                    }
+                    Link(destination: URL(string: "https://apps.apple.com/de/app/riftcount-score-tracker/id6755601459?action=write-review")!) {
+                        Label("Leave a Rating", systemImage: "star.fill")
+                    }
                     NavigationLink("Buy me a coffee") { DonationView() }
                     NavigationLink("Acknowledgments") { AcknowledgmentsView() }
                 }
@@ -52,6 +89,9 @@ struct Settings: View {
                 }
             }
             .navigationTitle("Settings")
+            .fullScreenCover(isPresented: $showOnboarding) {
+                OnboardingView()
+            }
         }
     }
 }

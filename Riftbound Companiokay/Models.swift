@@ -11,4 +11,5 @@ struct Player: Identifiable, Hashable {
     let id = UUID()
     var name: String
     var score: Int
+    var xp: Int = 0
 }

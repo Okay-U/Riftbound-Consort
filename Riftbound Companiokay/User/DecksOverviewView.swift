@@ -9,6 +9,7 @@ import UIKit
 struct DecksOverviewView: View {
     @EnvironmentObject var store: DecklistStore
     @EnvironmentObject var cardStore: CardStore
+    @EnvironmentObject var recordStore: GameRecordStore
     @State private var showBuilder: Bool = false
     @State private var showImportAlert: Bool = false
     @State private var importMessage: String = ""
@@ -16,7 +17,10 @@ struct DecksOverviewView: View {
     var body: some View {
         Group {
             if store.lists.isEmpty {
-                emptyState
+                VStack(spacing: 0) {
+                    emptyState
+                    historyFooter
+                }
             } else {
                 List {
                     ForEach(store.lists) { deck in
@@ -31,6 +35,12 @@ struct DecksOverviewView: View {
                     }
                     .onDelete { offsets in
                         offsets.forEach { store.delete(store.lists[$0]) }
+                    }
+
+                    Section {
+                        historyRow
+                    } header: {
+                        Text("Game History")
                     }
                 }
                 .listStyle(.plain)
@@ -106,6 +116,59 @@ struct DecksOverviewView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
+    }
+
+    // MARK: - Game history
+
+    private var totalWins: Int { recordStore.records.count { $0.result == .won } }
+    private var totalLosses: Int { recordStore.records.count { $0.result == .lost } }
+    private var totalGames: Int { totalWins + totalLosses }
+    private var overallWinRate: Double {
+        totalGames == 0 ? 0 : Double(totalWins) / Double(totalGames)
+    }
+
+    private var historyRow: some View {
+        NavigationLink {
+            GameHistoryView(scope: .all, title: "All Games")
+        } label: {
+            HStack {
+                Image(systemName: "clock.arrow.circlepath")
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(totalGames == 0 ? "No games yet" : "\(totalGames) games")
+                        .font(.subheadline.weight(.semibold))
+                    if totalGames > 0 {
+                        Text("\(totalWins)W – \(totalLosses)L · \(Int(overallWinRate * 100))% winrate")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private var historyFooter: some View {
+        VStack(spacing: 8) {
+            Divider()
+            NavigationLink {
+                GameHistoryView(scope: .all, title: "All Games")
+            } label: {
+                HStack {
+                    Image(systemName: "clock.arrow.circlepath")
+                    Text(totalGames == 0 ? "Game history" : "\(totalGames) games · \(Int(overallWinRate * 100))%")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

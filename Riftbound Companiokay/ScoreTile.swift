@@ -14,6 +14,10 @@ struct ScoreTile: View {
     let onDecrement: () -> Void
     var rotation: Double = 0
     var color: Color? = nil
+    let onXPIncrement: () -> Void
+    let onXPDecrement: () -> Void
+    var desiredXPMode: Bool = false
+    var onModeChange: (Bool) -> Void = { _ in }
 
     // Settings
     @AppStorage("batterySaver")   private var batterySaver: Bool = false
@@ -30,6 +34,15 @@ struct ScoreTile: View {
     @State private var winBurstOpacity: CGFloat = 0
     @State private var winConfettiToken: UUID = UUID()
 
+    // Tile mode (score vs xp)
+    private enum TileMode { case score, xp }
+    private enum SwipeDir { case left, right }
+    @State private var mode: TileMode = .score
+    @State private var swipeDirection: SwipeDir = .left
+    @GestureState private var isDragging: Bool = false
+    @State private var dragOffset: CGFloat = 0
+    @State private var isFlipping: Bool = false
+
     // Constants
     private let gold = Color(red: 0.98, green: 0.86, blue: 0.35)
     private let flashDuration: TimeInterval = 0.16
@@ -37,6 +50,9 @@ struct ScoreTile: View {
     private let corner: CGFloat = 22
     private let outsideThicknessFlash: CGFloat = 14
     private let outsideThicknessWin: CGFloat = 16
+    private let swipeMinDistance: CGFloat = 18
+    private let swipeThreshold: CGFloat = 55
+    private let flipDuration: TimeInterval = 0.50
     
     // Win-Logik
     private var maxScore: Int {
@@ -46,128 +62,278 @@ struct ScoreTile: View {
         max(maxScore - 1, 0)
     }
 
-    var body: some View {
+    private var tileShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: corner, style: .continuous)
+    }
+
+    @ViewBuilder
+    private func bgFill(for tileMode: TileMode) -> some View {
+        // Score mode honors per-slot color; XP mode always uses default thinMaterial.
+        // Use Rectangle so leading/trailing edges stay sharp during slide; outer
+        // clipShape(tileShape) handles rounded tile corners.
+        if tileMode == .score, let color {
+            Rectangle().fill(color)
+        } else {
+            Rectangle().fill(.thinMaterial)
+        }
+    }
+
+    @ViewBuilder
+    private func face(for tileMode: TileMode) -> some View {
         ZStack {
-            let shape = RoundedRectangle(cornerRadius: corner, style: .continuous)
+            bgFill(for: tileMode)
+            centerContentView(for: tileMode)
+        }
+    }
 
-            shape
-                .stroke(Color.black.opacity(0.08), lineWidth: color == nil ? 1 : 0)
-                .background {
-                    if let color {
-                        shape.fill(color)
-                    } else {
-                        shape.fill(.thinMaterial)
-                    }
-                }
-                // Particles when 1P before win
-                .overlay(alignment: .center) {
-                    if player.score == sparkScore && !batterySaver {
-                        ParticleOverlay(
-                            isActive: true,
-                            corner: corner,
-                            particleColor: gold
-                        )
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                    }
-                }
-                // Win confetti
-                .overlay(alignment: .center) {
-                    ZStack {
-                        if showWinBurst {
-                            WinBurstOutside(
-                                color: gold,
-                                opacity: winBurstOpacity,
-                                corner: corner,
-                                thickness: outsideThicknessWin
-                            )
-                            .allowsHitTesting(false)
-                            .accessibilityHidden(true)
-                        }
-                        if didCelebrate {
-                            WinConfettiOverlay(token: winConfettiToken, corner: corner)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                }
+    private func positionFor(_ tileMode: TileMode, width: CGFloat) -> CGFloat {
+        if mode == tileMode { return dragOffset }
+        // Non-current face sits offscreen on the side based on last swipe direction.
+        // During animation, dragOffset interpolates and so does this offset.
+        return swipeDirection == .right ? dragOffset - width : dragOffset + width
+    }
 
-            // Light when press
-            if let flashColor {
-                EdgeFlashOutside(
-                    color: flashColor,
-                    opacity: flashOpacity,
-                    corner: corner,
-                    thickness: outsideThicknessFlash
-                )
+    @ViewBuilder
+    private var particleOverlay: some View {
+        if player.score == sparkScore && !batterySaver && mode == .score {
+            ParticleOverlay(isActive: true, corner: corner, particleColor: gold)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
-            }
+        }
+    }
 
+    @ViewBuilder
+    private func centerContentView(for tileMode: TileMode) -> some View {
+        if tileMode == .score {
             Text("\(player.score)")
                 .font(.system(size: 88, weight: .black, design: .rounded))
                 .monospacedDigit()
                 .minimumScaleFactor(0.4)
                 .foregroundStyle(.primary)
                 .shadow(radius: 0.5)
+        } else {
+            ZStack {
+                Text("\(player.xp)")
+                    .font(.system(size: 88, weight: .black, design: .rounded))
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.4)
+                    .foregroundStyle(.primary)
+                    .shadow(radius: 0.5)
+
+                VStack {
+                    HStack {
+                        Text("XP")
+                            .font(.system(size: 13, weight: .heavy, design: .rounded))
+                            .tracking(2)
+                            .foregroundStyle(gold.opacity(0.85))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(Color.black.opacity(0.25)))
+                            .padding(.leading, 14)
+                            .padding(.top, 14)
+                        Spacer()
+                    }
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    private func makeSwipeGesture(width: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: swipeMinDistance)
+            .updating($isDragging) { v, state, _ in
+                if abs(v.translation.width) > abs(v.translation.height) {
+                    state = true
+                }
+            }
+            .onEnded { v in
+                // Gesture reports translation in screen coords; offset applies in
+                // pre-rotation tile-local coords. Invert sign for 180° rotated tiles
+                // so animation matches user's perceived swipe direction.
+                let rawDx = v.translation.width
+                let dy = v.translation.height
+                let dx: CGFloat = (rotation == 180) ? -rawDx : rawDx
+                let shouldFlip = abs(dx) > swipeThreshold && abs(dx) > abs(dy)
+                guard shouldFlip else { return }
+                let target: TileMode = (mode == .score) ? .xp : .score
+                let direction: SwipeDir = dx > 0 ? .right : .left
+                performFlip(to: target, direction: direction, width: width)
+            }
+    }
+
+    private func performFlip(to target: TileMode, direction: SwipeDir, width: CGFloat) {
+        // Guard against re-entry: a second flip during an in-flight animation
+        // would corrupt swipeDirection / dragOffset and the completion would
+        // fire against stale state.
+        guard !isFlipping, mode != target else { return }
+        isFlipping = true
+        // Set incoming side BEFORE withAnimation so positionFor's switch happens
+        // synchronously. Then dragOffset animates smoothly 0 → exitTarget.
+        swipeDirection = direction
+        let exitTarget: CGFloat = direction == .right ? width : -width
+        Haptics.selection()
+        withAnimation(.easeInOut(duration: flipDuration)) {
+            dragOffset = exitTarget
+        } completion: {
+            var t = Transaction()
+            t.disablesAnimations = true
+            withTransaction(t) {
+                mode = target
+                dragOffset = 0
+            }
+            isFlipping = false
+            // Defer parent state mutation out of animation commit phase to avoid
+            // "Publishing changes from within view updates" warnings.
+            DispatchQueue.main.async {
+                onModeChange(target == .xp)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var winOverlay: some View {
+        ZStack {
+            if showWinBurst {
+                WinBurstOutside(color: gold,
+                                opacity: winBurstOpacity,
+                                corner: corner,
+                                thickness: outsideThicknessWin)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+            if didCelebrate {
+                WinConfettiOverlay(token: winConfettiToken, corner: corner)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var pressFlashOverlay: some View {
+        if let flashColor {
+            EdgeFlashOutside(color: flashColor,
+                             opacity: flashOpacity,
+                             corner: corner,
+                             thickness: outsideThicknessFlash)
                 .allowsHitTesting(false)
-
-            VStack(spacing: 0) {
-                Button { plusTapped() } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .opacity(0.28)
-                        .padding(.top, 8)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(HalfTilePressStyle())
-
-                Divider().opacity(0.14)
-
-                Button { minusTapped() } label: {
-                    Image(systemName: "minus")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .opacity(0.28)
-                        .padding(.bottom, 8)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(HalfTilePressStyle())
-            }
-            .clipShape(shape)
+                .accessibilityHidden(true)
         }
-        .rotationEffect(.degrees(rotation))
-        .onChange(of: player.score) { _, newScore in
-            if newScore == maxScore && !didCelebrate {
-                celebrateWin()
+    }
+
+    @ViewBuilder
+    private var halfButtons: some View {
+        VStack(spacing: 0) {
+            Button { plusTapped() } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .opacity(0.28)
+                    .padding(.top, 8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
             }
-            if newScore < maxScore {
-                didCelebrate = false
+            .buttonStyle(HalfTilePressStyle())
+
+            Divider().opacity(0.14)
+
+            Button { minusTapped() } label: {
+                Image(systemName: "minus")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .opacity(0.28)
+                    .padding(.bottom, 8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(HalfTilePressStyle())
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Score \(player.score)")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityHint("Oben tippen für Plus, unten für Minus.")
+        .clipShape(tileShape)
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            ZStack {
+                // Sliding faces (color + center content), clipped to tile bounds.
+                // Score face always on top via zIndex (it's the opaque one when colored).
+                // Translucent xp face stays behind → no blend fade either direction.
+                ZStack {
+                    face(for: .xp)
+                        .offset(x: positionFor(.xp, width: w))
+                        .zIndex(0)
+                    face(for: .score)
+                        .offset(x: positionFor(.score, width: w))
+                        .zIndex(1)
+                }
+                .clipShape(tileShape)
+
+                // Stroke on top, never clipped.
+                tileShape
+                    .stroke(Color.white.opacity(0.35), lineWidth: 1.5)
+                    .allowsHitTesting(false)
+
+                // Outside-tile effects (extend beyond bounds).
+                pressFlashOverlay
+                winOverlay
+
+                // Particle sparks at sparkScore (score mode only — handled inside).
+                particleOverlay
+
+                // Interactive +/- buttons. Disabled while dragging.
+                halfButtons
+                    .allowsHitTesting(!isDragging)
+            }
+            .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+            .contentShape(Rectangle())
+            .rotationEffect(.degrees(rotation))
+            .highPriorityGesture(makeSwipeGesture(width: w))
+            .onChange(of: player.score) { _, newScore in
+                if newScore == maxScore && !didCelebrate {
+                    celebrateWin()
+                }
+                if newScore < maxScore {
+                    didCelebrate = false
+                }
+            }
+            .onChange(of: desiredXPMode) { _, newValue in
+                let target: TileMode = newValue ? .xp : .score
+                guard mode != target, !isFlipping else { return }
+                // Toggle on (→ xp) slides incoming from left; toggle off (→ score) from right.
+                let direction: SwipeDir = newValue ? .left : .right
+                performFlip(to: target, direction: direction, width: w)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(mode == .score ? "Score \(player.score)" : "XP \(player.xp)")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Tap top for plus, bottom for minus. Swipe to switch XP mode.")
+        }
     }
 
     // MARK: - Score stuff
 
     private func plusTapped() {
-        if player.score >= maxScore {
-            Haptics.light(0.5)
-            return
+        if mode == .score {
+            if player.score >= maxScore {
+                Haptics.light(0.5)
+                return
+            }
+            triggerEdgeFlash(.green, reduced: batterySaver)
+            Haptics.light()
+            onIncrement()
+        } else {
+            triggerEdgeFlash(.green, reduced: batterySaver)
+            Haptics.light()
+            onXPIncrement()
         }
-        triggerEdgeFlash(.green, reduced: batterySaver)
-        Haptics.light()
-        onIncrement()
     }
 
     private func minusTapped() {
         triggerEdgeFlash(.red, reduced: batterySaver)
         Haptics.rigid(0.7)
-        onDecrement()
+        if mode == .score {
+            onDecrement()
+        } else {
+            onXPDecrement()
+        }
     }
 
     private func triggerEdgeFlash(_ color: Color, reduced: Bool) {

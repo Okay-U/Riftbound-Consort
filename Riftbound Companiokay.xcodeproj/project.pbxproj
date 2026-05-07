@@ -6,19 +6,92 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		434038C12FA6492D00C3FC91 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 434038C02FA6492D00C3FC91 /* WidgetKit.framework */; };
+		434038C32FA6492D00C3FC91 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 434038C22FA6492D00C3FC91 /* SwiftUI.framework */; };
+		434038D42FA6492E00C3FC91 /* RiftboundWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 434038BE2FA6492D00C3FC91 /* RiftboundWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		434038D22FA6492E00C3FC91 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4343564B2EB77412008F0B0B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 434038BD2FA6492D00C3FC91;
+			remoteInfo = RiftboundWidgetsExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		434038D92FA6492E00C3FC91 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				434038D42FA6492E00C3FC91 /* RiftboundWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		434038BE2FA6492D00C3FC91 /* RiftboundWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RiftboundWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		434038C02FA6492D00C3FC91 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		434038C22FA6492D00C3FC91 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		434038E32FA6501400C3FC91 /* RiftboundWidgetsExtensionRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RiftboundWidgetsExtensionRelease.entitlements; sourceTree = "<group>"; };
 		434356532EB77412008F0B0B /* Riftbound Companiokay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Riftbound Companiokay.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		434038D52FA6492E00C3FC91 /* Exceptions for "RiftboundWidgets" folder in "RiftboundWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 434038BD2FA6492D00C3FC91 /* RiftboundWidgetsExtension */;
+		};
+		434038DF2FA64B5E00C3FC91 /* Exceptions for "Riftbound Companiokay" folder in "RiftboundWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppGroup.swift,
+				GameActivityAttributes.swift,
+				ScoreIntent.swift,
+			);
+			target = 434038BD2FA6492D00C3FC91 /* RiftboundWidgetsExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		434038C42FA6492D00C3FC91 /* RiftboundWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				434038D52FA6492E00C3FC91 /* Exceptions for "RiftboundWidgets" folder in "RiftboundWidgetsExtension" target */,
+			);
+			path = RiftboundWidgets;
+			sourceTree = "<group>";
+		};
 		434356552EB77412008F0B0B /* Riftbound Companiokay */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				434038DF2FA64B5E00C3FC91 /* Exceptions for "Riftbound Companiokay" folder in "RiftboundWidgetsExtension" target */,
+			);
 			path = "Riftbound Companiokay";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		434038BB2FA6492D00C3FC91 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				434038C32FA6492D00C3FC91 /* SwiftUI.framework in Frameworks */,
+				434038C12FA6492D00C3FC91 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		434356502EB77412008F0B0B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -29,10 +102,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		434038BF2FA6492D00C3FC91 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				434038C02FA6492D00C3FC91 /* WidgetKit.framework */,
+				434038C22FA6492D00C3FC91 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		4343564A2EB77412008F0B0B = {
 			isa = PBXGroup;
 			children = (
+				434038E32FA6501400C3FC91 /* RiftboundWidgetsExtensionRelease.entitlements */,
 				434356552EB77412008F0B0B /* Riftbound Companiokay */,
+				434038C42FA6492D00C3FC91 /* RiftboundWidgets */,
+				434038BF2FA6492D00C3FC91 /* Frameworks */,
 				434356542EB77412008F0B0B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +126,7 @@
 			isa = PBXGroup;
 			children = (
 				434356532EB77412008F0B0B /* Riftbound Companiokay.app */,
+				434038BE2FA6492D00C3FC91 /* RiftboundWidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +134,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		434038BD2FA6492D00C3FC91 /* RiftboundWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 434038D62FA6492E00C3FC91 /* Build configuration list for PBXNativeTarget "RiftboundWidgetsExtension" */;
+			buildPhases = (
+				434038BA2FA6492D00C3FC91 /* Sources */,
+				434038BB2FA6492D00C3FC91 /* Frameworks */,
+				434038BC2FA6492D00C3FC91 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				434038C42FA6492D00C3FC91 /* RiftboundWidgets */,
+			);
+			name = RiftboundWidgetsExtension;
+			packageProductDependencies = (
+			);
+			productName = RiftboundWidgetsExtension;
+			productReference = 434038BE2FA6492D00C3FC91 /* RiftboundWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		434356522EB77412008F0B0B /* Riftbound Companiokay */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 4343565E2EB77413008F0B0B /* Build configuration list for PBXNativeTarget "Riftbound Companiokay" */;
@@ -55,10 +163,12 @@
 				4343564F2EB77412008F0B0B /* Sources */,
 				434356502EB77412008F0B0B /* Frameworks */,
 				434356512EB77412008F0B0B /* Resources */,
+				434038D92FA6492E00C3FC91 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				434038D32FA6492E00C3FC91 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				434356552EB77412008F0B0B /* Riftbound Companiokay */,
@@ -77,9 +187,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2600;
+				LastSwiftUpdateCheck = 2610;
+				LastUpgradeCheck = 2610;
 				TargetAttributes = {
+					434038BD2FA6492D00C3FC91 = {
+						CreatedOnToolsVersion = 26.1.1;
+					};
 					434356522EB77412008F0B0B = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
@@ -100,11 +213,19 @@
 			projectRoot = "";
 			targets = (
 				434356522EB77412008F0B0B /* Riftbound Companiokay */,
+				434038BD2FA6492D00C3FC91 /* RiftboundWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		434038BC2FA6492D00C3FC91 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		434356512EB77412008F0B0B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -115,6 +236,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		434038BA2FA6492D00C3FC91 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		4343564F2EB77412008F0B0B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,7 +252,79 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		434038D32FA6492E00C3FC91 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 434038BD2FA6492D00C3FC91 /* RiftboundWidgetsExtension */;
+			targetProxy = 434038D22FA6492E00C3FC91 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		434038D72FA6492E00C3FC91 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = Q24SAC5FD2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RiftboundWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RiftboundWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.3;
+				PRODUCT_BUNDLE_IDENTIFIER = pitopia.Riftcount.RiftboundWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		434038D82FA6492E00C3FC91 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = RiftboundWidgetsExtensionRelease.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = Q24SAC5FD2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RiftboundWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RiftboundWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.3;
+				PRODUCT_BUNDLE_IDENTIFIER = pitopia.Riftcount.RiftboundWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		4343565C2EB77413008F0B0B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -184,6 +384,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -241,6 +442,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -252,12 +454,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = Q24SAC5FD2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Riftbound-Companiokay-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Score Tracker";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.card-games";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -268,7 +472,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 2.3;
 				PRODUCT_BUNDLE_IDENTIFIER = pitopia.Riftcount;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -286,14 +490,17 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Riftbound Companiokay/Riftbound CompaniokayRelease.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = Q24SAC5FD2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Riftbound-Companiokay-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Score Tracker";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.card-games";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -304,7 +511,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 2.3;
 				PRODUCT_BUNDLE_IDENTIFIER = pitopia.Riftcount;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -321,6 +528,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		434038D62FA6492E00C3FC91 /* Build configuration list for PBXNativeTarget "RiftboundWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				434038D72FA6492E00C3FC91 /* Debug */,
+				434038D82FA6492E00C3FC91 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		4343564E2EB77412008F0B0B /* Build configuration list for PBXProject "Riftbound Companiokay" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

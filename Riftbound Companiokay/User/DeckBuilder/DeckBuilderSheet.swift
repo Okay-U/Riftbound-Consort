@@ -12,11 +12,21 @@ struct DeckBuilderSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var step: DeckBuilderState.Step = .legend
+    @AppStorage("didSeeBuilderTip") private var didSeeBuilderTip: Bool = false
+    @State private var showBuilderTip: Bool = false
 
     var body: some View {
         NavigationStack {
             ZStack {
                 pageForCurrentStep
+
+                if showBuilderTip {
+                    BuilderTipOverlay {
+                        withAnimation { showBuilderTip = false }
+                        didSeeBuilderTip = true
+                    }
+                    .zIndex(10)
+                }
             }
             .navigationTitle(step.title)
             .navigationBarTitleDisplayMode(.inline)
@@ -29,7 +39,12 @@ struct DeckBuilderSheet: View {
                         .disabled(!canAdvance)
                 }
             }
-            .onAppear { cardStore.loadIfNeeded() }
+            .onAppear {
+                cardStore.loadIfNeeded()
+                if !didSeeBuilderTip {
+                    withAnimation { showBuilderTip = true }
+                }
+            }
         }
         .interactiveDismissDisabled(true)
     }

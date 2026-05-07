@@ -11,6 +11,7 @@ import SwiftUI
 struct Riftbound_CompaniokayApp: App {
     @AppStorage("keepScreenOn") private var keepScreenOn: Bool = true
     @AppStorage("trueBlack")    private var trueBlack: Bool = true
+    @AppStorage("didOnboard")   private var didOnboard: Bool = false
     @StateObject private var idleMgr = IdleTimerManager()
     @StateObject private var scoreboard = ScoreboardViewModel()
     @StateObject private var gameTimer = GameTimer()
@@ -29,6 +30,12 @@ struct Riftbound_CompaniokayApp: App {
                 .environmentObject(gameRecordStore)
                 .preferredColorScheme(.dark)
                 .background(trueBlack ? Color.black : Color(.systemBackground))
+                .fullScreenCover(isPresented: Binding(
+                    get: { !didOnboard },
+                    set: { newValue in if !newValue { didOnboard = true } }
+                )) {
+                    OnboardingView()
+                }
                 .onAppear {
                     idleMgr.isDisabled = keepScreenOn
                 }
@@ -65,7 +72,7 @@ struct RootTabView: View {
                 .tag(TabKey.cards)
 
             UserTabView()
-                .tabItem { Label("User", systemImage: "person.crop.rectangle.stack") }
+                .tabItem { Label("Decks", systemImage: "square.stack.3d.up.fill") }
                 .tag(TabKey.user)
 
             Settings()
