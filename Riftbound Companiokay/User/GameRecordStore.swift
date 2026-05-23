@@ -25,12 +25,27 @@ final class GameRecordStore: ObservableObject {
 
     func record(_ game: GameRecord) {
         records.append(game)
+        sortRecords()
         save()
     }
 
     func delete(_ game: GameRecord) {
         records.removeAll { $0.id == game.id }
         save()
+    }
+
+    func update(_ game: GameRecord) {
+        guard let idx = records.firstIndex(where: { $0.id == game.id }) else {
+            logger.warning("update: record \(game.id) not found")
+            return
+        }
+        records[idx] = game
+        sortRecords()
+        save()
+    }
+
+    private func sortRecords() {
+        records.sort { $0.date > $1.date }
     }
 
     // MARK: - Queries
@@ -64,6 +79,7 @@ final class GameRecordStore: ObservableObject {
         do {
             let data = try Data(contentsOf: fileURL)
             records = try JSONDecoder().decode([GameRecord].self, from: data)
+            sortRecords()
         } catch {
             logger.error("GameRecordStore load failed: \(error.localizedDescription)")
         }

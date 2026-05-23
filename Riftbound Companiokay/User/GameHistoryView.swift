@@ -14,21 +14,27 @@ struct GameHistoryView: View {
     let scope: GameHistoryScope
     let title: String
     @EnvironmentObject var store: GameRecordStore
+    @State private var editing: GameRecord?
 
     private var records: [GameRecord] {
-        let base: [GameRecord]
         switch scope {
-        case .all:              base = store.records
-        case .deck(let id):     base = store.records(for: id)
+        case .all:              return store.records
+        case .deck(let id):     return store.records(for: id)
         }
-        return base.sorted { $0.date > $1.date }
     }
 
     private var summary: (wins: Int, losses: Int, avgSeconds: Int) {
-        let wins = records.count(where: { $0.result == .won })
-        let losses = records.count(where: { $0.result == .lost })
-        let total = records.count
-        let sum = records.reduce(0) { $0 + $1.durationSeconds }
+        var wins = 0
+        var losses = 0
+        var sum = 0
+        for r in records {
+            switch r.result {
+            case .won:  wins += 1
+            case .lost: losses += 1
+            }
+            sum += r.durationSeconds
+        }
+        let total = wins + losses
         let avg = total == 0 ? 0 : sum / total
         return (wins, losses, avg)
     }
@@ -40,6 +46,9 @@ struct GameHistoryView: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editing) { record in
+            GameRecordEditSheet(record: record)
+        }
     }
 
     private var summarySection: some View {
@@ -78,9 +87,19 @@ struct GameHistoryView: View {
             Section("Games") {
                 ForEach(records) { record in
                     GameHistoryRow(record: record)
-                }
-                .onDelete { offsets in
-                    offsets.forEach { store.delete(records[$0]) }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                store.delete(record)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            Button {
+                                editing = record
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(.blue)
+                        }
                 }
             }
         }

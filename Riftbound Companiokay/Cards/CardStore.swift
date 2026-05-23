@@ -9,6 +9,7 @@ internal import Combine
 @MainActor
 final class CardStore: ObservableObject {
     @Published private(set) var allCards: [Card] = []
+    @Published private(set) var legendNames: [String] = []
     @Published private(set) var isLoading = false
     @Published private(set) var loadError: String? = nil
 
@@ -19,6 +20,18 @@ final class CardStore: ObservableObject {
 
     private let repo = RiftcodexCardRepository()
     private var loadTask: Task<Void, Never>?
+
+    private static func computeLegendNames(from cards: [Card]) -> [String] {
+        var names: Set<String> = []
+        for card in cards {
+            let type = card.classification?.type?.lowercased()
+            let rarity = card.classification?.rarity?.lowercased()
+            if type == "legend" && rarity == "rare" {
+                names.insert(card.name)
+            }
+        }
+        return names.sorted()
+    }
 
     func loadIfNeeded() {
         guard allCards.isEmpty, !isLoading else { return }
@@ -41,6 +54,7 @@ final class CardStore: ObservableObject {
                     page += 1
                 }
                 allCards = accumulated
+                legendNames = Self.computeLegendNames(from: accumulated)
             } catch is CancellationError {
                 // ignored
             } catch {

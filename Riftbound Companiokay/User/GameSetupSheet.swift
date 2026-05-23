@@ -12,17 +12,7 @@ struct GameSetupSheet: View {
     @AppStorage("activeOpponent") private var activeOpponent: String = ""
     @Environment(\.dismiss) private var dismiss
 
-    private var legendNames: [String] {
-        var names: Set<String> = []
-        for card in cardStore.allCards {
-            let type = card.classification?.type?.lowercased()
-            let rarity = card.classification?.rarity?.lowercased()
-            if type == "legend" && rarity == "rare" {
-                names.insert(card.name)
-            }
-        }
-        return names.sorted()
-    }
+    private var legendNames: [String] { cardStore.legendNames }
 
     var body: some View {
         NavigationStack {
