@@ -14,11 +14,19 @@ struct GameRecordEditSheet: View {
 
     @State private var deckId: String
     @State private var opponent: String
+    @State private var startedFirst: String
 
     init(record: GameRecord) {
         self.record = record
         _deckId = State(initialValue: record.deckId?.uuidString ?? "")
         _opponent = State(initialValue: record.opponent)
+        let startVal: String
+        switch record.startedFirst {
+        case .some(true):  startVal = "first"
+        case .some(false): startVal = "second"
+        case .none:        startVal = ""
+        }
+        _startedFirst = State(initialValue: startVal)
     }
 
     private var legendNames: [String] { cardStore.legendNames }
@@ -62,6 +70,15 @@ struct GameRecordEditSheet: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+
+                Section("Turn Order") {
+                    Picker("Going", selection: $startedFirst) {
+                        Text("Unknown").tag("")
+                        Text("First").tag("first")
+                        Text("Second").tag("second")
+                    }
+                    .pickerStyle(.segmented)
+                }
             }
             .navigationTitle("Edit Game")
             .navigationBarTitleDisplayMode(.inline)
@@ -84,9 +101,13 @@ struct GameRecordEditSheet: View {
     private func save() {
         let newDeckUUID = UUID(uuidString: deckId)
         let newDeckName = decklistStore.lists.first { $0.id.uuidString == deckId }?.name
+        let newStarted: Bool? = startedFirst == "first" ? true
+            : startedFirst == "second" ? false
+            : nil
         let unchanged = newDeckUUID == record.deckId
             && newDeckName == record.deckName
             && opponent == record.opponent
+            && newStarted == record.startedFirst
         guard !unchanged else { return }
         let updated = GameRecord(
             id: record.id,
@@ -95,7 +116,9 @@ struct GameRecordEditSheet: View {
             deckName: newDeckName,
             opponent: opponent,
             result: record.result,
-            durationSeconds: record.durationSeconds
+            durationSeconds: record.durationSeconds,
+            events: record.events,
+            startedFirst: newStarted
         )
         store.update(updated)
     }

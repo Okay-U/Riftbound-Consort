@@ -10,7 +10,8 @@ internal import Combine
 
 struct ScoreTile: View {
     let player: Player
-    let onIncrement: () -> Void
+    let onConquer: () -> Void
+    let onHold: () -> Void
     let onDecrement: () -> Void
     var rotation: Double = 0
     var color: Color? = nil
@@ -22,17 +23,10 @@ struct ScoreTile: View {
     // Settings
     @AppStorage("batterySaver")   private var batterySaver: Bool = false
     @AppStorage("soundsEnabled")  private var soundsEnabled: Bool = false
-    @AppStorage("targetScore")    private var targetScore: Int = 8
 
     // Visual feedback
     @State private var flashColor: Color? = nil
     @State private var flashOpacity: CGFloat = 0
-
-    // Win cons
-    @State private var didCelebrate: Bool = false
-    @State private var showWinBurst: Bool = false
-    @State private var winBurstOpacity: CGFloat = 0
-    @State private var winConfettiToken: UUID = UUID()
 
     // Tile mode (score vs xp)
     private enum TileMode { case score, xp }
@@ -49,19 +43,10 @@ struct ScoreTile: View {
     private let flashFade: TimeInterval = 0.22
     private let corner: CGFloat = 22
     private let outsideThicknessFlash: CGFloat = 14
-    private let outsideThicknessWin: CGFloat = 16
     private let swipeMinDistance: CGFloat = 18
     private let swipeThreshold: CGFloat = 55
     private let flipDuration: TimeInterval = 0.50
     
-    // Win-Logik
-    private var maxScore: Int {
-        max(targetScore, 8)
-    }
-    private var sparkScore: Int {
-        max(maxScore - 1, 0)
-    }
-
     private var tileShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: corner, style: .continuous)
     }
@@ -91,15 +76,6 @@ struct ScoreTile: View {
         // Non-current face sits offscreen on the side based on last swipe direction.
         // During animation, dragOffset interpolates and so does this offset.
         return swipeDirection == .right ? dragOffset - width : dragOffset + width
-    }
-
-    @ViewBuilder
-    private var particleOverlay: some View {
-        if player.score == sparkScore && !batterySaver && mode == .score {
-            ParticleOverlay(isActive: true, corner: corner, particleColor: gold)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
     }
 
     @ViewBuilder
@@ -191,25 +167,6 @@ struct ScoreTile: View {
     }
 
     @ViewBuilder
-    private var winOverlay: some View {
-        ZStack {
-            if showWinBurst {
-                WinBurstOutside(color: gold,
-                                opacity: winBurstOpacity,
-                                corner: corner,
-                                thickness: outsideThicknessWin)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-            if didCelebrate {
-                WinConfettiOverlay(token: winConfettiToken, corner: corner)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-        }
-    }
-
-    @ViewBuilder
     private var pressFlashOverlay: some View {
         if let flashColor {
             EdgeFlashOutside(color: flashColor,
@@ -221,28 +178,84 @@ struct ScoreTile: View {
         }
     }
 
+    private func iconAccent(for tileMode: TileMode) -> Color {
+        if tileMode == .xp { return gold.opacity(0.85) }
+        return isDarkTileColor
+            ? Color(white: 0.95).opacity(0.85)
+            : Color(white: 0.10).opacity(0.75)
+    }
+
+    private var isDarkTileColor: Bool {
+        guard let color else { return true }
+        let ui = UIColor(color)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
+        let luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        return luminance < 0.55
+    }
+
     @ViewBuilder
-    private var halfButtons: some View {
-        VStack(spacing: 0) {
+    private func actionIcon(_ name: String, size: CGFloat = 26, for tileMode: TileMode) -> some View {
+        Image(systemName: name)
+            .font(.system(size: size, weight: .semibold, design: .rounded))
+            .foregroundStyle(iconAccent(for: tileMode))
+    }
+
+    @ViewBuilder
+    private func regionTint(from corner: UnitPoint) -> some View {
+        LinearGradient(
+            colors: [Color.white.opacity(0.12), Color.black.opacity(0.08)],
+            startPoint: corner,
+            endPoint: UnitPoint(x: 1 - corner.x, y: 1 - corner.y)
+        )
+        .blendMode(.overlay)
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private func topHalf(for tileMode: TileMode) -> some View {
+        if tileMode == .score {
+            HStack(spacing: 0) {
+                Button { conquerTapped() } label: {
+                    actionIcon("c.circle.fill", size: 34, for: tileMode)
+                        .padding(.top, 8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
+                        .background(regionTint(from: .topLeading))
+                }
+                .buttonStyle(HalfTilePressStyle())
+
+                Button { holdTapped() } label: {
+                    actionIcon("h.circle.fill", size: 34, for: tileMode)
+                        .padding(.top, 8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
+                        .background(regionTint(from: .topTrailing))
+                }
+                .buttonStyle(HalfTilePressStyle())
+            }
+        } else {
             Button { plusTapped() } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .opacity(0.28)
+                actionIcon("plus.circle.fill", size: 30, for: tileMode)
                     .padding(.top, 8)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
             }
             .buttonStyle(HalfTilePressStyle())
+        }
+    }
 
-            Divider().opacity(0.14)
+    @ViewBuilder
+    private func halfButtons(for tileMode: TileMode) -> some View {
+        VStack(spacing: 0) {
+            topHalf(for: tileMode)
 
             Button { minusTapped() } label: {
-                Image(systemName: "minus")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .opacity(0.28)
-                    .padding(.bottom, 8)
+                actionIcon("minus.circle.fill", size: 30, for: tileMode)
+                    .padding(.top, 20)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
+                    .background(regionTint(from: .bottom))
             }
             .buttonStyle(HalfTilePressStyle())
         }
@@ -273,27 +286,25 @@ struct ScoreTile: View {
 
                 // Outside-tile effects (extend beyond bounds).
                 pressFlashOverlay
-                winOverlay
 
-                // Particle sparks at sparkScore (score mode only — handled inside).
-                particleOverlay
-
-                // Interactive +/- buttons. Disabled while dragging.
-                halfButtons
-                    .allowsHitTesting(!isDragging)
+                // Interactive +/- buttons — slide with their face so icons
+                // don't pop on mode change. Only active mode receives taps.
+                ZStack {
+                    halfButtons(for: .xp)
+                        .offset(x: positionFor(.xp, width: w))
+                        .allowsHitTesting(mode == .xp && !isDragging)
+                        .zIndex(0)
+                    halfButtons(for: .score)
+                        .offset(x: positionFor(.score, width: w))
+                        .allowsHitTesting(mode == .score && !isDragging)
+                        .zIndex(1)
+                }
+                .clipShape(tileShape)
             }
             .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
             .contentShape(Rectangle())
             .rotationEffect(.degrees(rotation))
             .highPriorityGesture(makeSwipeGesture(width: w))
-            .onChange(of: player.score) { _, newScore in
-                if newScore == maxScore && !didCelebrate {
-                    celebrateWin()
-                }
-                if newScore < maxScore {
-                    didCelebrate = false
-                }
-            }
             .onChange(of: desiredXPMode) { _, newValue in
                 let target: TileMode = newValue ? .xp : .score
                 guard mode != target, !isFlipping else { return }
@@ -311,19 +322,24 @@ struct ScoreTile: View {
     // MARK: - Score stuff
 
     private func plusTapped() {
-        if mode == .score {
-            if player.score >= maxScore {
-                Haptics.light(0.5)
-                return
-            }
-            triggerEdgeFlash(.green, reduced: batterySaver)
-            Haptics.light()
-            onIncrement()
-        } else {
-            triggerEdgeFlash(.green, reduced: batterySaver)
-            Haptics.light()
-            onXPIncrement()
-        }
+        // Reached only in XP mode (score mode uses conquer/hold buttons).
+        triggerEdgeFlash(.green, reduced: batterySaver)
+        Haptics.light()
+        onXPIncrement()
+    }
+
+    private func conquerTapped() {
+        guard mode == .score else { return }
+        triggerEdgeFlash(.green, reduced: batterySaver)
+        Haptics.light()
+        onConquer()
+    }
+
+    private func holdTapped() {
+        guard mode == .score else { return }
+        triggerEdgeFlash(.green, reduced: batterySaver)
+        Haptics.light()
+        onHold()
     }
 
     private func minusTapped() {
@@ -356,28 +372,6 @@ struct ScoreTile: View {
         }
     }
 
-    // MARK: - Win
-
-    private func celebrateWin() {
-        didCelebrate = true
-        winConfettiToken = UUID()
-
-        Haptics.success()
-
-        showWinBurst = true
-        winBurstOpacity = 0.0
-        withAnimation(.easeOut(duration: 0.15)) {
-            winBurstOpacity = 0.95
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            withAnimation(.easeIn(duration: 0.45)) {
-                winBurstOpacity = 0.0
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.50) {
-                showWinBurst = false
-            }
-        }
-    }
 }
 
 struct PressDimButtonStyle: ButtonStyle {
@@ -392,12 +386,41 @@ struct HalfTilePressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .overlay(
-                Color.black
-                    .opacity(configuration.isPressed ? 0.18 : 0)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                PressRipple(isPressed: configuration.isPressed)
                     .allowsHitTesting(false)
             )
-            .animation(.easeInOut(duration: 0.20), value: configuration.isPressed)
+    }
+}
+
+private struct PressRipple: View {
+    let isPressed: Bool
+    @State private var scale: CGFloat = 0
+    @State private var opacity: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { geo in
+            let dim = sqrt(geo.size.width * geo.size.width + geo.size.height * geo.size.height)
+            Circle()
+                .fill(Color.black)
+                .frame(width: dim, height: dim)
+                .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                .scaleEffect(scale, anchor: .center)
+                .opacity(opacity)
+        }
+        .clipped()
+        .onChange(of: isPressed) { _, pressed in
+            if pressed {
+                scale = 0
+                withAnimation(.easeOut(duration: 0.38)) {
+                    scale = 1
+                    opacity = 0.22
+                }
+            } else {
+                withAnimation(.easeOut(duration: 0.75)) {
+                    opacity = 0
+                }
+            }
+        }
     }
 }
 

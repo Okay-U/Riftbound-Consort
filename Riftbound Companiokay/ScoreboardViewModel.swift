@@ -24,9 +24,12 @@ final class ScoreboardViewModel: ObservableObject {
         Player(name: "Player 2", score: 0)
     ]
 
+    @Published private(set) var events: [ScoreEvent] = []
+
     private struct Snapshot {
         let scores: [Int]
         let xps: [Int]
+        let events: [ScoreEvent]
     }
     private var history: [Snapshot] = []
 
@@ -47,6 +50,7 @@ final class ScoreboardViewModel: ObservableObject {
         }
         players = newPlayers
         history.removeAll()
+        events.removeAll()
         pushShared()
     }
 
@@ -62,8 +66,35 @@ final class ScoreboardViewModel: ObservableObject {
     }
 
     private func snapshot() {
-        history.append(Snapshot(scores: players.map(\.score), xps: players.map(\.xp)))
+        history.append(Snapshot(
+            scores: players.map(\.score),
+            xps: players.map(\.xp),
+            events: events
+        ))
         if history.count > 50 { history.removeFirst() }
+    }
+
+    func recordEvent(
+        _ player: Player,
+        type: ScoreEventType,
+        delta: Int,
+        elapsedSeconds: Int
+    ) {
+        guard let idx = players.firstIndex(of: player) else { return }
+        let oldScore = players[idx].score
+        let newScore = max(0, oldScore + delta)
+        let effective = newScore - oldScore
+        guard effective != 0 else { return }
+        snapshot()
+        players[idx].score = newScore
+        events.append(ScoreEvent(
+            elapsedSeconds: elapsedSeconds,
+            slot: idx,
+            type: type,
+            delta: effective
+        ))
+        Haptics.light()
+        pushShared()
     }
 
     func increment(_ player: Player, by value: Int = 1) {
@@ -102,6 +133,7 @@ final class ScoreboardViewModel: ObservableObject {
             players[i].score = 0
             players[i].xp = 0
         }
+        events.removeAll()
         Haptics.warning()
         pushShared()
     }
@@ -114,6 +146,7 @@ final class ScoreboardViewModel: ObservableObject {
             players[i].score = last.scores[i]
             players[i].xp = last.xps[i]
         }
+        events = last.events
         Haptics.medium()
         pushShared()
     }

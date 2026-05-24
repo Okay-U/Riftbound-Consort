@@ -39,6 +39,29 @@ struct GameHistoryView: View {
         return (wins, losses, avg)
     }
 
+    private struct TurnOrderStats {
+        let firstWins: Int
+        let firstLosses: Int
+        let secondWins: Int
+        let secondLosses: Int
+        var firstTotal: Int { firstWins + firstLosses }
+        var secondTotal: Int { secondWins + secondLosses }
+    }
+
+    private var turnOrderStats: TurnOrderStats {
+        var fw = 0, fl = 0, sw = 0, sl = 0
+        for r in records {
+            switch (r.startedFirst, r.result) {
+            case (.some(true), .won):   fw += 1
+            case (.some(true), .lost):  fl += 1
+            case (.some(false), .won):  sw += 1
+            case (.some(false), .lost): sl += 1
+            default: break
+            }
+        }
+        return TurnOrderStats(firstWins: fw, firstLosses: fl, secondWins: sw, secondLosses: sl)
+    }
+
     var body: some View {
         List {
             summarySection
@@ -72,6 +95,23 @@ struct GameHistoryView: View {
                 Text(total == 0 ? "—" : Self.formatDuration(s.avgSeconds))
                     .monospacedDigit()
             }
+            let t = turnOrderStats
+            if t.firstTotal > 0 {
+                HStack {
+                    Text("Going first")
+                    Spacer()
+                    Text("\(t.firstWins)–\(t.firstLosses) · \(Int(Double(t.firstWins) / Double(t.firstTotal) * 100))%")
+                        .monospacedDigit()
+                }
+            }
+            if t.secondTotal > 0 {
+                HStack {
+                    Text("Going second")
+                    Spacer()
+                    Text("\(t.secondWins)–\(t.secondLosses) · \(Int(Double(t.secondWins) / Double(t.secondTotal) * 100))%")
+                        .monospacedDigit()
+                }
+            }
         }
     }
 
@@ -86,7 +126,11 @@ struct GameHistoryView: View {
         } else {
             Section("Games") {
                 ForEach(records) { record in
-                    GameHistoryRow(record: record)
+                    NavigationLink {
+                        GameReviewView(record: record)
+                    } label: {
+                        GameHistoryRow(record: record)
+                    }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 store.delete(record)

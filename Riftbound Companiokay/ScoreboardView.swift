@@ -14,9 +14,9 @@ struct ScoreboardView: View {
     @EnvironmentObject var cardStore: CardStore
     @EnvironmentObject var gameRecordStore: GameRecordStore
     @AppStorage("trueBlack") private var trueBlack: Bool = true
-    @AppStorage("targetScore") private var targetScore: Int = 8
     @AppStorage("activeDeckId")   private var activeDeckId: String = ""
     @AppStorage("activeOpponent") private var activeOpponent: String = ""
+    @AppStorage("activeStartedFirst") private var activeStartedFirst: String = ""
     @State private var showColorSheet = false
     @State private var showQuickSettingsSheet = false
     @State private var showGameSetupSheet = false
@@ -79,7 +79,7 @@ struct ScoreboardView: View {
                 .environmentObject(vm)
         }
         .sheet(isPresented: $showQuickSettingsSheet) {
-            QuickSettingsSheet(targetScore: $targetScore)
+            QuickSettingsSheet()
                 .environmentObject(vm)
         }
         .sheet(isPresented: $showGameSetupSheet) {
@@ -91,10 +91,6 @@ struct ScoreboardView: View {
             syncLiveActivity()
         }
         .onChange(of: vm.players.map(\.score), initial: false) { _, _ in
-            syncLiveActivity()
-        }
-        .onChange(of: targetScore, initial: true) { _, _ in
-            SharedScoreboard.writeTargetScore(targetScore)
             syncLiveActivity()
         }
         .onChange(of: activeDeckId, initial: true) { _, _ in
@@ -142,12 +138,17 @@ struct ScoreboardView: View {
         let now = gameTimer.elapsed
         // If timer was manually reset since last record, fall back to full elapsed.
         let delta = now >= lastGameEnd ? now - lastGameEnd : now
+        let startedFirst: Bool? = activeStartedFirst == "first" ? true
+            : activeStartedFirst == "second" ? false
+            : nil
         let record = GameRecord(
             deckId: deck?.id,
             deckName: deck?.name,
             opponent: opponent,
             result: result,
-            durationSeconds: Int(delta)
+            durationSeconds: Int(delta),
+            events: vm.events,
+            startedFirst: startedFirst
         )
         gameRecordStore.record(record)
         lastGameEnd = now
@@ -196,7 +197,7 @@ struct ScoreboardView: View {
         } else if running {
             GameActivityController.shared.start(
                 playerCount: vm.playerCount,
-                targetScore: targetScore,
+                targetScore: 8,
                 scores: scores,
                 effectiveStart: effective,
                 pausedElapsed: elapsed,
@@ -227,8 +228,15 @@ struct ScoreboardView: View {
 
         return ScoreTile(
             player: p,
-            onIncrement: { vm.increment(p) },
-            onDecrement: { vm.decrement(p) },
+            onConquer: {
+                vm.recordEvent(p, type: .conquer, delta: 1, elapsedSeconds: Int(gameTimer.elapsed))
+            },
+            onHold: {
+                vm.recordEvent(p, type: .hold, delta: 1, elapsedSeconds: Int(gameTimer.elapsed))
+            },
+            onDecrement: {
+                vm.recordEvent(p, type: .manual, delta: -1, elapsedSeconds: Int(gameTimer.elapsed))
+            },
             rotation: rotation,
             color: fill,
             onXPIncrement: { vm.incrementXP(p) },
@@ -326,7 +334,7 @@ struct ScoreboardView: View {
             .buttonStyle(.bordered)
 
             Button { showQuickSettingsSheet = true } label: {
-                Image(systemName: "gearshape")
+                Image(systemName: "person.2.fill")
             }
             .buttonStyle(.bordered)
 

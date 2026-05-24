@@ -10,6 +10,7 @@ struct GameSetupSheet: View {
     @EnvironmentObject var cardStore: CardStore
     @AppStorage("activeDeckId")  private var activeDeckId: String = ""
     @AppStorage("activeOpponent") private var activeOpponent: String = ""
+    @AppStorage("activeStartedFirst") private var activeStartedFirst: String = ""
     @Environment(\.dismiss) private var dismiss
 
     private var legendNames: [String] { cardStore.legendNames }
@@ -41,6 +42,15 @@ struct GameSetupSheet: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                Section("Turn Order") {
+                    Picker("Going", selection: $activeStartedFirst) {
+                        Text("Unknown").tag("")
+                        Text("First").tag("first")
+                        Text("Second").tag("second")
+                    }
+                    .pickerStyle(.segmented)
                 }
             }
             .navigationTitle("Game Setup")
