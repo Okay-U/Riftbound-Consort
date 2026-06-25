@@ -51,6 +51,7 @@ private enum TabKey {
     static let dice     = "dice"
     static let cards    = "cards"
     static let user     = "user"
+    static let events   = "events"
     static let settings = "settings"
 }
 
@@ -63,9 +64,9 @@ struct RootTabView: View {
                 .tabItem { Label("Score", systemImage: "list.number") }
                 .tag(TabKey.score)
 
-            DiceView()
-                .tabItem { Label("Dice", systemImage: "die.face.5") }
-                .tag(TabKey.dice)
+            EventsTabView()
+                .tabItem { Label("Events", systemImage: "trophy") }
+                .tag(TabKey.events)
 
             CardsTabView()
                 .tabItem { Label("Cards", systemImage: "rectangle.stack") }
@@ -74,6 +75,10 @@ struct RootTabView: View {
             UserTabView()
                 .tabItem { Label("Decks", systemImage: "square.stack.3d.up.fill") }
                 .tag(TabKey.user)
+
+            DiceView()
+                .tabItem { Label("Dice", systemImage: "die.face.5") }
+                .tag(TabKey.dice)
 
             Settings()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
