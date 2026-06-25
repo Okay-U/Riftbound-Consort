@@ -65,11 +65,6 @@ final class AuthSession: ObservableObject {
         await signIn { try await self.service.login(email: email, password: password) }
     }
 
-    func loginWithApple(idToken: String) async {
-        guard !idToken.isEmpty else { return }
-        await signIn { try await self.service.appleLogin(idToken: idToken) }
-    }
-
     /// Shared sign-in flow: obtain a token, persist it, then load the user.
     private func signIn(_ obtainToken: () async throws -> String) async {
         isWorking = true

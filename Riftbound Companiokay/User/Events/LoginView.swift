@@ -8,7 +8,6 @@
 //
 
 import SwiftUI
-import AuthenticationServices
 
 struct LoginView: View {
     @EnvironmentObject private var session: AuthSession
@@ -40,8 +39,6 @@ struct LoginView: View {
 
                 signInButton
                 tokenHint
-                orDivider
-                appleButton
             }
             .padding(.horizontal, 22)
             .padding(.vertical, 16)
@@ -142,49 +139,12 @@ struct LoginView: View {
         }
     }
 
-    private var orDivider: some View {
-        HStack(spacing: 12) {
-            Rectangle().fill(EventsTheme.hairline).frame(height: 1)
-            Text("or").font(.system(size: 12)).foregroundStyle(EventsTheme.textTertiary)
-            Rectangle().fill(EventsTheme.hairline).frame(height: 1)
-        }
-    }
-
-    private var appleButton: some View {
-        SignInWithAppleButton(.signIn) { request in
-            request.requestedScopes = [.fullName, .email]
-        } onCompletion: { result in
-            handleApple(result)
-        }
-        .signInWithAppleButtonStyle(.white)
-        .frame(height: 56)
-        .clipShape(RoundedRectangle(cornerRadius: EventsTheme.ctaRadius, style: .continuous))
-        .disabled(session.isWorking)
-    }
-
     // MARK: - Actions
 
     private func submit() {
         guard canSubmit else { return }
         let email = email, password = password
         Task { await session.login(email: email, password: password) }
-    }
-
-    private func handleApple(_ result: Result<ASAuthorization, Error>) {
-        switch result {
-        case .success(let auth):
-            guard let credential = auth.credential as? ASAuthorizationAppleIDCredential,
-                  let tokenData = credential.identityToken,
-                  let idToken = String(data: tokenData, encoding: .utf8) else {
-                session.errorMessage = "Apple sign-in returned no token. Try email instead."
-                return
-            }
-            Task { await session.loginWithApple(idToken: idToken) }
-        case .failure(let error):
-            // User cancelling the sheet is not an error worth showing.
-            if (error as? ASAuthorizationError)?.code == .canceled { return }
-            session.errorMessage = "Apple sign-in failed. Please try again or use email."
-        }
     }
 }
 
