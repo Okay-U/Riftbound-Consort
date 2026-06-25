@@ -202,6 +202,20 @@ struct ScoreTile: View {
     }
 
     @ViewBuilder
+    private func actionLabel(_ title: String, symbol: String, size: CGFloat = 30, for tileMode: TileMode) -> some View {
+        actionIcon(symbol, size: size, for: tileMode)
+            .overlay(alignment: .center) {
+                Text(title)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+                    .foregroundStyle(iconAccent(for: tileMode))
+                    .fixedSize()
+                    .offset(y: -38)
+            }
+    }
+
+    @ViewBuilder
     private func regionTint(from corner: UnitPoint) -> some View {
         LinearGradient(
             colors: [Color.white.opacity(0.12), Color.black.opacity(0.08)],
@@ -217,7 +231,7 @@ struct ScoreTile: View {
         if tileMode == .score {
             HStack(spacing: 0) {
                 Button { conquerTapped() } label: {
-                    actionIcon("c.circle.fill", size: 34, for: tileMode)
+                    actionLabel("Conquer", symbol: "flag.fill", size: 30, for: tileMode)
                         .padding(.top, 8)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(Rectangle())
@@ -226,7 +240,7 @@ struct ScoreTile: View {
                 .buttonStyle(HalfTilePressStyle())
 
                 Button { holdTapped() } label: {
-                    actionIcon("h.circle.fill", size: 34, for: tileMode)
+                    actionLabel("Hold", symbol: "shield.lefthalf.filled", size: 30, for: tileMode)
                         .padding(.top, 8)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(Rectangle())
@@ -411,12 +425,12 @@ private struct PressRipple: View {
         .onChange(of: isPressed) { _, pressed in
             if pressed {
                 scale = 0
-                withAnimation(.easeOut(duration: 0.38)) {
+                withAnimation(.easeOut(duration: 0.22)) {
                     scale = 1
                     opacity = 0.22
                 }
             } else {
-                withAnimation(.easeOut(duration: 0.75)) {
+                withAnimation(.easeOut(duration: 0.40)) {
                     opacity = 0
                 }
             }
