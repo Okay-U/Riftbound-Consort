@@ -46,6 +46,7 @@ nonisolated struct LocatorUser: Decodable, Sendable, Identifiable {
 
 protocol AuthService: Sendable {
     func login(email: String, password: String) async throws -> String
+    func appleLogin(idToken: String) async throws -> String
     func currentUser(token: String) async throws -> LocatorUser
 }
 
@@ -87,6 +88,27 @@ final class RiftboundAuthService: AuthService {
         }
     }
 
+    func appleLogin(idToken: String) async throws -> String {
+        guard let url = URL(string: "auth/mobile/apple/", relativeTo: base) else {
+            throw AuthError.network
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let body = ["id_token": idToken, "source_app": "phoenix"]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw AuthError.network }
+        switch http.statusCode {
+        case 200..<300:
+            return try decoder.decode(LocatorLoginResponse.self, from: data).token
+        default:
+            throw AuthError.appleFailed
+        }
+    }
+
     func currentUser(token: String) async throws -> LocatorUser {
         guard let url = URL(string: "users/self/", relativeTo: base) else {
             throw AuthError.network
@@ -112,6 +134,7 @@ enum AuthError: LocalizedError {
     case network
     case invalidCredentials
     case tokenExpired
+    case appleFailed
     case server(Int)
 
     var errorDescription: String? {
@@ -119,6 +142,7 @@ enum AuthError: LocalizedError {
         case .network:            return "Couldn't reach the login server. Check your connection."
         case .invalidCredentials: return "Wrong email or password."
         case .tokenExpired:       return "Your session expired. Please sign in again."
+        case .appleFailed:        return "Sign in with Apple failed. Please try again or use email."
         case .server(let code):   return "Login server error (\(code))."
         }
     }

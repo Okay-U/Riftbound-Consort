@@ -12,7 +12,7 @@ protocol LocatorService: Sendable {
     func event(id: Int) async throws -> LocatorEvent
     func pairings(eventID: Int) async throws -> [LocatorMatch]
     func standings(eventID: Int) async throws -> [LocatorStanding]
-    func myEvents(token: String) async throws -> [LocatorUserEventStatus]
+    func myEvents(token: String, page: Int) async throws -> LocatorPage<LocatorUserEventStatus>
     func myMatch(roundID: Int, token: String) async throws -> LocatorMyMatch
     func reportResult(matchID: Int,
                       token: String,
@@ -53,12 +53,11 @@ final class RiftboundLocatorService: LocatorService {
         return page.results
     }
 
-    func myEvents(token: String) async throws -> [LocatorUserEventStatus] {
-        let page: LocatorPage<LocatorUserEventStatus> = try await get(
-            "player/user-event-statuses/?game_slug=riftbound&ordering=-start_datetime",
+    func myEvents(token: String, page: Int) async throws -> LocatorPage<LocatorUserEventStatus> {
+        try await get(
+            "player/user-event-statuses/?game_slug=riftbound&ordering=-start_datetime&page=\(page)",
             token: token
         )
-        return page.results
     }
 
     func myMatch(roundID: Int, token: String) async throws -> LocatorMyMatch {

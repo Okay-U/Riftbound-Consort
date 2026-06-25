@@ -62,11 +62,21 @@ final class AuthSession: ObservableObject {
     func login(email: String, password: String) async {
         let email = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !email.isEmpty, !password.isEmpty else { return }
+        await signIn { try await self.service.login(email: email, password: password) }
+    }
+
+    func loginWithApple(idToken: String) async {
+        guard !idToken.isEmpty else { return }
+        await signIn { try await self.service.appleLogin(idToken: idToken) }
+    }
+
+    /// Shared sign-in flow: obtain a token, persist it, then load the user.
+    private func signIn(_ obtainToken: () async throws -> String) async {
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }
         do {
-            let token = try await service.login(email: email, password: password)
+            let token = try await obtainToken()
             keychain.token = token
             let user = try await service.currentUser(token: token)
             state = .signedIn(user)

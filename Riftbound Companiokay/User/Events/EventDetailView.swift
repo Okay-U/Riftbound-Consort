@@ -2,24 +2,26 @@
 //  EventDetailView.swift
 //  Riftbound Companiokay
 //
-//  Live event screen: overview, your current-round match (table + opponent),
-//  pairings, and standings. Public TV data + authed my-match.
+//  Live event screen ("Arena" redesign): overview card, your-match (green),
+//  "Can I draw?" outlook, pairings (crown winners, your table highlighted),
+//  standings. Public TV data + authed my-match. Green is the only accent.
 //
 
 import SwiftUI
 
 struct EventDetailView: View {
     let eventID: Int
-    var myAlias: String? = nil          // per-event display name, fallback when no live match
+    var myAlias: String? = nil
     var service: any LocatorService = RiftboundLocatorService()
 
     @EnvironmentObject private var session: AuthSession
+    @AppStorage("batterySaver") private var batterySaver = false
+    @Environment(\.dismiss) private var dismiss
     @State private var state: LoadState = .idle
     @State private var reporting: ResolvedMyMatch?
 
     enum LoadState {
-        case idle
-        case loading
+        case idle, loading
         case loaded(Loaded)
         case failed(String)
     }
@@ -33,29 +35,387 @@ struct EventDetailView: View {
     }
 
     var body: some View {
-        Group {
+        ScrollView {
             switch state {
             case .idle, .loading:
-                ProgressView("Loading event…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView("Loading event…").frame(maxWidth: .infinity, minHeight: 400)
             case .failed(let message):
-                ContentUnavailableView {
-                    Label("Couldn't load event", systemImage: "wifi.exclamationmark")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Retry") { Task { await load() } }
-                }
+                failed(message)
             case .loaded(let data):
                 content(data)
             }
         }
-        .navigationTitle("Event")
+        .background(EventsTheme.bg.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(EventsTheme.card, in: Circle())
+                        .overlay(Circle().stroke(EventsTheme.hairline, lineWidth: 1))
+                }
+            }
+            ToolbarItem(placement: .principal) {
+                Text("Event").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
+            }
+        }
         .task { if case .idle = state { await load() } }
+        .sheet(item: $reporting) { match in
+            ReportResultSheet(match: match,
+                              isBestOfThree: currentEvent?.isBestOfThree ?? true,
+                              token: session.token ?? "",
+                              onReported: { Task { await load() } })
+        }
     }
 
-    // MARK: - Loading
+    private var currentEvent: LocatorEvent? {
+        if case .loaded(let data) = state { return data.event }
+        return nil
+    }
+
+    // MARK: - Content
+
+    @ViewBuilder
+    private func content(_ data: Loaded) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            overviewCard(data.event)
+
+            if let mine = data.myMatch {
+                yourMatchCard(mine, roundLabel: data.event.currentRoundLabel)
+            }
+
+            cutOutlookCard(data)
+
+            if !data.matches.isEmpty {
+                let label = data.event.currentRoundLabel.map { " · \($0)" } ?? ""
+                VStack(alignment: .leading, spacing: 11) {
+                    SectionHeader("person.2.shield.fill", "Pairings" + label)
+                    VStack(spacing: 8) { ForEach(data.matches) { pairingRow($0, myName: data.myName) } }
+                }
+            }
+
+            if !data.standings.isEmpty {
+                VStack(alignment: .leading, spacing: 11) {
+                    SectionHeader("list.number", "Standings")
+                    standingsCard(data)
+                }
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .refreshable { await load() }
+    }
+
+    // MARK: - Overview card
+
+    @ViewBuilder
+    private func overviewCard(_ event: LocatorEvent) -> some View {
+        let live = (event.displayStatus ?? "").lowercased().contains("progress")
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                Text(event.name)
+                    .font(.system(size: 21, weight: .heavy))
+                    .foregroundStyle(.white).lineLimit(2)
+                Spacer(minLength: 8)
+                if live { LiveBadge(pulsing: true) }
+            }
+            if let address = event.fullAddress, !address.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "mappin.and.ellipse")
+                    Text(address).lineLimit(1)
+                }
+                .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
+            }
+            roundProgress(event)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(alignment: .topTrailing) {
+            if !batterySaver {
+                RadialGradient(colors: [EventsTheme.green.opacity(0.28), .clear],
+                               center: .topTrailing, startRadius: 0, endRadius: 220)
+                    .allowsHitTesting(false)
+            }
+        }
+        .background(
+            LinearGradient(colors: [EventsTheme.overviewFillTop, EventsTheme.overviewFillBottom],
+                           startPoint: .top, endPoint: .bottom)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(EventsTheme.hairline, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private func roundProgress(_ event: LocatorEvent) -> some View {
+        let meta = "\(event.isBestOfThree ? "Best of 3" : "Best of 1") · \(event.startingPlayerCount ?? 0) players"
+        VStack(spacing: 8) {
+            HStack {
+                Text(event.currentRoundLabel ?? (event.isFinished ? "Complete" : "—"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(event.isFinished ? EventsTheme.textSecondary : EventsTheme.green)
+                Spacer()
+                Text(meta).font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
+            }
+            if let total = event.swissRoundsTotal, total > 0, !event.isFinished {
+                HStack(spacing: 5) {
+                    ForEach(0..<total, id: \.self) { i in
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(i < event.swissRoundsCompleted ? EventsTheme.green : Color.white.opacity(0.1))
+                            .frame(height: 5)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Your match
+
+    @ViewBuilder
+    private func yourMatchCard(_ match: ResolvedMyMatch, roundLabel: String?) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.circle.fill")
+                    Text("Your match" + (roundLabel.map { " · \($0)" } ?? ""))
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(EventsTheme.green)
+                Spacer()
+                Text(match.isComplete ? "Reported" : "In progress")
+                    .font(.system(size: 11, weight: .semibold))
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(EventsTheme.greenSoft, in: Capsule())
+                    .foregroundStyle(EventsTheme.green)
+            }
+
+            if match.isBye {
+                Text("Bye. You advance this round.")
+                    .font(.system(size: 15, weight: .medium)).foregroundStyle(.white)
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "chair.fill")
+                    Text("Table \(match.tableNumber.map(String.init) ?? "—")")
+                }
+                .font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+
+                matchVS(match)
+
+                if match.isComplete {
+                    Divider().overlay(EventsTheme.hairline)
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle")
+                        Text("Result reported. Ask the scorekeeper to change it.")
+                    }
+                    .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
+                } else if match.opponent != nil, session.token != nil {
+                    Button { reporting = match } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "square.and.pencil")
+                            Text("Report result")
+                        }
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(EventsTheme.matchFillBottom)
+                        .frame(maxWidth: .infinity).frame(height: 42)
+                        .background(EventsTheme.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .greenGradientBorder(radius: 17)
+    }
+
+    private func matchVS(_ match: ResolvedMyMatch) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(match.me.displayName).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                Text("you · \(match.me.record)").font(.system(size: 12)).foregroundStyle(EventsTheme.green)
+            }
+            Spacer()
+            Text("VS").font(.system(size: 12, weight: .bold)).foregroundStyle(EventsTheme.green)
+            Spacer()
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(match.opponent?.displayName ?? "TBD").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                Text(match.opponent?.record ?? "").font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
+            }
+        }
+    }
+
+    // MARK: - Can I draw?
+
+    @ViewBuilder
+    private func cutOutlookCard(_ data: Loaded) -> some View {
+        if data.event.hasTopCut,
+           let cut = data.event.resolvedCutSize,
+           let roundsLeft = data.event.swissRoundsLeft, roundsLeft >= 1,
+           let myName = data.myName,
+           let mine = data.standings.first(where: { $0.tvDisplayName == myName }) {
+
+            let myPoints = mine.totalMatchPoints ?? 0
+            let others = data.standings.filter { $0.tvDisplayName != myName }.map { $0.totalMatchPoints ?? 0 }
+            let outlook = DrawCalc.outlook(myPoints: myPoints, others: others, cut: cut, roundsLeft: roundsLeft)
+            let suffix = roundsLeft == 1 ? "" : " out"
+
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader("chart.bar.doc.horizontal", "Can I draw?")
+                Text("Top \(cut) · \(roundsLeft) round\(roundsLeft == 1 ? "" : "s") left · you have \(myPoints) pts")
+                    .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
+                outlookRow("Win" + suffix, outlook.win)
+                outlookRow("Draw" + suffix, outlook.draw)
+                outlookRow("Lose" + suffix, outlook.lose)
+                Text("“Locked in” is guaranteed regardless of other results. “Bubble” depends on other matches and tiebreakers.")
+                    .font(.system(size: 11)).foregroundStyle(EventsTheme.textTertiary)
+            }
+            .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+            .eventsCard(radius: 18)
+        }
+    }
+
+    private func outlookRow(_ title: String, _ chance: CutChance) -> some View {
+        HStack {
+            Text(title).font(.system(size: 15, weight: .medium)).foregroundStyle(.white)
+            Spacer()
+            chanceBadge(chance)
+        }
+    }
+
+    private func chanceBadge(_ chance: CutChance) -> some View {
+        let color: Color
+        let bg: Color
+        let icon: String
+        switch chance {
+        case .locked: color = EventsTheme.green;        bg = EventsTheme.greenSoft;          icon = "checkmark.seal.fill"
+        case .bubble: color = EventsTheme.textSecondary; bg = Color.white.opacity(0.08);      icon = "exclamationmark.triangle.fill"
+        case .out:    color = .red;                      bg = Color.red.opacity(0.16);        icon = "xmark.seal.fill"
+        }
+        return HStack(spacing: 5) {
+            Image(systemName: icon)
+            Text(chance.label)
+        }
+        .font(.system(size: 12, weight: .semibold))
+        .padding(.horizontal, 9).padding(.vertical, 4)
+        .background(bg, in: Capsule())
+        .foregroundStyle(color)
+    }
+
+    // MARK: - Pairings
+
+    @ViewBuilder
+    private func pairingRow(_ match: LocatorMatch, myName: String?) -> some View {
+        let mine = match.players.contains { isMe($0.tvDisplayName, myName) }
+        let row = HStack(spacing: 10) {
+            Text("T\(match.tableNumber.map(String.init) ?? "—")")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(EventsTheme.textTertiary)
+                .frame(width: 24, alignment: .leading)
+
+            if match.isBye, let solo = match.players.first {
+                Text("\(solo.tvDisplayName) (Bye)").font(.system(size: 14)).foregroundStyle(.white)
+                Spacer()
+            } else {
+                playerSide(match.players.first, myName, trailing: false)
+                Text("vs").font(.system(size: 11)).foregroundStyle(EventsTheme.textTertiary)
+                playerSide(match.players.dropFirst().first, myName, trailing: true)
+            }
+        }
+        .padding(.vertical, 12).padding(.horizontal, 14)
+
+        if mine {
+            row.greenGradientBorder(radius: 12.5)
+        } else {
+            row.eventsCard(radius: 14)
+        }
+    }
+
+    @ViewBuilder
+    private func playerSide(_ player: LocatorMatchPlayer?, _ myName: String?, trailing: Bool) -> some View {
+        if let player {
+            let mine = isMe(player.tvDisplayName, myName)
+            let won = player.isWinner ?? false
+            let nameColor: Color = mine ? EventsTheme.green : (won ? .white : EventsTheme.textSecondary)
+            let recordColor: Color = mine ? EventsTheme.green : (won ? EventsTheme.gold : EventsTheme.textSecondary)
+            VStack(alignment: trailing ? .trailing : .leading, spacing: 3) {
+                HStack(spacing: 4) {
+                    if !trailing && won { Image(systemName: "crown.fill").font(.system(size: 10)).foregroundStyle(EventsTheme.gold) }
+                    Text(player.tvDisplayName).font(.system(size: 14, weight: .semibold)).foregroundStyle(nameColor).lineLimit(1)
+                    if trailing && won { Image(systemName: "crown.fill").font(.system(size: 10)).foregroundStyle(EventsTheme.gold) }
+                }
+                Text(mine ? "you · \(player.record)" : player.record)
+                    .font(.system(size: 11)).foregroundStyle(recordColor)
+            }
+            .frame(maxWidth: .infinity, alignment: trailing ? .trailing : .leading)
+        } else {
+            Text("—").foregroundStyle(EventsTheme.textTertiary).frame(maxWidth: .infinity)
+        }
+    }
+
+    // MARK: - Standings
+
+    @ViewBuilder
+    private func standingsCard(_ data: Loaded) -> some View {
+        let cut = data.event.resolvedCutSize
+        VStack(spacing: 0) {
+            ForEach(Array(data.standings.prefix(16).enumerated()), id: \.element.id) { index, standing in
+                standingRow(standing, myName: data.myName, cut: cut)
+                if index < min(data.standings.count, 16) - 1 {
+                    Rectangle().fill(EventsTheme.hairline).frame(height: 1).padding(.leading, 14)
+                }
+            }
+        }
+        .eventsCard(radius: 14)
+    }
+
+    private func standingRow(_ standing: LocatorStanding, myName: String?, cut: Int?) -> some View {
+        let mine = isMe(standing.tvDisplayName, myName)
+        let inCut = cut.map { standing.rank <= $0 } ?? false
+        return HStack(spacing: 12) {
+            Text("\(standing.rank)")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(inCut ? EventsTheme.green : EventsTheme.textTertiary)
+                .frame(width: 26, alignment: .leading)
+            Text(mine ? "\(standing.tvDisplayName) · you" : standing.tvDisplayName)
+                .font(.system(size: 14, weight: mine ? .bold : .regular))
+                .foregroundStyle(mine ? EventsTheme.green : .white)
+                .lineLimit(1)
+            Spacer()
+            Text(standing.record).font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
+            Text("\(standing.totalMatchPoints ?? 0)p")
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                .frame(width: 34, alignment: .trailing)
+            Text(standing.omwText)
+                .font(.system(size: 11)).foregroundStyle(EventsTheme.textTertiary)
+                .frame(width: 42, alignment: .trailing)
+        }
+        .padding(.vertical, 10).padding(.horizontal, 14)
+        .background(mine ? EventsTheme.greenSoft : Color.clear)
+    }
+
+    // MARK: - Failed
+
+    private func failed(_ message: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "wifi.exclamationmark").font(.system(size: 30)).foregroundStyle(EventsTheme.textSecondary)
+            Text("Couldn't load event").font(.system(size: 17, weight: .semibold)).foregroundStyle(.white)
+            Text(message).font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary).multilineTextAlignment(.center)
+            Button("Retry") { Task { await load() } }.tint(EventsTheme.green)
+        }
+        .frame(maxWidth: .infinity, minHeight: 400).padding(.horizontal, 24)
+    }
+
+    // MARK: - Helpers
+
+    private func isMe(_ name: String, _ myName: String?) -> Bool {
+        guard let myName, !myName.isEmpty else { return false }
+        return name == myName
+    }
+
+    // MARK: - Load
 
     @MainActor
     private func load() async {
@@ -79,315 +439,7 @@ struct EventDetailView: View {
                                    myMatch: resolved,
                                    myName: resolved?.me.displayName ?? myAlias))
         } catch {
-            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            state = .failed(message)
-        }
-    }
-
-    // MARK: - Loaded content
-
-    @ViewBuilder
-    private func content(_ data: Loaded) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header(data.event)
-
-                if let mine = data.myMatch {
-                    yourMatch(mine, round: data.event.currentRound?.roundNumber)
-                }
-
-                cutOutlook(data)
-
-                if !data.matches.isEmpty {
-                    let roundLabel = data.event.currentRound.map { " · Round \($0.roundNumber)" } ?? ""
-                    sectionTitle("Pairings" + roundLabel)
-                    VStack(spacing: 8) {
-                        ForEach(data.matches) { matchRow($0, myName: data.myName) }
-                    }
-                }
-
-                if !data.standings.isEmpty {
-                    sectionTitle("Standings")
-                    VStack(spacing: 0) {
-                        ForEach(data.standings.prefix(16)) { standingRow($0, myName: data.myName) }
-                    }
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                }
-            }
-            .padding()
-        }
-        .refreshable { await load() }
-        .sheet(item: $reporting) { match in
-            ReportResultSheet(match: match,
-                              isBestOfThree: data.event.isBestOfThree,
-                              token: session.token ?? "",
-                              onReported: { Task { await load() } })
-        }
-    }
-
-    // MARK: - Header
-
-    @ViewBuilder
-    private func header(_ event: LocatorEvent) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                Text(event.name).font(.title3.weight(.semibold))
-                Spacer(minLength: 8)
-                statusPill(event)
-            }
-            if let address = event.fullAddress, !address.isEmpty {
-                Label(address, systemImage: "mappin.and.ellipse")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            HStack(spacing: 8) {
-                infoPill(icon: "person.3.fill", text: "\(event.startingPlayerCount ?? 0) players")
-                if let round = event.currentRound, let total = roundsTotal(event) {
-                    infoPill(icon: "flag.checkered", text: "Round \(round.roundNumber) / \(total)")
-                }
-                infoPill(icon: "die.face.5", text: event.isBestOfThree ? "Best of 3" : "Best of 1")
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
-    }
-
-    private func roundsTotal(_ event: LocatorEvent) -> Int? {
-        event.numberOfRounds
-            ?? event.tournamentPhases.first?.numberOfRounds
-            ?? (event.allRounds.isEmpty ? nil : event.allRounds.count)
-    }
-
-    @ViewBuilder
-    private func statusPill(_ event: LocatorEvent) -> some View {
-        let live = (event.displayStatus ?? "").lowercased().contains("progress")
-        Text(live ? "LIVE" : (event.displayStatus ?? event.eventStatus ?? "").capitalized)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 8).padding(.vertical, 4)
-            .background(live ? Color.green.opacity(0.25) : Color.secondary.opacity(0.2), in: Capsule())
-            .foregroundStyle(live ? .green : .secondary)
-    }
-
-    @ViewBuilder
-    private func infoPill(icon: String, text: String) -> some View {
-        Label(text, systemImage: icon)
-            .font(.caption2.weight(.medium))
-            .padding(.horizontal, 10).padding(.vertical, 6)
-            .background(Color.secondary.opacity(0.15), in: Capsule())
-    }
-
-    // MARK: - Your match card
-
-    @ViewBuilder
-    private func yourMatch(_ match: ResolvedMyMatch, round: Int?) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Label("Your match" + (round.map { " · Round \($0)" } ?? ""), systemImage: "person.fill.viewfinder")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.orange)
-                Spacer()
-                Text(match.isComplete ? "Reported" : "In progress")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            if match.isBye {
-                Text("Bye. You advance this round.")
-                    .font(.subheadline.weight(.medium))
-            } else {
-                HStack {
-                    Label("Table \(match.tableNumber.map(String.init) ?? "—")", systemImage: "tablecells")
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                }
-                HStack(spacing: 10) {
-                    playerColumn(name: match.me.displayName, record: match.me.record, mine: true)
-                    Text("vs").font(.caption).foregroundStyle(.secondary)
-                    playerColumn(name: match.opponent?.displayName ?? "TBD",
-                                 record: match.opponent?.record ?? "",
-                                 mine: false)
-                }
-                if match.isComplete {
-                    Label("Result reported. Ask the scorekeeper to change it.",
-                          systemImage: "checkmark.seal")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 2)
-                } else if match.opponent != nil, session.token != nil {
-                    Button { reporting = match } label: {
-                        Label("Report result", systemImage: "square.and.pencil")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.orange)
-                    .padding(.top, 4)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14).stroke(Color.orange, lineWidth: 1.5)
-        )
-    }
-
-    @ViewBuilder
-    private func playerColumn(name: String, record: String, mine: Bool) -> some View {
-        VStack(spacing: 4) {
-            Text(name).font(.subheadline.weight(.semibold)).lineLimit(1)
-            Text(record.isEmpty ? "—" : record).font(.caption2).foregroundStyle(.secondary)
-            if mine {
-                Text("you").font(.caption2).foregroundStyle(.blue)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    // MARK: - Top cut outlook
-
-    @ViewBuilder
-    private func cutOutlook(_ data: Loaded) -> some View {
-        if data.event.hasTopCut,
-           let cut = data.event.resolvedCutSize,
-           let roundsLeft = data.event.swissRoundsLeft, roundsLeft >= 1,
-           let myName = data.myName,
-           let mine = data.standings.first(where: { $0.tvDisplayName == myName }) {
-
-            let myPoints = mine.totalMatchPoints ?? 0
-            let others = data.standings
-                .filter { $0.tvDisplayName != myName }
-                .map { $0.totalMatchPoints ?? 0 }
-            let outlook = DrawCalc.outlook(myPoints: myPoints, others: others, cut: cut, roundsLeft: roundsLeft)
-            let suffix = roundsLeft == 1 ? "" : " out"
-
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Can I draw? · top cut outlook", systemImage: "chart.bar.doc.horizontal")
-                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                Text("Top \(cut) · \(roundsLeft) round\(roundsLeft == 1 ? "" : "s") left · you have \(myPoints) pts")
-                    .font(.caption).foregroundStyle(.secondary)
-                outlookRow("Win" + suffix, outlook.win)
-                outlookRow("Draw" + suffix, outlook.draw)
-                outlookRow("Lose" + suffix, outlook.lose)
-                Text("“Locked in” is guaranteed regardless of other results. “Bubble” depends on other matches and tiebreakers.")
-                    .font(.caption2).foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
-        }
-    }
-
-    @ViewBuilder
-    private func outlookRow(_ title: String, _ chance: CutChance) -> some View {
-        HStack {
-            Text(title).font(.subheadline.weight(.medium))
-            Spacer()
-            chanceBadge(chance)
-        }
-    }
-
-    @ViewBuilder
-    private func chanceBadge(_ chance: CutChance) -> some View {
-        let color: Color = chance == .locked ? .green : (chance == .bubble ? .orange : .red)
-        let icon: String = chance == .locked ? "checkmark.seal.fill"
-            : (chance == .bubble ? "exclamationmark.triangle.fill" : "xmark.seal.fill")
-        Label(chance.label, systemImage: icon)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 8).padding(.vertical, 4)
-            .background(color.opacity(0.2), in: Capsule())
-            .foregroundStyle(color)
-    }
-
-    // MARK: - Rows
-
-    @ViewBuilder
-    private func sectionTitle(_ text: String) -> some View {
-        Text(text)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .padding(.top, 4)
-    }
-
-    private func isMe(_ name: String, _ myName: String?) -> Bool {
-        guard let myName, !myName.isEmpty else { return false }
-        return name == myName
-    }
-
-    @ViewBuilder
-    private func matchRow(_ match: LocatorMatch, myName: String?) -> some View {
-        let mine = match.players.contains { isMe($0.tvDisplayName, myName) }
-        HStack(spacing: 12) {
-            Text("T\(match.tableNumber.map(String.init) ?? "—")")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.orange)
-                .frame(width: 34)
-
-            if match.isBye, let solo = match.players.first {
-                Text("\(solo.tvDisplayName) (Bye)").font(.subheadline)
-                Spacer()
-            } else {
-                playerCell(match.players.first, myName: myName)
-                Text("vs").font(.caption2).foregroundStyle(.secondary)
-                playerCell(match.players.dropFirst().first, myName: myName, alignTrailing: true)
-            }
-        }
-        .padding(.horizontal, 12).padding(.vertical, 10)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.orange.opacity(mine ? 0.9 : 0), lineWidth: 1.5)
-        )
-    }
-
-    @ViewBuilder
-    private func playerCell(_ player: LocatorMatchPlayer?, myName: String?, alignTrailing: Bool = false) -> some View {
-        if let player {
-            let mine = isMe(player.tvDisplayName, myName)
-            VStack(alignment: alignTrailing ? .trailing : .leading, spacing: 2) {
-                HStack(spacing: 4) {
-                    if player.isWinner ?? false {
-                        Image(systemName: "crown.fill").font(.caption2).foregroundStyle(.yellow)
-                    }
-                    Text(player.tvDisplayName)
-                        .font(.subheadline.weight(mine ? .bold : .medium))
-                        .foregroundStyle(mine ? .orange : .primary)
-                        .lineLimit(1)
-                }
-                Text(player.record).font(.caption2).foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: alignTrailing ? .trailing : .leading)
-        } else {
-            Text("—").frame(maxWidth: .infinity)
-        }
-    }
-
-    @ViewBuilder
-    private func standingRow(_ standing: LocatorStanding, myName: String?) -> some View {
-        let mine = isMe(standing.tvDisplayName, myName)
-        HStack(spacing: 12) {
-            Text("\(standing.rank)")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(standing.rank <= 8 ? .orange : .secondary)
-                .frame(width: 28, alignment: .leading)
-            Text(standing.tvDisplayName)
-                .font(.subheadline.weight(mine ? .bold : .regular))
-                .foregroundStyle(mine ? .orange : .primary)
-                .lineLimit(1)
-            Spacer()
-            Text(standing.record).font(.caption).foregroundStyle(.secondary)
-            Text("\(standing.totalMatchPoints ?? 0)p")
-                .font(.caption.weight(.semibold))
-                .frame(width: 36, alignment: .trailing)
-            Text(standing.omwText)
-                .font(.caption2).foregroundStyle(.secondary)
-                .frame(width: 40, alignment: .trailing)
-        }
-        .padding(.horizontal, 12).padding(.vertical, 9)
-        .background(mine ? Color.orange.opacity(0.12) : Color.clear)
-        .overlay(alignment: .bottom) {
-            Divider().opacity(standing.rank == 16 ? 0 : 0.5)
+            state = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
         }
     }
 }

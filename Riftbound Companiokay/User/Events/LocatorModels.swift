@@ -13,6 +13,7 @@ import Foundation
 
 nonisolated struct LocatorPage<Item: Decodable & Sendable>: Decodable, Sendable {
     let total: Int?
+    let nextPageNumber: Int?
     let results: [Item]
 }
 
@@ -76,6 +77,42 @@ nonisolated struct LocatorEvent: Decodable, Sendable, Identifiable {
         return rounds.first(where: { $0.status == "IN_PROGRESS" })
             ?? rounds.last(where: { $0.pairingsStatus == "GENERATED" })
             ?? rounds.last
+    }
+
+    var isFinished: Bool {
+        let status = (displayStatus ?? "").lowercased()
+        return status == "complete" || status == "canceled" || status == "cancelled"
+    }
+
+    func phase(of round: LocatorRound) -> LocatorPhase? {
+        tournamentPhases.first { $0.rounds.contains(where: { $0.id == round.id }) }
+    }
+
+    /// Phase-aware label for the current round. Swiss → "Round N of M";
+    /// elimination → stage name (Final / Semifinal / Top N); nil when the
+    /// event is finished or there's no active round. Round numbers run
+    /// continuously across phases, so never mix an elim round with the Swiss total.
+    var currentRoundLabel: String? {
+        guard !isFinished, let round = currentRound, let phase = phase(of: round) else { return nil }
+        if (phase.roundType ?? "").uppercased().contains("ELIMINATION") {
+            return Self.eliminationStage(of: round, in: phase)
+        }
+        if let total = phase.numberOfRounds {
+            return "Round \(round.roundNumber) of \(total)"
+        }
+        return "Round \(round.roundNumber)"
+    }
+
+    /// Final / Semifinal / Quarterfinal / Top N from the round's position in the bracket.
+    private static func eliminationStage(of round: LocatorRound, in phase: LocatorPhase) -> String {
+        let ordered = phase.rounds.sorted { $0.roundNumber < $1.roundNumber }
+        guard let index = ordered.firstIndex(where: { $0.id == round.id }) else { return "Top cut" }
+        switch ordered.count - 1 - index {
+        case 0:  return "Final"
+        case 1:  return "Semifinal"
+        case 2:  return "Quarterfinal"
+        case let fromEnd: return "Top \(1 << (fromEnd + 1))"
+        }
     }
 }
 
