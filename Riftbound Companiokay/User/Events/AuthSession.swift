@@ -88,4 +88,22 @@ final class AuthSession: ObservableObject {
         errorMessage = nil
         state = .signedOut
     }
+
+    /// If an authed call failed because the token is no longer valid (401 —
+    /// e.g. logged out on the website or changed password), sign out so the
+    /// user re-authenticates. Returns true if it signed out.
+    @discardableResult
+    func signOutIfUnauthorized(_ error: Error) -> Bool {
+        if case LocatorError.http(401) = error {
+            logout()
+            errorMessage = "Your session ended. Please sign in again."
+            return true
+        }
+        if let authError = error as? AuthError, case .tokenExpired = authError {
+            logout()
+            errorMessage = "Your session ended. Please sign in again."
+            return true
+        }
+        return false
+    }
 }

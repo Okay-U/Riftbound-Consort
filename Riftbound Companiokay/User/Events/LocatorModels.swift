@@ -28,7 +28,33 @@ nonisolated struct LocatorEvent: Decodable, Sendable, Identifiable {
     let startingPlayerCount: Int?
     let numberOfRounds: Int?
     let topCutSize: Int?
+    let queueStatus: String?
+    let costInCents: Int?
+    let currency: String?
+    let settings: LocatorEventSettings?
     let tournamentPhases: [LocatorPhase]
+
+    /// Registration is open (you can join; payment, if any, is in person).
+    var isOpenForRegistration: Bool {
+        (queueStatus ?? "").uppercased() == "ACCEPTING_SIGNUPS"
+    }
+
+    /// Event collects payment online (Stripe) — must register/pay on the website,
+    /// not via our one-tap "pay in person" flow.
+    var requiresOnlinePayment: Bool { settings?.paymentOnSpicerack == true }
+
+    /// Event collects decklists on the platform (show the decklist card).
+    var usesDecklists: Bool { settings?.decklistsOnSpicerack == true }
+
+    /// Public web page for this event.
+    var webURL: URL? { URL(string: "https://locator.riftbound.uvsgames.com/events/\(id)") }
+
+    var priceText: String {
+        guard let cents = costInCents, cents > 0 else { return "Free" }
+        let amount = Double(cents) / 100
+        let symbol = (currency == "EUR") ? "€" : (currency == "USD" ? "$" : "\(currency ?? "") ")
+        return "\(symbol)\(String(format: "%.2f", amount))"
+    }
 
     /// A phase you must rank into (the elimination/cut phase), if any.
     var cutPhase: LocatorPhase? {
@@ -116,6 +142,13 @@ nonisolated struct LocatorEvent: Decodable, Sendable, Identifiable {
     }
 }
 
+nonisolated struct LocatorEventSettings: Decodable, Sendable {
+    let paymentInStore: Bool?
+    let paymentOnSpicerack: Bool?
+    let decklistStatus: String?
+    let decklistsOnSpicerack: Bool?
+}
+
 nonisolated struct LocatorPhase: Decodable, Sendable, Identifiable {
     let id: Int
     let phaseName: String?
@@ -143,6 +176,17 @@ nonisolated struct EventRoute: Hashable, Sendable {
     let alias: String?
 }
 
+/// Pushes the store search screen.
+nonisolated struct StoreSearchRoute: Hashable, Sendable {}
+
+/// Pushes a store's detail screen (game-store UUID).
+nonisolated struct StoreRoute: Hashable, Sendable {
+    let id: String
+}
+
+/// Pushes the favorite-stores events calendar.
+nonisolated struct StoreCalendarRoute: Hashable, Sendable {}
+
 // MARK: - My events (registrations)
 
 nonisolated struct LocatorUserEventStatus: Decodable, Sendable, Identifiable {
@@ -151,6 +195,18 @@ nonisolated struct LocatorUserEventStatus: Decodable, Sendable, Identifiable {
     let queueCheckInStatus: String?
     let bestIdentifier: String?
     let event: LocatorEventSummary
+
+    /// You dropped out / cancelled — should be hidden from "my events".
+    var isCanceledRegistration: Bool {
+        let s = (registrationStatus ?? "").uppercased()
+        return s == "CANCELED" || s == "CANCELLED" || s == "DROPPED"
+    }
+}
+
+/// Registration statuses that mean "you're in the event" (offer Drop).
+nonisolated func isActiveRegistration(_ status: String?) -> Bool {
+    guard let status else { return false }
+    return ["COMPLETE", "CHECKED_IN"].contains(status.uppercased())
 }
 
 nonisolated struct LocatorEventSummary: Decodable, Sendable, Identifiable {
@@ -166,6 +222,16 @@ nonisolated struct LocatorEventSummary: Decodable, Sendable, Identifiable {
         let status = (displayStatus ?? "").lowercased()
         return status == "complete" || status == "canceled" || status == "cancelled"
     }
+
+    /// "In progress" but started >4 days ago — the organizer likely forgot to
+    /// close it. Treat as over, not live.
+    var isStaleLive: Bool {
+        guard isLive, let start = startDatetime else { return false }
+        return start < Date().addingTimeInterval(-4 * 24 * 60 * 60)
+    }
+
+    /// Genuinely live right now (not a stale, never-closed event).
+    var isActuallyLive: Bool { isLive && !isStaleLive }
 }
 
 // MARK: - Pairings (public "TV" feed)
@@ -178,6 +244,8 @@ nonisolated struct LocatorMatch: Decodable, Sendable, Identifiable {
     let players: [LocatorMatchPlayer]
 
     var isBye: Bool { (matchIsBye ?? false) || players.count == 1 }
+    /// 3+ players in one match = a multiplayer pod (not a 1v1 pairing).
+    var isPod: Bool { players.count > 2 }
 
     var id: String {
         "\(tableNumber ?? -1)|" + players.map(\.tvDisplayName).joined(separator: "|")
@@ -246,11 +314,14 @@ nonisolated struct ResolvedMyMatch: Sendable, Identifiable {
     let tableNumber: Int?
     let status: String?
     let me: LocatorMatchRelationship
-    let opponent: LocatorMatchRelationship?
+    let opponents: [LocatorMatchRelationship]
     let isBye: Bool
 
     var id: Int { matchID }
     var isComplete: Bool { (status ?? "").uppercased() == "COMPLETE" }
+    var opponent: LocatorMatchRelationship? { opponents.first }
+    /// More than one opponent = a multiplayer pod (our 1v1 report can't express it).
+    var isMultiplayer: Bool { opponents.count > 1 }
 
     init?(_ match: LocatorMyMatch, myUserID: Int?) {
         let relationships = match.playerMatchRelationships
@@ -261,7 +332,7 @@ nonisolated struct ResolvedMyMatch: Sendable, Identifiable {
         self.tableNumber = match.tableNumber
         self.status = match.status
         self.me = mine
-        self.opponent = relationships.first(where: { $0.id != mine.id })
+        self.opponents = relationships.filter { $0.id != mine.id }
         self.isBye = relationships.count <= 1
     }
 }
@@ -286,5 +357,78 @@ nonisolated struct LocatorStanding: Decodable, Sendable, Identifiable {
     var omwText: String {
         guard let value = opponentMatchWinPercentage else { return "—" }
         return "\(Int((value * 100).rounded()))%"
+    }
+}
+
+/// Current user's registration status for an event.
+nonisolated struct LocatorRegistrationStatus: Decodable, Sendable {
+    let registrationStatus: String?
+}
+
+/// The signed-in user's decklist submission(s) for an event.
+nonisolated struct LocatorDeckSubmissions: Decodable, Sendable {
+    let totalSubmissions: Int?
+    let submissions: [LocatorDeckSubmission]
+}
+
+nonisolated struct LocatorDeckSubmission: Decodable, Sendable, Identifiable {
+    let id: String
+    let deckId: String?
+    let deckName: String?
+    let bestIdentifier: String?
+}
+
+// MARK: - Stores
+
+/// A game-stores result wraps the real store under `.store`. The wrapper `id`
+/// is a UUID; the inner `store.id` is the integer used to filter events.
+nonisolated struct LocatorStoreWrapper: Decodable, Sendable, Identifiable {
+    let id: String
+    let store: LocatorStore
+}
+
+nonisolated struct LocatorStore: Decodable, Sendable, Identifiable {
+    let id: Int
+    let name: String
+    let latitude: Double?
+    let longitude: Double?
+    let fullAddress: String?
+    let website: String?
+    let isPremium: Bool?
+    let seatCount: Int?
+    let bio: String?
+    let googlePlacesPhotoUrl: String?
+    let organizerHeroImage: String?
+
+    var hasCoordinate: Bool { latitude != nil && longitude != nil }
+    var headerImageURL: String? {
+        let candidate = organizerHeroImage ?? googlePlacesPhotoUrl
+        guard let candidate, candidate.hasPrefix("http") else { return nil }
+        return candidate
+    }
+}
+
+/// A store's event (the events list, filtered by `store`). Lighter than LocatorEvent.
+nonisolated struct LocatorStoreEvent: Decodable, Sendable, Identifiable {
+    let id: Int
+    let name: String
+    let startDatetime: Date?
+    let displayStatus: String?
+    let costInCents: Int?
+    let currency: String?
+    let queueStatus: String?
+
+    var isOpen: Bool { (queueStatus ?? "").uppercased() == "ACCEPTING_SIGNUPS" }
+    var isLive: Bool { (displayStatus ?? "").lowercased().contains("progress") }
+    var isFinished: Bool {
+        let s = (displayStatus ?? "").lowercased()
+        return s == "complete" || s == "canceled" || s == "cancelled"
+    }
+
+    var priceText: String {
+        guard let cents = costInCents, cents > 0 else { return "Free" }
+        let amount = Double(cents) / 100
+        let symbol = (currency == "EUR") ? "€" : (currency == "USD" ? "$" : "\(currency ?? "") ")
+        return "\(symbol)\(String(format: "%.2f", amount))"
     }
 }

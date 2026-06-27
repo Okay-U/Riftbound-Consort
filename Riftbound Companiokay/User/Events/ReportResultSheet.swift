@@ -137,6 +137,7 @@ struct ReportResultSheet: View {
 
     @MainActor
     private func submit() async {
+        guard !submitting else { return }
         guard let opponent = match.opponent else {
             errorMessage = "No opponent to report against."
             return

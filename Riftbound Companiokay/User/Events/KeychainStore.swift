@@ -10,7 +10,7 @@
 import Foundation
 import Security
 
-struct KeychainStore: Sendable {
+nonisolated struct KeychainStore: Sendable {
     static let standard = KeychainStore(service: "pitopia.Riftcount.locator")
 
     let service: String

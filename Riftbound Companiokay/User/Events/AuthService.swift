@@ -49,7 +49,7 @@ protocol AuthService: Sendable {
     func currentUser(token: String) async throws -> LocatorUser
 }
 
-final class RiftboundAuthService: AuthService {
+nonisolated final class RiftboundAuthService: AuthService {
     private let base = URL(string: "https://api.riftbound.uvsgames.com/api/v2/")!
     private let session: URLSession
     private let decoder: JSONDecoder

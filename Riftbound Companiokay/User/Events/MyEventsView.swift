@@ -13,6 +13,7 @@ struct MyEventsView: View {
     @EnvironmentObject private var session: AuthSession
     @AppStorage("batterySaver") private var batterySaver = false
     var service: any LocatorService = RiftboundLocatorService()
+    var embedded = false   // true when shown under the Events/Stores segmented nav
 
     @State private var items: [LocatorUserEventStatus] = []
     @State private var status: Status = .idle
@@ -48,6 +49,7 @@ struct MyEventsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .refreshable { await load() }
         .task { if case .idle = status { await load() } }
+        .onAppear { if case .loaded = status { Task { await load() } } }
     }
 
     // MARK: - Content
@@ -55,7 +57,7 @@ struct MyEventsView: View {
     @ViewBuilder
     private var content: some View {
         VStack(alignment: .leading, spacing: 22) {
-            headerRow
+            if !embedded { headerRow }
 
             if let hero {
                 heroCard(hero)
@@ -81,6 +83,14 @@ struct MyEventsView: View {
                 .font(.system(size: 31, weight: .bold))
                 .foregroundStyle(EventsTheme.textPrimary)
             Spacer()
+            NavigationLink(value: StoreSearchRoute()) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 17))
+                    .foregroundStyle(EventsTheme.textSecondary)
+                    .frame(width: 38, height: 38)
+                    .background(EventsTheme.card, in: Circle())
+                    .overlay(Circle().stroke(EventsTheme.hairline, lineWidth: 1))
+            }
             Menu {
                 if let name = session.currentUser?.displayName {
                     Text("Signed in as \(name)")
@@ -161,7 +171,7 @@ struct MyEventsView: View {
 
     @ViewBuilder
     private var liveSection: some View {
-        let live = grouped(\.event.isLive, sortDescending: true)
+        let live = grouped(\.event.isActuallyLive, sortDescending: true)
         if !live.isEmpty {
             VStack(alignment: .leading, spacing: 11) {
                 SectionHeader("dot.radiowaves.left.and.right", "Live now") {
@@ -310,7 +320,7 @@ struct MyEventsView: View {
         let now = Date()
         return items
             .filter { status in
-                if status.event.isLive { return false }
+                if status.event.isActuallyLive { return false }
                 if status.event.isFinished { return true }
                 return (status.event.startDatetime ?? .distantFuture) < now
             }
@@ -325,11 +335,12 @@ struct MyEventsView: View {
         if items.isEmpty { status = .loading }
         do {
             let page = try await service.myEvents(token: token, page: 1)
-            items = page.results
+            items = page.results.filter { !$0.isCanceledRegistration }
             nextPage = page.nextPageNumber
             status = .loaded
             await resolveHero()
         } catch {
+            if session.signOutIfUnauthorized(error) { return }
             status = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
         }
     }
@@ -340,7 +351,7 @@ struct MyEventsView: View {
         loadingMore = true
         defer { loadingMore = false }
         if let next = try? await service.myEvents(token: token, page: page) {
-            items += next.results
+            items += next.results.filter { !$0.isCanceledRegistration }
             nextPage = next.nextPageNumber
         }
     }
@@ -350,7 +361,7 @@ struct MyEventsView: View {
     private func resolveHero() async {
         hero = nil
         guard let token = session.token,
-              let live = items.first(where: { $0.event.isLive }),
+              let live = items.first(where: { $0.event.isActuallyLive }),
               let event = try? await service.event(id: live.event.id),
               let round = event.currentRound,
               let match = try? await service.myMatch(roundID: round.id, token: token),

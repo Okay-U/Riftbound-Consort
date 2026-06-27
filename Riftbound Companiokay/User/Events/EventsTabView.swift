@@ -17,11 +17,20 @@ struct EventsTabView: View {
                 case .signedOut:
                     LoginView()
                 case .signedIn:
-                    MyEventsView()
+                    EventsHomeView()
                 }
             }
             .navigationDestination(for: EventRoute.self) { route in
                 EventDetailView(eventID: route.id, myAlias: route.alias)
+            }
+            .navigationDestination(for: StoreSearchRoute.self) { _ in
+                StoreSearchView()
+            }
+            .navigationDestination(for: StoreRoute.self) { route in
+                StoreDetailView(storeID: route.id)
+            }
+            .navigationDestination(for: StoreCalendarRoute.self) { _ in
+                StoreCalendarView()
             }
         }
         .environmentObject(session)

@@ -19,6 +19,11 @@ struct EventDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var state: LoadState = .idle
     @State private var reporting: ResolvedMyMatch?
+    @State private var registered = false
+    @State private var registering = false
+    @State private var registerError: String?
+    @State private var confirmingRegister = false
+    @State private var myDeck: LocatorDeckSubmission?
 
     enum LoadState {
         case idle, loading
@@ -84,9 +89,16 @@ struct EventDetailView: View {
         VStack(alignment: .leading, spacing: 18) {
             overviewCard(data.event)
 
+            if data.myMatch == nil, session.token != nil, !data.event.isFinished,
+               registered || data.event.isOpenForRegistration {
+                registerCard(data.event)
+            }
+
             if let mine = data.myMatch {
                 yourMatchCard(mine, roundLabel: data.event.currentRoundLabel)
             }
+
+            if registered, data.event.usesDecklists { deckCard(data.event) }
 
             cutOutlookCard(data)
 
@@ -108,6 +120,141 @@ struct EventDetailView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
         .refreshable { await load() }
+        .confirmationDialog("Register for this event?",
+                            isPresented: $confirmingRegister, titleVisibility: .visible) {
+            Button("Register · pay in person") { Task { await register(data.event) } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You'll be signed up on the Locator. Any entry fee is paid in person at the store.")
+        }
+    }
+
+    // MARK: - Register card
+
+    @ViewBuilder
+    private func registerCard(_ event: LocatorEvent) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: registered ? "checkmark.circle.fill" : "ticket.fill")
+                    Text(registered ? "You're registered" : "Registration open")
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(EventsTheme.green)
+                Spacer()
+                Text(priceLine(event))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(EventsTheme.textSecondary)
+            }
+
+            if let registerError {
+                Text(registerError).font(.system(size: 12)).foregroundStyle(.red)
+            }
+
+            if registered {
+                Button { Task { await drop(event) } } label: {
+                    HStack(spacing: 6) {
+                        if registering { ProgressView().tint(EventsTheme.textSecondary) }
+                        else { Image(systemName: "xmark"); Text("Drop out") }
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(EventsTheme.textSecondary)
+                    .frame(maxWidth: .infinity).frame(height: 42)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(EventsTheme.hairline, lineWidth: 1))
+                }
+                .buttonStyle(.plain).disabled(registering)
+            } else if event.requiresOnlinePayment {
+                Text("This event takes payment online. Register and pay on the Locator website.")
+                    .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
+                if let url = event.webURL {
+                    Link(destination: url) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "safari"); Text("Open on website"); Image(systemName: "arrow.up.right")
+                        }
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(EventsTheme.matchFillBottom)
+                        .frame(maxWidth: .infinity).frame(height: 42)
+                        .background(EventsTheme.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                }
+            } else {
+                Button { confirmingRegister = true } label: {
+                    HStack(spacing: 6) {
+                        if registering { ProgressView().tint(EventsTheme.matchFillBottom) }
+                        else { Image(systemName: "ticket.fill"); Text("Register · pay in person") }
+                    }
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(EventsTheme.matchFillBottom)
+                    .frame(maxWidth: .infinity).frame(height: 42)
+                    .background(EventsTheme.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain).disabled(registering)
+            }
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .greenGradientBorder(radius: 17)
+    }
+
+    private func priceLine(_ event: LocatorEvent) -> String {
+        if event.priceText == "Free" { return "Free" }
+        return event.requiresOnlinePayment ? "\(event.priceText) · online" : "\(event.priceText) · pay in person"
+    }
+
+    // MARK: - Your decklist
+
+    @ViewBuilder
+    private func deckCard(_ event: LocatorEvent) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader("doc.text", "Your decklist")
+            if let deck = myDeck {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(EventsTheme.green)
+                    Text(deck.deckName ?? "Submitted")
+                        .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+                    Spacer()
+                }
+            } else {
+                Text("No decklist submitted yet.")
+                    .font(.system(size: 14)).foregroundStyle(EventsTheme.textSecondary)
+            }
+            if let url = event.webURL {
+                Link(destination: url) {
+                    HStack(spacing: 6) {
+                        Image(systemName: myDeck == nil ? "square.and.arrow.up" : "pencil")
+                        Text(myDeck == nil ? "Submit on website" : "View or edit on website")
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(EventsTheme.green)
+                }
+            }
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .eventsCard(radius: 18)
+    }
+
+    @MainActor
+    private func register(_ event: LocatorEvent) async {
+        guard !registering, let token = session.token else { return }
+        registering = true; registerError = nil
+        defer { registering = false }
+        do { try await service.register(eventID: event.id, token: token); registered = true }
+        catch {
+            if session.signOutIfUnauthorized(error) { dismiss(); return }
+            registerError = (error as? LocalizedError)?.errorDescription ?? "Couldn't register. Try again."
+        }
+    }
+
+    @MainActor
+    private func drop(_ event: LocatorEvent) async {
+        guard !registering, let token = session.token else { return }
+        registering = true; registerError = nil
+        defer { registering = false }
+        do { try await service.drop(eventID: event.id, token: token); registered = false }
+        catch {
+            if session.signOutIfUnauthorized(error) { dismiss(); return }
+            registerError = (error as? LocalizedError)?.errorDescription ?? "Couldn't drop. Try again."
+        }
     }
 
     // MARK: - Overview card
@@ -202,7 +349,7 @@ struct EventDetailView: View {
                 }
                 .font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
 
-                matchVS(match)
+                if match.isMultiplayer { podMatchList(match) } else { matchVS(match) }
 
                 if match.isComplete {
                     Divider().overlay(EventsTheme.hairline)
@@ -211,6 +358,19 @@ struct EventDetailView: View {
                         Text("Result reported. Ask the scorekeeper to change it.")
                     }
                     .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
+                } else if match.isMultiplayer {
+                    // Our reporter is 1v1 only — multiplayer pods report on the website.
+                    if let url = currentEvent?.webURL {
+                        Link(destination: url) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "safari"); Text("Report on website"); Image(systemName: "arrow.up.right")
+                            }
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(EventsTheme.matchFillBottom)
+                            .frame(maxWidth: .infinity).frame(height: 42)
+                            .background(EventsTheme.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                    }
                 } else if match.opponent != nil, session.token != nil {
                     Button { reporting = match } label: {
                         HStack(spacing: 6) {
@@ -244,6 +404,27 @@ struct EventDetailView: View {
                 Text(match.opponent?.displayName ?? "TBD").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
                 Text(match.opponent?.record ?? "").font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
             }
+        }
+    }
+
+    /// Multiplayer pod: list you + every opponent at the table.
+    @ViewBuilder
+    private func podMatchList(_ match: ResolvedMyMatch) -> some View {
+        VStack(spacing: 6) {
+            podMatchRow(name: match.me.displayName, record: match.me.record, mine: true)
+            ForEach(match.opponents) { opp in
+                podMatchRow(name: opp.displayName, record: opp.record, mine: false)
+            }
+        }
+    }
+
+    private func podMatchRow(name: String, record: String, mine: Bool) -> some View {
+        HStack {
+            Text(mine ? "\(name) · you" : name)
+                .font(.system(size: 15, weight: mine ? .bold : .semibold))
+                .foregroundStyle(mine ? EventsTheme.green : .white).lineLimit(1)
+            Spacer()
+            Text(record).font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
         }
     }
 
@@ -318,6 +499,13 @@ struct EventDetailView: View {
             if match.isBye, let solo = match.players.first {
                 Text("\(solo.tvDisplayName) (Bye)").font(.system(size: 14)).foregroundStyle(.white)
                 Spacer()
+            } else if match.isPod {
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(Array(match.players.enumerated()), id: \.offset) { _, player in
+                        podPlayerRow(player, myName)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 playerSide(match.players.first, myName, trailing: false)
                 Text("vs").font(.system(size: 11)).foregroundStyle(EventsTheme.textTertiary)
@@ -355,15 +543,32 @@ struct EventDetailView: View {
         }
     }
 
+    /// One player line inside a multiplayer pod row.
+    @ViewBuilder
+    private func podPlayerRow(_ player: LocatorMatchPlayer, _ myName: String?) -> some View {
+        let mine = isMe(player.tvDisplayName, myName)
+        let won = player.isWinner ?? false
+        HStack(spacing: 4) {
+            if won { Image(systemName: "crown.fill").font(.system(size: 10)).foregroundStyle(EventsTheme.gold) }
+            Text(mine ? "\(player.tvDisplayName) · you" : player.tvDisplayName)
+                .font(.system(size: 14, weight: mine ? .bold : .semibold))
+                .foregroundStyle(mine ? EventsTheme.green : (won ? .white : EventsTheme.textSecondary))
+                .lineLimit(1)
+            Spacer(minLength: 6)
+            Text(player.record).font(.system(size: 11))
+                .foregroundStyle(won ? EventsTheme.gold : EventsTheme.textSecondary)
+        }
+    }
+
     // MARK: - Standings
 
     @ViewBuilder
     private func standingsCard(_ data: Loaded) -> some View {
         let cut = data.event.resolvedCutSize
         VStack(spacing: 0) {
-            ForEach(Array(data.standings.prefix(16).enumerated()), id: \.element.id) { index, standing in
+            ForEach(Array(data.standings.enumerated()), id: \.element.id) { index, standing in
                 standingRow(standing, myName: data.myName, cut: cut)
-                if index < min(data.standings.count, 16) - 1 {
+                if index < data.standings.count - 1 {
                     Rectangle().fill(EventsTheme.hairline).frame(height: 1).padding(.leading, 14)
                 }
             }
@@ -432,6 +637,14 @@ struct EventDetailView: View {
                 resolved = ResolvedMyMatch(match, myUserID: session.userID)
             }
 
+            if let token = session.token {
+                let status = (try? await service.registrationStatus(eventID: eventID, token: token)) ?? nil
+                registered = isActiveRegistration(status)
+                if e.usesDecklists {
+                    myDeck = (try? await service.myDeckSubmission(eventID: eventID, token: token)) ?? nil
+                }
+            }
+
             let sortedMatches = m.sorted { ($0.tableNumber ?? .max) < ($1.tableNumber ?? .max) }
             state = .loaded(Loaded(event: e,
                                    matches: sortedMatches,
@@ -439,6 +652,7 @@ struct EventDetailView: View {
                                    myMatch: resolved,
                                    myName: resolved?.me.displayName ?? myAlias))
         } catch {
+            if session.signOutIfUnauthorized(error) { dismiss(); return }
             state = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
         }
     }
