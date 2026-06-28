@@ -81,12 +81,32 @@ struct ScoreTile: View {
     @ViewBuilder
     private func centerContentView(for tileMode: TileMode) -> some View {
         if tileMode == .score {
-            Text("\(player.score)")
-                .font(.system(size: 88, weight: .black, design: .rounded))
-                .monospacedDigit()
-                .minimumScaleFactor(0.4)
-                .foregroundStyle(.primary)
-                .shadow(radius: 0.5)
+            ZStack {
+                Text("\(player.score)")
+                    .font(.system(size: 88, weight: .black, design: .rounded))
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.4)
+                    .foregroundStyle(.primary)
+                    .shadow(radius: 0.5)
+
+                if player.xp > 0 {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            Text("XP \(player.xp)")
+                                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                                .tracking(1)
+                                .foregroundStyle(gold.opacity(0.9))
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 4)
+                                .background(Capsule().fill(Color.black.opacity(0.28)))
+                                .padding(.trailing, 14)
+                                .padding(.bottom, 12)
+                        }
+                    }
+                }
+            }
         } else {
             ZStack {
                 Text("\(player.xp)")

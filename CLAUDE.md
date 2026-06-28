@@ -51,10 +51,11 @@ All Swift files live in `Riftbound Companiokay/Riftbound Companiokay/`.
 | `"hapticsEnabled"` | Bool | true | Settings, Haptics |
 | `"soundsEnabled"` | Bool | false | Settings, ScoreTile |
 | `"diceShakeToRoll"` | Bool | true | Settings, DiceView |
-| `"currentTab"` | String | "score" | RootTabView, DiceView |
+| `"currentTab"` | String | "score" | RootTabView, DiceView, EventDetailView (Play on Scoreboard) |
 | `"playerCount"` | Int | 2 | ScoreboardViewModel |
 | `"targetScore"` | Int | 8 | ScoreboardView, QuickSettingsSheet, ScoreTile |
 | `"colorIdx_0"`..`"colorIdx_3"` | Int | -1 | ScoreboardViewModel |
+| `"matchModeEnabled"` | Bool | false | Settings, MatchModeStore, ScoreboardView |
 
 ---
 
@@ -86,4 +87,6 @@ When starting work on a new fix or phase:
 
 ---
 
-> Phase A/B/C, dice redesign, and full deck-builder wizard (incl. import/export, edit sheet, rune step, champion swap) are all shipped. See memory `session_state.md` for current feature inventory.
+> Phase A/B/C, dice redesign, and full deck-builder wizard (incl. import/export, edit sheet, rune step, champion swap) are all shipped. Events tab (Locator), Store finder, and Scoreboard↔tournament **match mode** are shipped too. See memory `session_state.md` for current feature inventory.
+>
+> **Note:** `AuthSession` now lives at app root (`Riftbound_CompaniokayApp.swift` `@StateObject`, injected on `RootTabView`), not inside `EventsTabView` — so the Scoreboard's `MatchModeStore` can resolve the signed-in user. Any view reading `@EnvironmentObject AuthSession` works app-wide.

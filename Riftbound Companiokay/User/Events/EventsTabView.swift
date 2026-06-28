@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct EventsTabView: View {
-    @StateObject private var session = AuthSession()
+    @EnvironmentObject private var session: AuthSession
 
     var body: some View {
         NavigationStack {
@@ -33,11 +33,10 @@ struct EventsTabView: View {
                 StoreCalendarView()
             }
         }
-        .environmentObject(session)
-        .task { await session.restore() }
     }
 }
 
 #Preview {
     EventsTabView()
+        .environmentObject(AuthSession())
 }

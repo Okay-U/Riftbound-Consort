@@ -15,7 +15,9 @@ struct EventDetailView: View {
     var service: any LocatorService = RiftboundLocatorService()
 
     @EnvironmentObject private var session: AuthSession
+    @EnvironmentObject private var matchMode: MatchModeStore
     @AppStorage("batterySaver") private var batterySaver = false
+    @AppStorage("currentTab") private var currentTab: String = "score"
     @Environment(\.dismiss) private var dismiss
     @State private var state: LoadState = .idle
     @State private var reporting: ResolvedMyMatch?
@@ -384,11 +386,42 @@ struct EventDetailView: View {
                     }
                     .buttonStyle(.plain)
                 }
+
+                if !match.isMultiplayer, match.opponent != nil {
+                    playOnScoreboardButton(match)
+                }
             }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .greenGradientBorder(radius: 17)
+    }
+
+    @ViewBuilder
+    private func playOnScoreboardButton(_ match: ResolvedMyMatch) -> some View {
+        Button { startOnScoreboard(match) } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "gamecontroller.fill")
+                Text("Play on Scoreboard")
+            }
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(EventsTheme.green)
+            .frame(maxWidth: .infinity).frame(height: 42)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(EventsTheme.green.opacity(0.5), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func startOnScoreboard(_ match: ResolvedMyMatch) {
+        guard let event = currentEvent else { return }
+        matchMode.setManual(ActiveTournamentMatch(
+            eventID: eventID,
+            match: match,
+            isBestOfThree: event.isBestOfThree,
+            eventName: event.name,
+            roundLabel: event.currentRoundLabel
+        ))
+        currentTab = "score"
     }
 
     private func matchVS(_ match: ResolvedMyMatch) -> some View {
@@ -663,4 +696,5 @@ struct EventDetailView: View {
         EventDetailView(eventID: 604874)
     }
     .environmentObject(AuthSession())
+    .environmentObject(MatchModeStore())
 }

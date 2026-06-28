@@ -13,6 +13,8 @@ struct ScoreboardView: View {
     @EnvironmentObject var decklistStore: DecklistStore
     @EnvironmentObject var cardStore: CardStore
     @EnvironmentObject var gameRecordStore: GameRecordStore
+    @EnvironmentObject var matchMode: MatchModeStore
+    @EnvironmentObject var session: AuthSession
     @AppStorage("trueBlack") private var trueBlack: Bool = true
     @AppStorage("activeDeckId")   private var activeDeckId: String = ""
     @AppStorage("activeOpponent") private var activeOpponent: String = ""
@@ -26,6 +28,7 @@ struct ScoreboardView: View {
     @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var liveActivityDebounce: Task<Void, Never>?
+    @State private var reportingMatch: ResolvedMyMatch?
 
     private let outerVSpacing: CGFloat = 12
     private let gridSpacing: CGFloat = 12
@@ -36,7 +39,14 @@ struct ScoreboardView: View {
             (trueBlack ? Color.black : Color(.systemBackground)).ignoresSafeArea()
 
             VStack(spacing: outerVSpacing) {
-                headerBar
+                VStack(spacing: 8) {
+                    headerBar
+
+                    if showMatchStrip, let active = matchMode.active {
+                        matchStrip(active)
+                            .padding(.horizontal, 16)
+                    }
+                }
 
                 GeometryReader { geo in
                     let availableH = geo.size.height
@@ -87,6 +97,13 @@ struct ScoreboardView: View {
                 .environmentObject(decklistStore)
                 .environmentObject(cardStore)
         }
+        .sheet(item: $reportingMatch) { match in
+            ReportResultSheet(match: match,
+                              isBestOfThree: matchMode.active?.isBestOfThree ?? true,
+                              token: session.token ?? "",
+                              onReported: { Task { await matchMode.refresh(session: session) } })
+        }
+        .task { await matchMode.refresh(session: session) }
         .onChange(of: gameTimer.isRunning, initial: false) { _, _ in
             syncLiveActivity()
         }
@@ -105,6 +122,7 @@ struct ScoreboardView: View {
             if phase == .active {
                 vm.adoptSharedScoresIfAvailable()
                 syncLiveActivity()
+                Task { await matchMode.refresh(session: session) }
             }
         }
         .onChange(of: liveActivityEnabled, initial: false) { _, _ in
@@ -209,6 +227,59 @@ struct ScoreboardView: View {
 
     private func visibleSlots() -> [Int] {
         vm.playerCount == 2 ? [0, 1] : [0, 1, 2, 3]
+    }
+
+    // MARK: - Match mode strip
+
+    private var showMatchStrip: Bool {
+        matchMode.enabled && matchMode.active != nil && vm.playerCount == 2
+    }
+
+    @ViewBuilder
+    private func matchStrip(_ active: ActiveTournamentMatch) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Image(systemName: "trophy.fill")
+                    Text("Table \(active.tableNumber.map(String.init) ?? "—")"
+                         + (active.roundLabel.map { " · \($0)" } ?? ""))
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(EventsTheme.green)
+
+                Text("\(active.myName)  vs  \(active.opponentName ?? "TBD")")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(EventsTheme.textPrimary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            if active.isComplete {
+                HStack(spacing: 5) {
+                    Image(systemName: "checkmark.seal.fill")
+                    Text("Reported")
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(EventsTheme.greenSoft, in: Capsule())
+                .foregroundStyle(EventsTheme.green)
+            } else if active.isReportable {
+                Button { reportingMatch = active.match } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "square.and.pencil")
+                        Text("Report")
+                    }
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(EventsTheme.matchFillBottom)
+                    .padding(.horizontal, 14).frame(height: 38)
+                    .background(EventsTheme.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 11)
+        .greenGradientBorder(radius: EventsTheme.pillRadius)
     }
 
     private func syncToggleFromTiles() {

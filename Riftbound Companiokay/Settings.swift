@@ -16,6 +16,7 @@ struct Settings: View {
     @AppStorage("soundsEnabled") private var soundsEnabled: Bool = false
     @AppStorage("diceShakeToRoll") private var diceShakeToRoll: Bool = true
     @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
+    @AppStorage("matchModeEnabled") private var matchModeEnabled: Bool = false
     @AppStorage("didOnboard") private var didOnboard: Bool = false
 
     private var systemLiveActivitiesAuthorized: Bool {
@@ -52,6 +53,14 @@ struct Settings: View {
                     Text("Live Activity")
                 } footer: {
                     Text("Shows scoreboard on Lock Screen and Dynamic Island while a 2-player game timer is running. Tap +/− on lock screen to update scores.")
+                }
+
+                Section {
+                    Toggle("Match mode", isOn: $matchModeEnabled)
+                } header: {
+                    Text("Tournament")
+                } footer: {
+                    Text("When you're signed in to Events and playing a live tournament, the Scoreboard shows your table, opponent, and a Report button so you can score and submit the match in one place.")
                 }
 
                 Section("Help") {

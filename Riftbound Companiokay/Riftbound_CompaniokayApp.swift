@@ -18,6 +18,8 @@ struct Riftbound_CompaniokayApp: App {
     @StateObject private var decklistStore = DecklistStore()
     @StateObject private var cardStore = CardStore()
     @StateObject private var gameRecordStore = GameRecordStore()
+    @StateObject private var authSession = AuthSession()
+    @StateObject private var matchMode = MatchModeStore()
 
     var body: some Scene {
         WindowGroup {
@@ -28,8 +30,11 @@ struct Riftbound_CompaniokayApp: App {
                 .environmentObject(decklistStore)
                 .environmentObject(cardStore)
                 .environmentObject(gameRecordStore)
+                .environmentObject(authSession)
+                .environmentObject(matchMode)
                 .preferredColorScheme(.dark)
                 .background(trueBlack ? Color.black : Color(.systemBackground))
+                .task { await authSession.restore() }
                 .fullScreenCover(isPresented: Binding(
                     get: { !didOnboard },
                     set: { newValue in if !newValue { didOnboard = true } }
