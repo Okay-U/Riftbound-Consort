@@ -3,8 +3,8 @@
 //  Riftbound Companiokay
 //
 //  Store info + its events, filtered by When (Upcoming / Live / Past). Public
-//  read. Tapping an event opens the existing EventDetailView. (Register action
-//  comes in a later step.)
+//  read. Tapping an event opens the existing EventDetailView (which handles
+//  registration). Heart toggles the store as a local favorite.
 //
 
 import SwiftUI
@@ -20,6 +20,7 @@ struct StoreDetailView: View {
     @State private var events: [LocatorStoreEvent] = []
     @State private var when: When = .upcoming
     @State private var eventsLoading = false
+    @State private var eventsError = false
     @State private var nextPage: Int?
 
     enum Phase: Equatable { case loading, loaded, failed(String) }
@@ -53,6 +54,7 @@ struct StoreDetailView: View {
             }
         }
         .background(EventsTheme.bg.ignoresSafeArea())
+        .refreshable { await loadEvents(reset: true) }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
@@ -114,7 +116,7 @@ struct StoreDetailView: View {
                 .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
             }
             HStack(spacing: 16) {
-                if let site = store.website, let url = URL(string: site) {
+                if let url = websiteURL(store.website) {
                     Link(destination: url) {
                         Label("Website", systemImage: "globe").font(.system(size: 13, weight: .medium))
                     }.tint(EventsTheme.green)
@@ -164,9 +166,10 @@ struct StoreDetailView: View {
         if eventsLoading && events.isEmpty {
             ProgressView().frame(maxWidth: .infinity).padding(.top, 30)
         } else if events.isEmpty {
-            Text("No \(when.rawValue.lowercased()) events.")
-                .font(.system(size: 14)).foregroundStyle(EventsTheme.textSecondary)
-                .frame(maxWidth: .infinity).padding(.top, 30)
+            Text(eventsError ? "Couldn't load events. Pull down to retry." : "No \(when.rawValue.lowercased()) events.")
+                .font(.system(size: 14)).foregroundStyle(eventsError ? .red : EventsTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity).padding(.top, 30).padding(.horizontal, 24)
         } else {
             VStack(spacing: 9) {
                 ForEach(events) { eventRow($0) }
@@ -199,15 +202,31 @@ struct StoreDetailView: View {
     }
 
     private func priceLabel(_ event: LocatorStoreEvent) -> String {
-        event.priceText == "Free" ? "Free" : "\(event.priceText) · pay in person"
+        // The list endpoint doesn't carry payment settings, so don't assert
+        // "pay in person" here — show the price only. EventDetailView resolves
+        // the real payment method (online vs in person) once opened.
+        event.priceText
+    }
+
+    /// Build a URL from a store website string, defaulting to https:// when the
+    /// site omits a scheme (a schemeless URL opens nothing).
+    private func websiteURL(_ raw: String?) -> URL? {
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespaces), !trimmed.isEmpty else { return nil }
+        let withScheme = trimmed.contains("://") ? trimmed : "https://\(trimmed)"
+        return URL(string: withScheme)
     }
 
     private var loadMoreRow: some View {
         Button { Task { await loadEvents(reset: false) } } label: {
             HStack {
                 Spacer()
-                if eventsLoading { ProgressView() }
-                else { Text("Load more").font(.system(size: 15, weight: .semibold)).foregroundStyle(EventsTheme.textSecondary) }
+                if eventsLoading {
+                    ProgressView()
+                } else {
+                    Text(eventsError ? "Couldn't load more. Tap to retry." : "Load more")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(eventsError ? .red : EventsTheme.textSecondary)
+                }
                 Spacer()
             }
             .padding(.vertical, 14).eventsCard(radius: 14)
@@ -236,10 +255,13 @@ struct StoreDetailView: View {
         if reset { events = []; nextPage = nil }
         let page = reset ? 1 : (nextPage ?? 1)
         eventsLoading = true
+        eventsError = false
         defer { eventsLoading = false }
         if let result = try? await service.storeEvents(storeID: sid, status: when.status, page: page) {
             events = reset ? result.results : events + result.results
             nextPage = result.nextPageNumber
+        } else {
+            eventsError = true
         }
     }
 }

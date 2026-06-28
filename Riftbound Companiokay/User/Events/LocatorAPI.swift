@@ -2,8 +2,9 @@
 //  LocatorAPI.swift
 //  Riftbound Companiokay
 //
-//  Read-only client for the Riftbound Locator (UVS Games Hydra) REST API.
-//  Step 1: public "TV" endpoints only — no auth. Login + writes come later.
+//  Client for the Riftbound Locator (UVS Games Hydra) REST API: public "TV"
+//  endpoints (events, pairings, standings, stores) plus authed reads/writes
+//  (my-events, my-match, register/drop, report result).
 //
 
 import Foundation
@@ -14,7 +15,6 @@ protocol LocatorService: Sendable {
     func standings(eventID: Int) async throws -> [LocatorStanding]
     func myEvents(token: String, page: Int) async throws -> LocatorPage<LocatorUserEventStatus>
     func myMatch(roundID: Int, token: String) async throws -> LocatorMyMatch
-    func searchStores(query: String, page: Int) async throws -> LocatorPage<LocatorStoreWrapper>
     func storesNearby(latitude: Double, longitude: Double, miles: Int, page: Int) async throws -> LocatorPage<LocatorStoreWrapper>
     func store(id: String) async throws -> LocatorStoreWrapper
     func storeEvents(storeID: Int, status: String?, page: Int) async throws -> LocatorPage<LocatorStoreEvent>
@@ -70,11 +70,6 @@ nonisolated final class RiftboundLocatorService: LocatorService {
 
     func myMatch(roundID: Int, token: String) async throws -> LocatorMyMatch {
         try await get("tournament-rounds/\(roundID)/my-match/", token: token)
-    }
-
-    func searchStores(query: String, page: Int) async throws -> LocatorPage<LocatorStoreWrapper> {
-        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        return try await get("game-stores/?game_slug=riftbound&search=\(encoded)&page=\(page)")
     }
 
     func store(id: String) async throws -> LocatorStoreWrapper {
@@ -175,10 +170,12 @@ nonisolated final class RiftboundLocatorService: LocatorService {
         request.setValue("Token \(token)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONSerialization.data(withJSONObject: json)
 
-        let (_, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw LocatorError.badResponse }
         guard (200..<300).contains(http.statusCode) else {
             if http.statusCode == 409 { throw LocatorError.alreadyReported }
+            if http.statusCode == 401 { throw LocatorError.http(401) }   // keep 401 → sign-out path
+            if let message = Self.serverMessage(in: data) { throw LocatorError.serverMessage(message) }
             throw LocatorError.http(http.statusCode)
         }
     }
@@ -220,7 +217,7 @@ enum LocatorError: LocalizedError {
         case .badResponse:     return "Couldn't reach the tournament server."
         case .http(let code):
             switch code {
-            case 403: return "Registration isn't available for this event — it may be full or not accepting sign-ups."
+            case 403: return "Registration isn't available for this event. It may be full or not accepting sign-ups."
             case 404: return "This event couldn't be found. It may have been removed."
             case 401: return "Your session ended. Please sign in again."
             case 500...599: return "The tournament server is having problems. Try again later."

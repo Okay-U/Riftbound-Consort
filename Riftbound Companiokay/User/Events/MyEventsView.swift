@@ -19,7 +19,9 @@ struct MyEventsView: View {
     @State private var status: Status = .idle
     @State private var nextPage: Int?
     @State private var loadingMore = false
+    @State private var loadMoreFailed = false
     @State private var hero: HeroMatch?
+    @State private var lastLoaded: Date?
 
     enum Status: Equatable { case idle, loading, loaded, failed(String) }
 
@@ -49,7 +51,13 @@ struct MyEventsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .refreshable { await load() }
         .task { if case .idle = status { await load() } }
-        .onAppear { if case .loaded = status { Task { await load() } } }
+        .onAppear {
+            // Refresh on return (to reflect drops/registrations done elsewhere),
+            // but throttle so back-navigation doesn't refetch on every appear.
+            guard case .loaded = status else { return }
+            if let last = lastLoaded, Date().timeIntervalSince(last) < 20 { return }
+            Task { await load() }
+        }
     }
 
     // MARK: - Content
@@ -265,8 +273,13 @@ struct MyEventsView: View {
         Button { Task { await loadMore() } } label: {
             HStack {
                 Spacer()
-                if loadingMore { ProgressView() }
-                else { Text("Load more").font(.system(size: 15, weight: .semibold)).foregroundStyle(EventsTheme.textSecondary) }
+                if loadingMore {
+                    ProgressView()
+                } else {
+                    Text(loadMoreFailed ? "Couldn't load more. Tap to retry." : "Load more")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(loadMoreFailed ? .red : EventsTheme.textSecondary)
+                }
                 Spacer()
             }
             .padding(.vertical, 14)
@@ -338,6 +351,7 @@ struct MyEventsView: View {
             items = page.results.filter { !$0.isCanceledRegistration }
             nextPage = page.nextPageNumber
             status = .loaded
+            lastLoaded = Date()
             await resolveHero()
         } catch {
             if session.signOutIfUnauthorized(error) { return }
@@ -349,10 +363,13 @@ struct MyEventsView: View {
     private func loadMore() async {
         guard let token = session.token, let page = nextPage, !loadingMore else { return }
         loadingMore = true
+        loadMoreFailed = false
         defer { loadingMore = false }
         if let next = try? await service.myEvents(token: token, page: page) {
             items += next.results.filter { !$0.isCanceledRegistration }
             nextPage = next.nextPageNumber
+        } else {
+            loadMoreFailed = true
         }
     }
 

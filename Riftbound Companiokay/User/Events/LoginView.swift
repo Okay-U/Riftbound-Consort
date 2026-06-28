@@ -3,8 +3,8 @@
 //  Riftbound Companiokay
 //
 //  Locator sign-in (signed-out state of the Events tab). Title-led, rounded
-//  pill fields, green gradient CTA, then Sign in with Apple. Password is sent
-//  once over HTTPS and never stored — only the returned token is kept (Keychain).
+//  pill fields, green gradient CTA. Email/password only. Password is sent once
+//  over HTTPS and never stored — only the returned token is kept (Keychain).
 //
 
 import SwiftUI

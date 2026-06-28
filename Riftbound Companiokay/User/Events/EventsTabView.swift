@@ -9,6 +9,8 @@ import SwiftUI
 
 struct EventsTabView: View {
     @EnvironmentObject private var session: AuthSession
+    @AppStorage("didOnboardEvents") private var didOnboardEvents = false
+    @State private var showOnboarding = false
 
     var body: some View {
         NavigationStack {
@@ -32,6 +34,12 @@ struct EventsTabView: View {
             .navigationDestination(for: StoreCalendarRoute.self) { _ in
                 StoreCalendarView()
             }
+        }
+        // Fires when the Events tab is first shown (not at app launch), so the
+        // tour appears on the user's first visit to Events, not before.
+        .onAppear { if !didOnboardEvents { showOnboarding = true } }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            EventsOnboardingView()
         }
     }
 }

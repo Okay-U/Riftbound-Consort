@@ -42,6 +42,16 @@ struct ReportResultSheet: View {
     private var draws: Int { games.filter { $0 == .draw }.count }
     private var canSubmit: Bool { (myWins + oppWins + draws) > 0 && !submitting }
 
+    /// Best of 3 is over once a player reaches 2 game wins — there is no game 3.
+    private var matchDecided: Bool { isBestOfThree && (myWins >= 2 || oppWins >= 2) }
+
+    /// An undecided row is locked once the match is already decided by the others,
+    /// so you can't record an impossible third win (e.g. 3–0). Rows you already
+    /// set stay editable so a misclick can be corrected.
+    private func isRowLocked(_ index: Int) -> Bool {
+        matchDecided && games[index] == .undecided
+    }
+
     private var opponentName: String { match.opponent?.displayName ?? "Opponent" }
 
     var body: some View {
@@ -55,7 +65,9 @@ struct ReportResultSheet: View {
                     Text(isBestOfThree ? "Games (best of 3)" : "Result (best of 1)")
                 } footer: {
                     if isBestOfThree {
-                        Text("Set each game you played. You can report a partial result. Only the games you mark count.")
+                        Text(matchDecided
+                             ? "Match is decided at 2 game wins. The remaining game is disabled."
+                             : "Set each game you played. You can report a partial result. Only the games you mark count.")
                     }
                 }
 
@@ -102,21 +114,23 @@ struct ReportResultSheet: View {
 
     @ViewBuilder
     private func gameRow(_ index: Int) -> some View {
+        let locked = isRowLocked(index)
         VStack(alignment: .leading, spacing: 8) {
             if isBestOfThree {
                 Text("Game \(index + 1)").font(.caption).foregroundStyle(.secondary)
             }
             HStack(spacing: 8) {
-                choice("You", .me, index, tint: .blue)
-                choice("Draw", .draw, index, tint: .gray)
-                choice(opponentName, .opponent, index, tint: .red)
+                choice("You", .me, index, tint: .blue, locked: locked)
+                choice("Draw", .draw, index, tint: .gray, locked: locked)
+                choice(opponentName, .opponent, index, tint: .red, locked: locked)
             }
         }
         .padding(.vertical, 4)
+        .opacity(locked ? 0.4 : 1)
     }
 
     @ViewBuilder
-    private func choice(_ title: String, _ value: GameOutcome, _ index: Int, tint: Color) -> some View {
+    private func choice(_ title: String, _ value: GameOutcome, _ index: Int, tint: Color, locked: Bool = false) -> some View {
         let selected = games[index] == value
         Button {
             games[index] = selected ? .undecided : value
@@ -131,6 +145,7 @@ struct ReportResultSheet: View {
                 .foregroundStyle(selected ? tint : .primary)
         }
         .buttonStyle(.plain)
+        .disabled(locked)
     }
 
     // MARK: - Submit

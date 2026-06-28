@@ -17,6 +17,7 @@ struct StoreCalendarView: View {
 
     @State private var events: [CalEvent] = []
     @State private var loading = true
+    @State private var loadError: String?
     @State private var month = Date()
     @State private var selectedDay: Date?
 
@@ -37,11 +38,13 @@ struct StoreCalendarView: View {
                 weekdayRow
                 grid
                 legend
+                if !loading, events.isEmpty { emptyOrError }
                 if let day = selectedDay { dayEvents(day) }
             }
             .padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 24)
         }
         .background(EventsTheme.bg.ignoresSafeArea())
+        .refreshable { await load() }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
@@ -128,6 +131,29 @@ struct StoreCalendarView: View {
         }
     }
 
+    private var emptyOrError: some View {
+        let noFavorites = StoreFavorites.decode(favRaw).isEmpty
+        let icon: String
+        let message: String
+        if let loadError {
+            icon = "wifi.exclamationmark"; message = loadError
+        } else if noFavorites {
+            icon = "heart"
+            message = "No favorite stores yet. Search the Stores tab and tap the heart to save one. Its events show up here."
+        } else {
+            icon = "calendar"
+            message = "No upcoming events at your favorite stores."
+        }
+        return VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 28)).foregroundStyle(EventsTheme.textTertiary)
+            Text(message)
+                .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity).padding(.top, 30).padding(.horizontal, 24)
+    }
+
     private var legend: some View {
         HStack(spacing: 16) {
             HStack(spacing: 6) {
@@ -206,8 +232,10 @@ struct StoreCalendarView: View {
     @MainActor
     private func load() async {
         loading = true
+        loadError = nil
         defer { loading = false }
 
+        // Registered ids drive the dot fill; best-effort, failure here only dims dots.
         var registeredIDs = Set<Int>()
         if let token = session.token, let page = try? await service.myEvents(token: token, page: 1) {
             for ues in page.results where isActiveRegistration(ues.registrationStatus) {
@@ -215,19 +243,40 @@ struct StoreCalendarView: View {
             }
         }
 
-        var collected: [CalEvent] = []
-        for fav in StoreFavorites.decode(favRaw) {
-            guard let numericID = fav.numericID else { continue }
-            if let page = try? await service.storeEvents(storeID: numericID, status: "upcoming", page: 1) {
-                for event in page.results {
-                    guard let date = event.startDatetime else { continue }
-                    collected.append(CalEvent(id: event.id, name: event.name, date: date,
-                                              registered: registeredIDs.contains(event.id),
-                                              storeName: fav.name))
+        // Fetch every favorite store's events in parallel (nil result = that fetch failed).
+        let service = self.service
+        let favorites = StoreFavorites.decode(favRaw)
+        let fetched: [(String, [LocatorStoreEvent]?)] = await withTaskGroup(
+            of: (String, [LocatorStoreEvent]?).self
+        ) { group in
+            for fav in favorites {
+                guard let numericID = fav.numericID else { continue }
+                let name = fav.name
+                group.addTask {
+                    let page = try? await service.storeEvents(storeID: numericID, status: "upcoming", page: 1)
+                    return (name, page?.results)
                 }
+            }
+            var out: [(String, [LocatorStoreEvent]?)] = []
+            for await result in group { out.append(result) }
+            return out
+        }
+
+        var collected: [CalEvent] = []
+        var anyFailed = false
+        for (favName, storeEvents) in fetched {
+            guard let storeEvents else { anyFailed = true; continue }
+            for event in storeEvents {
+                guard let date = event.startDatetime else { continue }
+                collected.append(CalEvent(id: event.id, name: event.name, date: date,
+                                          registered: registeredIDs.contains(event.id),
+                                          storeName: favName))
             }
         }
         events = collected
+        if collected.isEmpty, anyFailed {
+            loadError = "Couldn't load events. Pull down to retry."
+        }
         if let earliest = collected.map(\.date).min() {
             month = earliest
             selectedDay = cal.startOfDay(for: earliest)

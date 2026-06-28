@@ -56,6 +56,7 @@ All Swift files live in `Riftbound Companiokay/Riftbound Companiokay/`.
 | `"targetScore"` | Int | 8 | ScoreboardView, QuickSettingsSheet, ScoreTile |
 | `"colorIdx_0"`..`"colorIdx_3"` | Int | -1 | ScoreboardViewModel |
 | `"matchModeEnabled"` | Bool | false | Settings, MatchModeStore, ScoreboardView |
+| `"didOnboardEvents"` | Bool | false | EventsTabView, EventsOnboardingView, Settings |
 
 ---
 

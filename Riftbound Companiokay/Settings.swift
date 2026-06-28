@@ -27,6 +27,7 @@ struct Settings: View {
         #endif
     }
     @State private var showOnboarding: Bool = false
+    @State private var showEventsOnboarding: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -69,6 +70,11 @@ struct Settings: View {
                     } label: {
                         Label("Show tour again", systemImage: "sparkles")
                     }
+                    Button {
+                        showEventsOnboarding = true
+                    } label: {
+                        Label("Events & tournaments tour", systemImage: "trophy")
+                    }
                 }
 
                 Section("About") {
@@ -100,6 +106,9 @@ struct Settings: View {
             .navigationTitle("Settings")
             .fullScreenCover(isPresented: $showOnboarding) {
                 OnboardingView()
+            }
+            .fullScreenCover(isPresented: $showEventsOnboarding) {
+                EventsOnboardingView()
             }
         }
     }

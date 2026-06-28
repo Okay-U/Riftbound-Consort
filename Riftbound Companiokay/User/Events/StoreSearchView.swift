@@ -2,8 +2,10 @@
 //  StoreSearchView.swift
 //  Riftbound Companiokay
 //
-//  Find a store by name or city. Public (no auth). Tapping a result opens the
-//  store detail. Debounced search, paginated.
+//  Find stores by city. Public (no auth). The typed text is geocoded to a
+//  coordinate, then we list stores near it (store-name text search proved
+//  unreliable on the API, so we stick to city/place lookup). Debounced,
+//  paginated, with a map view. Tapping a result opens the store detail.
 //
 
 import SwiftUI
@@ -21,12 +23,14 @@ struct StoreSearchView: View {
     @State private var phase: Phase = .idle
     @State private var nextPage: Int?
     @State private var loadingMore = false
+    @State private var loadMoreFailed = false
     @State private var showMap = false
     @State private var camera: MapCameraPosition = .region(MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 50.0, longitude: 9.0),
         span: MKCoordinateSpan(latitudeDelta: 12, longitudeDelta: 12)))
     @State private var selectedPin: StorePin?
     @State private var nearbyCenter: CLLocationCoordinate2D?   // set when results are location-based
+    @State private var geocoder = CLGeocoder()
     @FocusState private var focused: Bool
 
     private let nearbyMiles = 30
@@ -138,7 +142,7 @@ struct StoreSearchView: View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass").foregroundStyle(EventsTheme.textSecondary)
             TextField("", text: $query,
-                      prompt: Text("City or store name").foregroundStyle(EventsTheme.textSecondary))
+                      prompt: Text("Search by city").foregroundStyle(EventsTheme.textSecondary))
                 .foregroundStyle(.white)
                 .focused($focused)
                 .submitLabel(.search)
@@ -167,7 +171,7 @@ struct StoreSearchView: View {
             hint(message)
         case .loaded:
             if results.isEmpty {
-                hint("No stores found for “\(query)”.")
+                hint("No stores found near “\(query)”.")
             } else {
                 VStack(spacing: 9) {
                     ForEach(results) { storeRow($0) }
@@ -180,21 +184,52 @@ struct StoreSearchView: View {
     @ViewBuilder
     private var favoritesOrHint: some View {
         let favorites = StoreFavorites.decode(favRaw)
-        if favorites.isEmpty {
-            hint("Search for a store by name or city. Tap the heart on a store to save it here.")
-        } else {
-            VStack(alignment: .leading, spacing: 11) {
-                SectionHeader("heart.fill", "My local stores") {
-                    NavigationLink(value: StoreCalendarRoute()) {
-                        HStack(spacing: 4) { Image(systemName: "calendar"); Text("Calendar") }
-                            .font(.system(size: 12, weight: .bold)).foregroundStyle(EventsTheme.green)
+        VStack(alignment: .leading, spacing: 16) {
+            calendarCard(favoritesCount: favorites.count)
+
+            if favorites.isEmpty {
+                Text("Search by city to find stores near you, then tap the heart to save one. Your saved stores fill the calendar above.")
+                    .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                VStack(alignment: .leading, spacing: 11) {
+                    SectionHeader("heart.fill", "My local stores")
+                    VStack(spacing: 9) {
+                        ForEach(favorites) { favoriteRow($0) }
                     }
-                }
-                VStack(spacing: 9) {
-                    ForEach(favorites) { favoriteRow($0) }
                 }
             }
         }
+        .padding(.top, 4)
+    }
+
+    /// Prominent entry to the favorite-stores event calendar — the standout
+    /// feature of the Stores tab (see every local store's events by date).
+    private func calendarCard(favoritesCount: Int) -> some View {
+        NavigationLink(value: StoreCalendarRoute()) {
+            HStack(spacing: 14) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(EventsTheme.matchFillBottom)
+                    .frame(width: 48, height: 48)
+                    .background(EventsTheme.green, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Store Calendar")
+                        .font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
+                    Text(favoritesCount > 0
+                         ? "Every event at your \(favoritesCount) saved store\(favoritesCount == 1 ? "" : "s"), by date"
+                         : "All your local stores' events in one place")
+                        .font(.system(size: 12.5)).foregroundStyle(EventsTheme.textSecondary).lineLimit(2)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(EventsTheme.green)
+            }
+            .padding(15)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .greenGradientBorder(radius: 16)
+        }
+        .buttonStyle(.plain)
     }
 
     private func favoriteRow(_ fav: FavoriteStore) -> some View {
@@ -258,8 +293,13 @@ struct StoreSearchView: View {
         Button { Task { await loadMore() } } label: {
             HStack {
                 Spacer()
-                if loadingMore { ProgressView() }
-                else { Text("Load more").font(.system(size: 15, weight: .semibold)).foregroundStyle(EventsTheme.textSecondary) }
+                if loadingMore {
+                    ProgressView()
+                } else {
+                    Text(loadMoreFailed ? "Couldn't load more. Tap to retry." : "Load more")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(loadMoreFailed ? .red : EventsTheme.textSecondary)
+                }
                 Spacer()
             }
             .padding(.vertical, 14).eventsCard(radius: 14)
@@ -273,7 +313,7 @@ struct StoreSearchView: View {
     @MainActor
     private func debouncedSearch() async {
         let q = query.trimmingCharacters(in: .whitespaces)
-        guard q.count >= 2 else {
+        guard q.count >= 3 else {
             results = []; nextPage = nil; nearbyCenter = nil; phase = .idle
             return
         }
@@ -282,80 +322,56 @@ struct StoreSearchView: View {
         phase = .searching
         selectedPin = nil
 
-        // City/place: geocode the text → stores near that point, map centered there.
-        if q.count >= 3, let location = await geocode(q) {
+        // City/place only: geocode the text → stores near that point, map centered there.
+        guard let location = await geocode(q) else {
             if Task.isCancelled { return }
-            do {
-                let page = try await service.storesNearby(latitude: location.latitude,
-                                                          longitude: location.longitude,
-                                                          miles: nearbyMiles, page: 1)
-                if Task.isCancelled { return }
-                results = dedup(page.results)
-                nextPage = page.nextPageNumber
-                nearbyCenter = location
-                phase = .loaded
-                let delta = Double(nearbyMiles) / 45.0
-                camera = .region(MKCoordinateRegion(center: location,
-                                                    span: MKCoordinateSpan(latitudeDelta: delta, longitudeDelta: delta)))
-                showMap = true
-                return
-            } catch {
-                phase = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
-                return
-            }
+            results = []; nextPage = nil; nearbyCenter = nil
+            phase = .failed("Couldn't find a place called “\(q)”. Try a city or town name.")
+            return
         }
-
-        // Fallback: text search by store name.
+        if Task.isCancelled { return }
         do {
-            let page = try await service.searchStores(query: q, page: 1)
+            let page = try await service.storesNearby(latitude: location.latitude,
+                                                      longitude: location.longitude,
+                                                      miles: nearbyMiles, page: 1)
             if Task.isCancelled { return }
             results = dedup(page.results)
             nextPage = page.nextPageNumber
-            nearbyCenter = nil
+            nearbyCenter = location
             phase = .loaded
-            recenterMap()
+            let delta = Double(nearbyMiles) / 45.0
+            camera = .region(MKCoordinateRegion(center: location,
+                                                span: MKCoordinateSpan(latitudeDelta: delta, longitudeDelta: delta)))
+            showMap = true
         } catch {
             phase = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
         }
     }
 
     /// Geocode free text to a coordinate (city name etc.). nil if it isn't a place.
+    /// Reuses one geocoder and cancels any in-flight request first, so rapid typing
+    /// doesn't pile up requests into Apple's geocoding rate limit.
     private func geocode(_ text: String) async -> CLLocationCoordinate2D? {
-        await withCheckedContinuation { continuation in
-            CLGeocoder().geocodeAddressString(text) { placemarks, _ in
+        geocoder.cancelGeocode()
+        return await withCheckedContinuation { continuation in
+            geocoder.geocodeAddressString(text) { placemarks, _ in
                 continuation.resume(returning: placemarks?.first?.location?.coordinate)
             }
         }
     }
 
-    /// Fit the region around the result pins so the map opens on the right area.
-    private func recenterMap() {
-        let coords = pins.map(\.coordinate)
-        guard let first = coords.first else { return }
-        let lats = coords.map(\.latitude), lons = coords.map(\.longitude)
-        let minLat = lats.min() ?? first.latitude, maxLat = lats.max() ?? first.latitude
-        let minLon = lons.min() ?? first.longitude, maxLon = lons.max() ?? first.longitude
-        let center = CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLon + maxLon) / 2)
-        let span = MKCoordinateSpan(latitudeDelta: max(0.05, (maxLat - minLat) * 1.4),
-                                    longitudeDelta: max(0.05, (maxLon - minLon) * 1.4))
-        camera = .region(MKCoordinateRegion(center: center, span: span))
-    }
-
     @MainActor
     private func loadMore() async {
-        guard let page = nextPage, !loadingMore else { return }
+        guard let page = nextPage, let center = nearbyCenter, !loadingMore else { return }
         loadingMore = true
+        loadMoreFailed = false
         defer { loadingMore = false }
-        let next: LocatorPage<LocatorStoreWrapper>?
-        if let center = nearbyCenter {
-            next = try? await service.storesNearby(latitude: center.latitude, longitude: center.longitude,
-                                                   miles: nearbyMiles, page: page)
-        } else {
-            next = try? await service.searchStores(query: query.trimmingCharacters(in: .whitespaces), page: page)
-        }
-        if let next {
+        if let next = try? await service.storesNearby(latitude: center.latitude, longitude: center.longitude,
+                                                      miles: nearbyMiles, page: page) {
             results = dedup(results + next.results)
             nextPage = next.nextPageNumber
+        } else {
+            loadMoreFailed = true
         }
     }
 
