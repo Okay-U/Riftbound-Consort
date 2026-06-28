@@ -65,9 +65,6 @@ struct EventDetailView: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(EventsTheme.card, in: Circle())
-                        .overlay(Circle().stroke(EventsTheme.hairline, lineWidth: 1))
                 }
             }
             ToolbarItem(placement: .principal) {
@@ -80,9 +77,6 @@ struct EventDetailView: View {
                         Image(systemName: "calendar.badge.plus")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
-                            .frame(width: 36, height: 36)
-                            .background(EventsTheme.card, in: Circle())
-                            .overlay(Circle().stroke(EventsTheme.hairline, lineWidth: 1))
                     }
                     .accessibilityLabel("Add to Calendar")
                 }

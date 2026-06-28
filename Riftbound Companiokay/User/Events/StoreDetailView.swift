@@ -63,9 +63,6 @@ struct StoreDetailView: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(EventsTheme.card, in: Circle())
-                        .overlay(Circle().stroke(EventsTheme.hairline, lineWidth: 1))
                 }
             }
             ToolbarItem(placement: .principal) {
@@ -77,9 +74,6 @@ struct StoreDetailView: View {
                     Image(systemName: isFavorite ? "heart.fill" : "heart")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(isFavorite ? EventsTheme.green : .white)
-                        .frame(width: 36, height: 36)
-                        .background(EventsTheme.card, in: Circle())
-                        .overlay(Circle().stroke(EventsTheme.hairline, lineWidth: 1))
                 }
                 .disabled(store == nil)
             }
