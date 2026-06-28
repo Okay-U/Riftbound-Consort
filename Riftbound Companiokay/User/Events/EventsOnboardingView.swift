@@ -63,6 +63,7 @@ struct EventsOnboardingView: View {
                     .animation(.easeInOut(duration: 0.2), value: index)
             }
         }
+        .accessibilityHidden(true)
     }
 
     private var cta: some View {
@@ -146,6 +147,7 @@ private struct EventsOnboardingPageView: View {
                 .font(.system(size: 44, weight: .bold))
                 .foregroundStyle(EventsTheme.green)
         }
+        .accessibilityHidden(true)
     }
 
     private func bulletRow(_ bullet: EventsOnboardingBullet) -> some View {
@@ -155,6 +157,7 @@ private struct EventsOnboardingPageView: View {
                 .foregroundStyle(EventsTheme.green)
                 .frame(width: 38, height: 38)
                 .background(EventsTheme.greenSoft, in: Circle())
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(bullet.title)
                     .font(.system(size: 15, weight: .semibold))
@@ -165,6 +168,7 @@ private struct EventsOnboardingPageView: View {
             }
             Spacer(minLength: 0)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 

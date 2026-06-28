@@ -30,7 +30,7 @@ struct StoreSearchView: View {
         span: MKCoordinateSpan(latitudeDelta: 12, longitudeDelta: 12)))
     @State private var selectedPin: StorePin?
     @State private var nearbyCenter: CLLocationCoordinate2D?   // set when results are location-based
-    @State private var geocoder = CLGeocoder()
+    @State private var userToggledMap = false   // once the user picks list/map, stop auto-flipping
     @FocusState private var focused: Bool
 
     private let nearbyMiles = 30
@@ -75,7 +75,7 @@ struct StoreSearchView: View {
         .toolbar {
             if !embedded {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showMap.toggle() } label: {
+                    Button { userToggledMap = true; showMap.toggle() } label: {
                         Image(systemName: showMap ? "list.bullet" : "map")
                     }
                     .tint(EventsTheme.green)
@@ -88,7 +88,7 @@ struct StoreSearchView: View {
     }
 
     private var mapToggleButton: some View {
-        Button { showMap.toggle() } label: {
+        Button { userToggledMap = true; showMap.toggle() } label: {
             Image(systemName: showMap ? "list.bullet" : "map")
                 .font(.system(size: 17))
                 .foregroundStyle(pins.isEmpty ? EventsTheme.textTertiary : EventsTheme.green)
@@ -342,19 +342,21 @@ struct StoreSearchView: View {
             let delta = Double(nearbyMiles) / 45.0
             camera = .region(MKCoordinateRegion(center: location,
                                                 span: MKCoordinateSpan(latitudeDelta: delta, longitudeDelta: delta)))
-            showMap = true
+            // Auto-open the map for the first search; once the user has picked a
+            // view themselves, respect it and don't keep flipping back.
+            if !userToggledMap { showMap = true }
         } catch {
             phase = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
         }
     }
 
     /// Geocode free text to a coordinate (city name etc.). nil if it isn't a place.
-    /// Reuses one geocoder and cancels any in-flight request first, so rapid typing
-    /// doesn't pile up requests into Apple's geocoding rate limit.
+    /// One request per settled query — the 350ms debounce + `.task(id:)` cancellation
+    /// upstream means this only runs once the user stops typing, so a fresh geocoder
+    /// per call won't pile up against Apple's rate limit.
     private func geocode(_ text: String) async -> CLLocationCoordinate2D? {
-        geocoder.cancelGeocode()
-        return await withCheckedContinuation { continuation in
-            geocoder.geocodeAddressString(text) { placemarks, _ in
+        await withCheckedContinuation { continuation in
+            CLGeocoder().geocodeAddressString(text) { placemarks, _ in
                 continuation.resume(returning: placemarks?.first?.location?.coordinate)
             }
         }
