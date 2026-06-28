@@ -25,6 +25,8 @@ nonisolated struct LocatorEvent: Decodable, Sendable, Identifiable {
     let eventStatus: String?
     let displayStatus: String?
     let fullAddress: String?
+    let startDatetime: Date?
+    let endDatetime: Date?
     let startingPlayerCount: Int?
     let numberOfRounds: Int?
     let topCutSize: Int?

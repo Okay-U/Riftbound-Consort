@@ -461,6 +461,7 @@
 				INFOPLIST_FILE = "Riftbound-Companiokay-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Score Tracker";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.card-games";
+				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Add tournament events to your calendar.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -500,6 +501,7 @@
 				INFOPLIST_FILE = "Riftbound-Companiokay-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Score Tracker";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.card-games";
+				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Add tournament events to your calendar.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

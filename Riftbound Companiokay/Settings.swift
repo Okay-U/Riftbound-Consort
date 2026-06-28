@@ -92,6 +92,11 @@ struct Settings: View {
                     }
                     NavigationLink("Buy me a coffee") { DonationView() }
                     NavigationLink("Acknowledgments") { AcknowledgmentsView() }
+                    if let privacyURL = URL(string: "https://lopsided-waxflower-e3a.notion.site/Riftscore-Support-and-Privacy-2b2d4130908a805f8211ce98d9d93a36") {
+                        Link(destination: privacyURL) {
+                            Label("Support & Privacy", systemImage: "lock.shield")
+                        }
+                    }
                 }
 
                 Section {

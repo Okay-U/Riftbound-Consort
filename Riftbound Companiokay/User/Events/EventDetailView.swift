@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import EventKit
 
 struct EventDetailView: View {
     let eventID: Int
@@ -26,6 +27,9 @@ struct EventDetailView: View {
     @State private var registerError: String?
     @State private var confirmingRegister = false
     @State private var myDeck: LocatorDeckSubmission?
+    @State private var calendarStore: EKEventStore?
+    @State private var calendarDraft: CalendarEventDraft?
+    @State private var calendarError: String?
 
     enum LoadState {
         case idle, loading
@@ -69,6 +73,20 @@ struct EventDetailView: View {
             ToolbarItem(placement: .principal) {
                 Text("Event").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                if #available(iOS 17.0, *), let event = currentEvent,
+                   event.startDatetime != nil, !event.isFinished {
+                    Button { addToCalendar(event) } label: {
+                        Image(systemName: "calendar.badge.plus")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(EventsTheme.card, in: Circle())
+                            .overlay(Circle().stroke(EventsTheme.hairline, lineWidth: 1))
+                    }
+                    .accessibilityLabel("Add to Calendar")
+                }
+            }
         }
         .task { if case .idle = state { await load() } }
         .sheet(item: $reporting) { match in
@@ -76,6 +94,49 @@ struct EventDetailView: View {
                               isBestOfThree: currentEvent?.isBestOfThree ?? true,
                               token: session.token ?? "",
                               onReported: { Task { await load() } })
+        }
+        .sheet(item: $calendarDraft) { draft in
+            if let store = calendarStore {
+                CalendarEditView(draft: draft, store: store) { calendarDraft = nil }
+                    .ignoresSafeArea()
+            }
+        }
+        .alert("Calendar", isPresented: Binding(
+            get: { calendarError != nil },
+            set: { if !$0 { calendarError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(calendarError ?? "")
+        }
+    }
+
+    @MainActor
+    private func addToCalendar(_ event: LocatorEvent) {
+        guard let start = event.startDatetime else { return }
+        Task {
+            // Create the store only when the user actually adds an event.
+            let store = EKEventStore()
+            let granted: Bool
+            do {
+                if #available(iOS 17.0, *) {
+                    granted = try await store.requestWriteOnlyAccessToEvents()
+                } else {
+                    granted = false
+                }
+            } catch {
+                calendarError = "Couldn't access your calendar."
+                return
+            }
+            guard granted else {
+                calendarError = "Calendar access is off. Turn it on in Settings to add events."
+                return
+            }
+            let end = event.endDatetime ?? start.addingTimeInterval(3 * 60 * 60)
+            calendarStore = store
+            calendarDraft = CalendarEventDraft(title: event.name,
+                                               location: event.fullAddress,
+                                               start: start, end: end)
         }
     }
 
