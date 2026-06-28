@@ -16,7 +16,7 @@ struct Settings: View {
     @AppStorage("soundsEnabled") private var soundsEnabled: Bool = false
     @AppStorage("diceShakeToRoll") private var diceShakeToRoll: Bool = true
     @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
-    @AppStorage("matchModeEnabled") private var matchModeEnabled: Bool = false
+    @AppStorage("matchModeEnabled") private var matchModeEnabled: Bool = true
     @AppStorage("didOnboard") private var didOnboard: Bool = false
 
     private var systemLiveActivitiesAuthorized: Bool {

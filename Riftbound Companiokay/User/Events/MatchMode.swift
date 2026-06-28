@@ -32,8 +32,10 @@ nonisolated struct ActiveTournamentMatch: Sendable, Identifiable {
 
 @MainActor
 final class MatchModeStore: ObservableObject {
-    /// Feature toggle (Settings). When off, the Scoreboard never shows a match strip.
-    @AppStorage("matchModeEnabled") var enabled: Bool = false
+    /// Feature toggle (Settings). On by default; when off, the Scoreboard never
+    /// shows a match strip. (Harmless when on but not signed into Events: refresh
+    /// no-ops without a token, so nothing appears.)
+    @AppStorage("matchModeEnabled") var enabled: Bool = true
 
     @Published private(set) var active: ActiveTournamentMatch?
     @Published private(set) var isRefreshing = false
