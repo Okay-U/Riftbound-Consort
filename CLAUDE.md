@@ -88,6 +88,6 @@ When starting work on a new fix or phase:
 
 ---
 
-> Phase A/B/C, dice redesign, and full deck-builder wizard (incl. import/export, edit sheet, rune step, champion swap) are all shipped. Events tab (Locator), Store finder, and Scoreboard↔tournament **match mode** are shipped too. See memory `session_state.md` for current feature inventory.
+> Phase A/B/C, dice redesign, and full deck-builder wizard (incl. import/export, edit sheet, rune step, champion swap) are all shipped. Events tab (Locator), Store finder, Scoreboard↔tournament **match mode**, and the **eloshowdown player profile** (Events → Profile segment, `ProfileView`/`EloShowdownAPI`/`EloModels`) are shipped too. See memory `session_state.md` for current feature inventory.
 >
 > **Note:** `AuthSession` now lives at app root (`Riftbound_CompaniokayApp.swift` `@StateObject`, injected on `RootTabView`), not inside `EventsTabView` — so the Scoreboard's `MatchModeStore` can resolve the signed-in user. Any view reading `@EnvironmentObject AuthSession` works app-wide.

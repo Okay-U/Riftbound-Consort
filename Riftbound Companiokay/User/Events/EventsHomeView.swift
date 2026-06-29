@@ -13,7 +13,7 @@ struct EventsHomeView: View {
     @EnvironmentObject private var session: AuthSession
     @State private var segment: Segment = .events
 
-    enum Segment: String, CaseIterable { case events = "Events", stores = "Stores" }
+    enum Segment: String, CaseIterable { case events = "Events", stores = "Stores", profile = "Profile" }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,6 +22,7 @@ struct EventsHomeView: View {
                 switch segment {
                 case .events: MyEventsView(embedded: true)
                 case .stores: StoresHomeView()
+                case .profile: ProfileView()
                 }
             }
         }
