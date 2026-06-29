@@ -82,6 +82,20 @@ nonisolated struct EloDNA: Decodable, Sendable {
     let dimensions: EloDNADimensions
 }
 
+// MARK: - Rank / tier
+
+nonisolated struct EloRank: Decodable, Sendable {
+    let seasonSlug: String?
+    let seasonName: String?
+    let tier: String?               // "iron"…"challenger"
+    let isPlacement: Bool?
+    let rankInCommunity: Int?
+    let percentile: Double?
+    let totalRanked: Int?
+    let community: String?
+    let country: String?
+}
+
 // MARK: - Opponents + achievements
 
 nonisolated struct EloOpponent: Decodable, Sendable, Identifiable {

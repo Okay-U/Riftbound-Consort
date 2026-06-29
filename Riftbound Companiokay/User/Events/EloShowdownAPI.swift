@@ -21,6 +21,7 @@ protocol EloShowdownService: Sendable {
     func eloHistory(playerID: Int) async throws -> EloHistory
     func topOpponents(playerID: Int) async throws -> [EloOpponent]
     func achievements(playerID: Int) async throws -> [EloAchievement]
+    func rank(playerID: Int) async throws -> EloRank
     func currentSeason() async throws -> EloSeason
 }
 
@@ -78,6 +79,10 @@ nonisolated final class EloShowdownAPI: EloShowdownService {
 
     func achievements(playerID: Int) async throws -> [EloAchievement] {
         try await get("players/\(playerID)/achievements")
+    }
+
+    func rank(playerID: Int) async throws -> EloRank {
+        try await get("players/\(playerID)/rank")
     }
 
     func currentSeason() async throws -> EloSeason {

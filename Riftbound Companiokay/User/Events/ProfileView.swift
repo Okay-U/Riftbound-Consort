@@ -29,6 +29,7 @@ struct ProfileView: View {
         let player: EloPlayer
         let season: EloSeason
         let current: EloSeasonStats?
+        let rank: EloRank?
         let dna: EloDNA?
         let form: EloForm?
         let history: EloHistory?
@@ -60,6 +61,7 @@ struct ProfileView: View {
     @ViewBuilder
     private func content(_ data: Loaded) -> some View {
         VStack(alignment: .leading, spacing: 18) {
+            attribution(data)
             header(data)
             if let current = data.current {
                 seasonCard(current, seasonName: data.season.name ?? data.season.slug)
@@ -71,7 +73,6 @@ struct ProfileView: View {
             if let form = data.form, !form.lastN.isEmpty { formCard(form) }
             if !data.opponents.isEmpty { opponentsCard(data.opponents) }
             if !data.achievements.isEmpty { achievementsCard(data.achievements) }
-            attribution(data)
         }
         .padding(.horizontal, 18)
         .padding(.top, 10)
@@ -85,6 +86,9 @@ struct ProfileView: View {
             Text(player.displayName)
                 .font(.system(size: 24, weight: .heavy))
                 .foregroundStyle(.white)
+            if let rank = data.rank, let tier = rank.tier, !tier.isEmpty {
+                rankBadge(rank)
+            }
             HStack(spacing: 12) {
                 if let community = player.primaryCommunity, !community.isEmpty {
                     label("person.3.fill", community)
@@ -121,6 +125,48 @@ struct ProfileView: View {
             Text(text)
         }
         .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
+    }
+
+    private func rankBadge(_ rank: EloRank) -> some View {
+        let color = tierColor(rank.tier)
+        return HStack(spacing: 9) {
+            Image(systemName: "shield.fill")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(color)
+            Text((rank.tier ?? "").capitalized)
+                .font(.system(size: 15, weight: .heavy))
+                .foregroundStyle(color)
+            if let pos = rank.rankInCommunity, let total = rank.totalRanked {
+                Text("#\(pos) of \(total)")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(EventsTheme.textSecondary)
+            }
+            if let pct = rank.percentile {
+                Text("top \(max(1, Int((100 - pct).rounded())))%")
+                    .font(.system(size: 11, weight: .semibold))
+                    .padding(.horizontal, 7).padding(.vertical, 2)
+                    .background(color.opacity(0.18), in: Capsule())
+                    .foregroundStyle(color)
+            }
+        }
+    }
+
+    /// Tier accent colors (Iron…Challenger). The actual rank crests are Riot/UVS
+    /// art and aren't exposed by the API, so we render our own colored badge.
+    private func tierColor(_ tier: String?) -> Color {
+        switch (tier ?? "").lowercased() {
+        case "iron":        return Color(red: 0.46, green: 0.43, blue: 0.41)
+        case "bronze":      return Color(red: 0.72, green: 0.45, blue: 0.28)
+        case "silver":      return Color(red: 0.68, green: 0.72, blue: 0.76)
+        case "gold":        return Color(red: 0.93, green: 0.74, blue: 0.30)
+        case "platinum":    return Color(red: 0.26, green: 0.73, blue: 0.71)
+        case "emerald":     return Color(red: 0.18, green: 0.78, blue: 0.46)
+        case "diamond":     return Color(red: 0.42, green: 0.62, blue: 0.96)
+        case "master":      return Color(red: 0.72, green: 0.42, blue: 0.92)
+        case "grandmaster": return Color(red: 0.86, green: 0.32, blue: 0.32)
+        case "challenger":  return Color(red: 0.58, green: 0.82, blue: 0.96)
+        default:            return EventsTheme.textSecondary
+        }
     }
 
     @ViewBuilder
@@ -413,11 +459,13 @@ struct ProfileView: View {
             async let historyTask = service.eloHistory(playerID: player.id)
             async let opponentsTask = service.topOpponents(playerID: player.id)
             async let achievementsTask = service.achievements(playerID: player.id)
+            async let rankTask = service.rank(playerID: player.id)
 
             let s = try await season
             let st = try await stats
             let current = st.seasons.first { $0.seasonSlug == s.slug }
             state = .loaded(Loaded(player: player, season: s, current: current,
+                                   rank: try? await rankTask,
                                    dna: try? await dnaTask,
                                    form: try? await formTask,
                                    history: try? await historyTask,
