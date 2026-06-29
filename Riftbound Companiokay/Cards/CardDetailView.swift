@@ -93,7 +93,7 @@ struct CardDetailView: View {
                 statBadge(label: "⚡ \(energy)")
             }
             if let power = card.attributes?.power {
-                statBadge(label: "⚔ \(power)")
+                statBadge(label: "♻ \(power)")
             }
         }
         .flexibleWidth()
