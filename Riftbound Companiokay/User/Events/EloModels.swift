@@ -127,6 +127,68 @@ nonisolated struct EloAchievement: Decodable, Sendable, Identifiable {
     var id: String { code }
 }
 
+// MARK: - Leaderboard + communities (store / city ranking)
+
+/// One row of a community (city) leaderboard, ordered by current ELO.
+nonisolated struct EloLeaderRow: Decodable, Sendable, Identifiable {
+    let rank: Int?
+    let playerId: Int
+    let displayName: String?
+    let community: String?
+    let country: String?
+    let currentElo: Int?
+    let totalMatches: Int?
+    let winRate: Double?
+
+    var id: Int { playerId }
+}
+
+/// A community (city) in the eloshowdown registry. Used to resolve a store's
+/// geocoded city to the slug the leaderboard endpoint expects.
+nonisolated struct EloCommunity: Decodable, Sendable, Identifiable {
+    let slug: String
+    let name: String?
+    let country: String?
+    let state: String?
+    let playerCount: Int?
+    let isActive: Bool?
+
+    var id: String { slug }
+}
+
+// MARK: - Match history (paged)
+
+/// One page of a player's match list (newest first). From eloshowdown's
+/// `/riftbound/api/player-matches/{riftboundId}/{seasonSlug}/` endpoint, which is
+/// keyed by the Riftbound id (== our AuthSession.userID), not the internal id.
+nonisolated struct EloMatchPage: Decodable, Sendable {
+    let count: Int?
+    let numPages: Int?
+    let page: Int?
+    let pageSize: Int?
+    let results: [EloMatch]
+}
+
+nonisolated struct EloMatch: Decodable, Sendable, Identifiable {
+    let id: Int
+    let date: Date?
+    let tournament: EloMatchTournament?
+    let opponent: EloMatchOpponent?
+    let result: String?       // "win" / "loss" / "draw"
+    let eloChange: Double?
+}
+
+nonisolated struct EloMatchTournament: Decodable, Sendable, Identifiable {
+    let id: Int
+    let name: String?
+    let startDate: Date?
+}
+
+nonisolated struct EloMatchOpponent: Decodable, Sendable, Identifiable {
+    let id: Int
+    let name: String?
+}
+
 // MARK: - ELO history + recent form
 
 nonisolated struct EloHistory: Decodable, Sendable {

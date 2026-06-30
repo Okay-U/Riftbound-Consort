@@ -335,6 +335,18 @@ struct EventDetailView: View {
                 .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
             }
             roundProgress(event)
+
+            if let url = event.webURL {
+                Link(destination: url) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "map.fill")
+                        Text("View on Locator")
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(EventsTheme.green)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)

@@ -46,7 +46,10 @@ struct StoreDetailView: View {
                     .multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.top, 80).padding(.horizontal, 24)
             case .loaded:
                 VStack(alignment: .leading, spacing: 18) {
-                    if let store { header(store) }
+                    if let store {
+                        header(store)
+                        StoreRankingView(store: store)
+                    }
                     whenPicker
                     eventsList
                 }
@@ -113,6 +116,11 @@ struct StoreDetailView: View {
                 if let url = websiteURL(store.website) {
                     Link(destination: url) {
                         Label("Website", systemImage: "globe").font(.system(size: 13, weight: .medium))
+                    }.tint(EventsTheme.green)
+                }
+                if let url = locatorURL {
+                    Link(destination: url) {
+                        Label("Locator", systemImage: "map.fill").font(.system(size: 13, weight: .medium))
                     }.tint(EventsTheme.green)
                 }
                 if let seats = store.seatCount, seats > 0 {
@@ -200,6 +208,11 @@ struct StoreDetailView: View {
         // "pay in person" here — show the price only. EventDetailView resolves
         // the real payment method (online vs in person) once opened.
         event.priceText
+    }
+
+    /// The store's page on the Riftbound Locator website (keyed by the game-store UUID).
+    private var locatorURL: URL? {
+        URL(string: "https://locator.riftbound.uvsgames.com/stores/\(storeID)?view=grid")
     }
 
     /// Build a URL from a store website string, defaulting to https:// when the

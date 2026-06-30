@@ -23,10 +23,19 @@ protocol EloShowdownService: Sendable {
     func achievements(playerID: Int) async throws -> [EloAchievement]
     func rank(playerID: Int) async throws -> EloRank
     func currentSeason() async throws -> EloSeason
+    /// Paged match list (newest first). Keyed by the eloshowdown internal player id
+    /// (EloPlayer.id, same id used by the /players/{id}/… endpoints) — NOT the Riftbound id.
+    func matchHistory(playerID: Int, seasonSlug: String, page: Int, pageSize: Int) async throws -> EloMatchPage
+    /// Community (city) leaderboard by current ELO. `community` is a slug from `communities()`.
+    func leaderboard(season: String, community: String?, country: String?, limit: Int) async throws -> [EloLeaderRow]
+    /// Registry of communities (cities) — used to resolve a store's city to a slug.
+    func communities() async throws -> [EloCommunity]
 }
 
 nonisolated final class EloShowdownAPI: EloShowdownService {
     private let base = URL(string: "https://eloshowdown.com/api/v1/")!
+    // Match history lives on the website's own (non-v1) API base, keyed by Riftbound id.
+    private let webBase = URL(string: "https://eloshowdown.com/riftbound/api/")!
     private let session: URLSession
     private let decoder: JSONDecoder
 
@@ -35,9 +44,21 @@ nonisolated final class EloShowdownAPI: EloShowdownService {
         config.timeoutIntervalForRequest = 15
         self.session = URLSession(configuration: config)
 
+        // Tolerate both plain ("…Z") and fractional-second ("…+00:00") ISO-8601 —
+        // the v1 endpoints use the former, player-matches uses the latter.
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { d in
+            let raw = try d.singleValueContainer().decode(String.self)
+            if let date = withFraction.date(from: raw) ?? plain.date(from: raw) { return date }
+            throw DecodingError.dataCorrupted(.init(codingPath: d.codingPath,
+                                                    debugDescription: "Unparseable date: \(raw)"))
+        }
         self.decoder = decoder
     }
 
@@ -89,14 +110,30 @@ nonisolated final class EloShowdownAPI: EloShowdownService {
         try await get("seasons/current")
     }
 
+    func matchHistory(playerID: Int, seasonSlug: String, page: Int, pageSize: Int) async throws -> EloMatchPage {
+        try await get("player-matches/\(playerID)/\(encoded(seasonSlug))/?page=\(page)&page_size=\(pageSize)",
+                      relativeTo: webBase)
+    }
+
+    func leaderboard(season: String, community: String?, country: String?, limit: Int) async throws -> [EloLeaderRow] {
+        var query = "season=\(encoded(season))&limit=\(limit)"
+        if let community, !community.isEmpty { query += "&community=\(encoded(community))" }
+        if let country, !country.isEmpty { query += "&country=\(encoded(country))" }
+        return try await get("leaderboard/?\(query)")   // trailing slash: endpoint 301s without it
+    }
+
+    func communities() async throws -> [EloCommunity] {
+        try await get("communities")
+    }
+
     // MARK: - Transport
 
     private func encoded(_ value: String) -> String {
         value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
     }
 
-    private func get<T: Decodable>(_ path: String) async throws -> T {
-        guard let url = URL(string: path, relativeTo: base) else { throw EloError.badURL }
+    private func get<T: Decodable>(_ path: String, relativeTo root: URL? = nil) async throws -> T {
+        guard let url = URL(string: path, relativeTo: root ?? base) else { throw EloError.badURL }
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
