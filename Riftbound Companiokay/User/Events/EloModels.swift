@@ -156,6 +156,64 @@ nonisolated struct EloCommunity: Decodable, Sendable, Identifiable {
     var id: String { slug }
 }
 
+// MARK: - Head-to-head + ELO distribution
+
+/// Head-to-head between two players this season (`/players/{id}/h2h/{opp_id}`).
+nonisolated struct EloH2H: Decodable, Sendable {
+    let playerId: Int?
+    let opponentId: Int?
+    let seasonSlug: String?
+    let totalMatches: Int?
+    let wins: Int?
+    let losses: Int?
+    let draws: Int?
+    let winRate: Double?
+    let eloSwingTotal: Int?
+    let lastMeeting: EloH2HMeeting?
+    let firstMeetingDate: Date?
+
+    var hasHistory: Bool { (totalMatches ?? 0) > 0 }
+    var record: String { "\(wins ?? 0)-\(losses ?? 0)-\(draws ?? 0)" }
+}
+
+nonisolated struct EloH2HMeeting: Decodable, Sendable {
+    let date: Date?
+    let result: String?      // "win" / "loss" / "draw" (from the player's side)
+    let eloChange: Int?
+}
+
+/// Season-wide ELO histogram (`/stats/elo-distribution`), used to place a player
+/// on the curve and compute their percentile.
+nonisolated struct EloDistribution: Decodable, Sendable {
+    let seasonSlug: String?
+    let buckets: [EloBucket]
+
+    /// Percent of players at or above `elo` (i.e. "Top X%"), 0.1…100.
+    func topPercent(for elo: Int) -> Double? {
+        let total = buckets.reduce(0) { $0 + $1.count }
+        guard total > 0 else { return nil }
+        var below = 0.0
+        for b in buckets {
+            let width = max(b.bucketMax - b.bucketMin, 1)
+            if elo >= b.bucketMax { below += Double(b.count) }
+            else if elo > b.bucketMin {
+                below += Double(b.count) * Double(elo - b.bucketMin) / Double(width)
+            }
+        }
+        let top = (Double(total) - below) / Double(total) * 100
+        return min(100, max(0.1, top))
+    }
+}
+
+nonisolated struct EloBucket: Decodable, Sendable, Identifiable {
+    let bucketMin: Int
+    let bucketMax: Int
+    let count: Int
+
+    var id: Int { bucketMin }
+    var mid: Int { (bucketMin + bucketMax) / 2 }
+}
+
 // MARK: - Match history (paged)
 
 /// One page of a player's match list (newest first). From eloshowdown's

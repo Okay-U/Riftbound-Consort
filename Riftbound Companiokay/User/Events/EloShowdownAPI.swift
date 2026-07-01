@@ -30,6 +30,10 @@ protocol EloShowdownService: Sendable {
     func leaderboard(season: String, community: String?, country: String?, limit: Int) async throws -> [EloLeaderRow]
     /// Registry of communities (cities) — used to resolve a store's city to a slug.
     func communities() async throws -> [EloCommunity]
+    /// Head-to-head between two players (both eloshowdown internal ids).
+    func headToHead(playerID: Int, opponentID: Int) async throws -> EloH2H
+    /// Season-wide ELO histogram for placing a player on the curve.
+    func eloDistribution() async throws -> EloDistribution
 }
 
 nonisolated final class EloShowdownAPI: EloShowdownService {
@@ -124,6 +128,14 @@ nonisolated final class EloShowdownAPI: EloShowdownService {
 
     func communities() async throws -> [EloCommunity] {
         try await get("communities")
+    }
+
+    func headToHead(playerID: Int, opponentID: Int) async throws -> EloH2H {
+        try await get("players/\(playerID)/h2h/\(opponentID)")
+    }
+
+    func eloDistribution() async throws -> EloDistribution {
+        try await get("stats/elo-distribution")
     }
 
     // MARK: - Transport

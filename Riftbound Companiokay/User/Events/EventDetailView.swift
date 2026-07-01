@@ -418,7 +418,13 @@ struct EventDetailView: View {
                 }
                 .font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
 
-                if match.isMultiplayer { podMatchList(match) } else { matchVS(match) }
+                if match.isMultiplayer {
+                    podMatchList(match)
+                } else {
+                    matchVS(match)
+                    OpponentEloBadge(riftboundID: match.opponent?.userEventStatus.user?.id,
+                                     myRiftboundID: session.userID)
+                }
 
                 if match.isComplete {
                     Divider().overlay(EventsTheme.hairline)
@@ -454,7 +460,7 @@ struct EventDetailView: View {
                     .buttonStyle(.plain)
                 }
 
-                if !match.isMultiplayer, match.opponent != nil {
+                if !match.isMultiplayer, match.opponent != nil, currentEvent?.isFinished == false {
                     playOnScoreboardButton(match)
                 }
             }

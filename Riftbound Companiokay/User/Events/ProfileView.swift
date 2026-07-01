@@ -70,6 +70,9 @@ struct ProfileView: View {
             } else {
                 noSeasonCard(data.season.name ?? "this season")
             }
+            if let elo = data.current?.currentElo {
+                EloPercentileView(currentElo: elo)
+            }
             if let dna = data.dna, !dna.dimensions.ordered.isEmpty {
                 dnaCard(dna, profileURL: eloProfileURL(data))
             }
@@ -100,7 +103,7 @@ struct ProfileView: View {
     @ViewBuilder
     private func header(_ data: Loaded) -> some View {
         let tier = data.rank?.tier
-        let color = tierColor(tier)
+        let color = rankTierColor(tier)
         VStack(spacing: 14) {
             // Row 1: emblem + name (left) · ELO (right)
             HStack(alignment: .center, spacing: 12) {
@@ -155,35 +158,15 @@ struct ProfileView: View {
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(EventsTheme.hairline, lineWidth: 1))
     }
 
-    /// Tiers that have an official crest in Assets.xcassets (rank_<tier>). Emerald is
-    /// intentionally absent (not in the 2022 League set) and falls back to the shield.
-    private static let crestTiers: Set<String> = [
-        "iron", "bronze", "silver", "gold", "platinum",
-        "diamond", "master", "grandmaster", "challenger"
-    ]
-
-    @ViewBuilder
     private func emblem(tier: String, color: Color) -> some View {
-        let asset = "rank_\(tier.lowercased())"
-        Group {
-            if Self.crestTiers.contains(tier.lowercased()) {
-                // Official tier crest (added to Assets.xcassets as rank_<tier>).
-                Image(asset)
-                    .resizable().scaledToFit()
-                    .shadow(color: color.opacity(0.45), radius: batterySaver ? 0 : 5)
-            } else {
-                // Fallback colored shield for any tier without an asset (e.g. Emerald).
-                ZStack {
-                    if !batterySaver {
-                        Circle().fill(RadialGradient(colors: [color.opacity(0.40), .clear],
-                                                     center: .center, startRadius: 0, endRadius: 28))
-                    }
-                    Image(systemName: "shield.fill")
-                        .font(.system(size: 30, weight: .bold))
-                        .foregroundStyle(color)
-                        .shadow(color: color.opacity(0.5), radius: batterySaver ? 0 : 6)
-                }
+        // Shared crest (asset or shield fallback) with the profile's glow behind it.
+        ZStack {
+            if !batterySaver {
+                Circle().fill(RadialGradient(colors: [color.opacity(0.40), .clear],
+                                             center: .center, startRadius: 0, endRadius: 28))
             }
+            RankCrest(tier: tier, size: 46)
+                .shadow(color: color.opacity(0.45), radius: batterySaver ? 0 : 5)
         }
         .frame(width: 46, height: 46)
     }
@@ -259,24 +242,6 @@ struct ProfileView: View {
             else if !digits.isEmpty { break }
         }
         return Int(digits)
-    }
-
-    /// Tier accent colors (Iron…Challenger). The actual rank crests are Riot/UVS
-    /// art and aren't exposed by the API, so we render our own colored badge.
-    private func tierColor(_ tier: String?) -> Color {
-        switch (tier ?? "").lowercased() {
-        case "iron":        return Color(red: 0.46, green: 0.43, blue: 0.41)
-        case "bronze":      return Color(red: 0.72, green: 0.45, blue: 0.28)
-        case "silver":      return Color(red: 0.68, green: 0.72, blue: 0.76)
-        case "gold":        return Color(red: 0.93, green: 0.74, blue: 0.30)
-        case "platinum":    return Color(red: 0.26, green: 0.73, blue: 0.71)
-        case "emerald":     return Color(red: 0.18, green: 0.78, blue: 0.46)
-        case "diamond":     return Color(red: 0.42, green: 0.62, blue: 0.96)
-        case "master":      return Color(red: 0.72, green: 0.42, blue: 0.92)
-        case "grandmaster": return Color(red: 0.86, green: 0.32, blue: 0.32)
-        case "challenger":  return Color(red: 0.58, green: 0.82, blue: 0.96)
-        default:            return EventsTheme.textSecondary
-        }
     }
 
     @ViewBuilder
@@ -521,8 +486,11 @@ struct ProfileView: View {
                         .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
                         .padding(.vertical, 8)
                 } else {
+                    // The API's `date` is the import time (identical within an event), so
+                    // sort newest-first by match id (== eloshowdown's own display order).
+                    let ordered = page.results.sorted { $0.id > $1.id }
                     VStack(spacing: 0) {
-                        ForEach(page.results) { match in
+                        ForEach(ordered) { match in
                             matchRow(match)
                             Rectangle().fill(EventsTheme.hairline).frame(height: 1)
                         }

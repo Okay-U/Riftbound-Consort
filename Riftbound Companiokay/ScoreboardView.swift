@@ -26,6 +26,7 @@ struct ScoreboardView: View {
     @State private var xpModeAll: Bool = false
     @State private var perSlotXP: [Bool] = [false, false, false, false]
     @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
+    @AppStorage("currentTab") private var currentTab: String = "score"
     @Environment(\.scenePhase) private var scenePhase
     @State private var liveActivityDebounce: Task<Void, Never>?
     @State private var reportingMatch: ResolvedMyMatch?
@@ -127,6 +128,13 @@ struct ScoreboardView: View {
         }
         .onChange(of: liveActivityEnabled, initial: false) { _, _ in
             syncLiveActivity()
+        }
+        .onChange(of: currentTab, initial: false) { _, tab in
+            // Returning to the Scoreboard mid-tournament: re-pull the live match so
+            // the strip isn't stale (TabView keeps this view alive, so .task won't refire).
+            if tab == "score" {
+                Task { await matchMode.refresh(session: session) }
+            }
         }
         .onChange(of: vm.playerCount, initial: false) { _, _ in
             // Reset XP mode tracking when player count changes — stale per-slot
@@ -277,6 +285,15 @@ struct ScoreboardView: View {
                 }
                 .buttonStyle(.plain)
             }
+
+            Button { matchMode.dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(EventsTheme.textSecondary)
+                    .frame(width: 26, height: 26)
+                    .background(EventsTheme.cardInset, in: Circle())
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 14).padding(.vertical, 11)
         .greenGradientBorder(radius: EventsTheme.pillRadius)

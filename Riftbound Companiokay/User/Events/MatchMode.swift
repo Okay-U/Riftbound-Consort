@@ -40,6 +40,10 @@ final class MatchModeStore: ObservableObject {
     @Published private(set) var active: ActiveTournamentMatch?
     @Published private(set) var isRefreshing = false
 
+    /// A pairing the user manually dismissed from the strip. Auto-detect won't
+    /// re-adopt this exact match; a new round/event (different matchID) clears it.
+    private var dismissedMatchID: Int?
+
     private let service: any LocatorService
 
     init(service: any LocatorService = RiftboundLocatorService()) {
@@ -50,10 +54,18 @@ final class MatchModeStore: ObservableObject {
     /// feature on so the strip shows immediately.
     func setManual(_ match: ActiveTournamentMatch) {
         enabled = true
+        dismissedMatchID = nil
         active = match
     }
 
     func clear() {
+        active = nil
+    }
+
+    /// User tapped the strip's dismiss button: hide it and remember this pairing so
+    /// the next auto-refresh doesn't immediately bring it back.
+    func dismiss() {
+        dismissedMatchID = active?.match.matchID
         active = nil
     }
 
@@ -86,6 +98,13 @@ final class MatchModeStore: ObservableObject {
               let myMatch = try? await service.myMatch(roundID: round.id, token: token),
               let resolved = ResolvedMyMatch(myMatch, myUserID: userID)
         else { return }
+
+        // Honor a manual dismiss until the pairing actually changes (next round/event).
+        if resolved.matchID == dismissedMatchID {
+            active = nil
+            return
+        }
+        dismissedMatchID = nil
 
         active = ActiveTournamentMatch(
             eventID: event.id,
