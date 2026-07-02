@@ -27,40 +27,11 @@ struct CardsScreen: View {
         NavigationStack {
             Group {
                 if cardStore.isLoading && cardStore.allCards.isEmpty {
-                    VStack(spacing: 12) {
-                        ProgressView()
-                        Text("Loading card database…")
-                            .foregroundStyle(.secondary)
-                    }
+                    loadingView
                 } else if let error = cardStore.loadError {
-                    VStack(spacing: 12) {
-                        Text(error)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.secondary)
-                        Button("Retry") { cardStore.load() }
-                            .buttonStyle(.bordered)
-                    }
-                    .padding()
+                    errorView(error)
                 } else {
-                    ScrollView {
-                        if displayedCards.isEmpty {
-                            Text("No cards match your filters.")
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 40)
-                                .frame(maxWidth: .infinity)
-                        } else {
-                            LazyVGrid(columns: columns, spacing: 8) {
-                                ForEach(displayedCards) { card in
-                                    NavigationLink(value: card) {
-                                        CardGalleryCell(card: card)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.top, 4)
-                        }
-                    }
+                    galleryView
                 }
             }
             .navigationTitle("Cards (\(displayedCards.count))")
@@ -90,50 +61,97 @@ struct CardsScreen: View {
             .onAppear { cardStore.loadIfNeeded() }
         }
     }
+
+    private var loadingView: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            Text("Loading card database…")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func errorView(_ error: String) -> some View {
+        VStack(spacing: 12) {
+            Text(error)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+            Button("Retry") { cardStore.load() }
+                .buttonStyle(.bordered)
+        }
+        .padding()
+    }
+
+    /// Cell size computed once out here: GeometryReader inside lazy grid
+    /// items gets measured while cells are partially visible on Compose,
+    /// which clipped/mislayered rows during scroll.
+    private var galleryView: some View {
+        GeometryReader { geo in
+            let cellW: CGFloat = (geo.size.width - 32) / 3
+            let cellH: CGFloat = cellW / 0.72
+
+            ScrollView {
+                if displayedCards.isEmpty {
+                    Text("No cards match your filters.")
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 40)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    gridView(cellW: cellW, cellH: cellH)
+                }
+            }
+        }
+    }
+
+    private func gridView(cellW: CGFloat, cellH: CGFloat) -> some View {
+        LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(displayedCards) { card in
+                NavigationLink(value: card) {
+                    CardGalleryCell(card: card, width: cellW, height: cellH)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 4)
+    }
 }
 
 struct CardGalleryCell: View {
     let card: Card
+    let width: CGFloat
+    let height: CGFloat
 
     private var isBattlefield: Bool {
         card.classification?.type?.lowercased() == "battlefield"
     }
 
     var body: some View {
-        // Clear placeholder fixes the cell size; GeometryReader reads real
-        // dimensions so battlefield cards can swap w/h before rotating.
-        Color.clear
-            .aspectRatio(0.72, contentMode: .fit)
-            .overlay {
-                GeometryReader { geo in
-                    let w = geo.size.width
-                    let h = geo.size.height
-
-                    CachedRemoteImage(url: card.media?.imageURL) { image in
-                        if isBattlefield {
-                            image
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: h, height: w)
-                                .rotationEffect(Angle(degrees: -90))
-                                .frame(width: w, height: h)
-                        } else {
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: w, height: h)
-                                .clipped()
-                        }
-                    } placeholder: {
-                        Color.secondary.opacity(0.15)
-                            .frame(width: w, height: h)
-                            .overlay {
-                                ProgressView().scaleEffect(0.5)
-                            }
-                    }
-                }
+        CachedRemoteImage(url: card.media?.imageURL) { image in
+            if isBattlefield {
+                // Frame as landscape (h × w), then rotate -90° so it fills
+                // the portrait (w × h) cell without cropping.
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: height, height: width)
+                    .rotationEffect(Angle(degrees: -90))
+                    .frame(width: width, height: height)
+            } else {
+                image
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: width, height: height)
+                    .clipped()
             }
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+        } placeholder: {
+            Color.secondary.opacity(0.15)
+                .frame(width: width, height: height)
+                .overlay {
+                    ProgressView().scaleEffect(0.5)
+                }
+        }
+        .frame(width: width, height: height)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
