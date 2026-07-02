@@ -165,7 +165,20 @@ struct GameReviewView: View {
         let ordered = record.events.sorted { $0.elapsedSeconds < $1.elapsedSeconds }
         let winningEventIdx = winningEventIndex(in: ordered)
 
-        return VStack(spacing: 0) {
+        return VStack(spacing: 10) {
+            HStack {
+                Text("YOU")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(youColor)
+                    .frame(maxWidth: .infinity)
+                Color.clear.frame(width: 52, height: 1)
+                Text(record.opponent.isEmpty ? "OPPONENT" : record.opponent.uppercased())
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(oppColor)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity)
+            }
+
             ForEach(Array(ordered.enumerated()), id: \.element.id) { pair in
                 let idx = pair.0
                 let event = pair.1
@@ -175,38 +188,36 @@ struct GameReviewView: View {
                           cumulative: cumulativeScore(for: event.slot, upTo: idx, in: ordered))
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
     }
 
+    /// Chat-bubble row: two equal flexible halves around a fixed time pill,
+    /// so both sides stay symmetric regardless of platform width weighting.
     private func pairedRow(event: ScoreEvent, isYou: Bool, isWinning: Bool, cumulative: Int) -> some View {
-        HStack(alignment: .center, spacing: 0) {
-            if isYou {
-                eventCard(event: event, color: youColor, leading: false,
-                          cumulative: cumulative, isWinning: isWinning)
-                spine(time: event.elapsedSeconds)
-                Color.clear.frame(maxWidth: .infinity)
-            } else {
-                Color.clear.frame(maxWidth: .infinity)
-                spine(time: event.elapsedSeconds)
-                eventCard(event: event, color: oppColor, leading: true,
-                          cumulative: cumulative, isWinning: isWinning)
+        HStack(alignment: .center, spacing: 6) {
+            ZStack {
+                Color.clear.frame(height: 1)
+                if isYou {
+                    eventCard(event: event, color: youColor,
+                              cumulative: cumulative, isWinning: isWinning)
+                }
             }
-        }
-        .frame(maxWidth: .infinity)
-    }
+            .frame(maxWidth: .infinity)
 
-    private func spine(time: Int) -> some View {
-        VStack(spacing: 0) {
-            Rectangle().fill(Color.secondary.opacity(0.25)).frame(width: 1, height: 16)
-            Text(formatDuration(time))
+            Text(formatDuration(event.elapsedSeconds))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Capsule().fill(Color.black.opacity(0.5)))
-            Rectangle().fill(Color.secondary.opacity(0.25)).frame(width: 1, height: 16)
+                .frame(width: 52)
+
+            ZStack {
+                Color.clear.frame(height: 1)
+                if !isYou {
+                    eventCard(event: event, color: oppColor,
+                              cumulative: cumulative, isWinning: isWinning)
+                }
+            }
+            .frame(maxWidth: .infinity)
         }
-        .frame(width: 60)
     }
 
     // MARK: - Chronological (4p)
@@ -226,7 +237,6 @@ struct GameReviewView: View {
                         .frame(width: 50, alignment: .leading)
                     eventCard(event: event,
                               color: slotColor(event.slot),
-                              leading: true,
                               cumulative: cumulativeScore(for: event.slot, upTo: idx, in: ordered),
                               isWinning: idx == winningIdx)
                 }
@@ -236,7 +246,7 @@ struct GameReviewView: View {
 
     // MARK: - Event card
 
-    private func eventCard(event: ScoreEvent, color: Color, leading: Bool,
+    private func eventCard(event: ScoreEvent, color: Color,
                            cumulative: Int, isWinning: Bool) -> some View {
         HStack(spacing: 8) {
             letterGlyph(letterFor(event.type), color: color, size: 22)
@@ -252,20 +262,19 @@ struct GameReviewView: View {
             Text("\(cumulative)")
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(.primary)
-                .frame(minWidth: 22)
-                .padding(6)
+                .frame(width: 30, height: 30)
                 .background(Circle().fill(color.opacity(0.25)))
                 .overlay(Circle().stroke(color, lineWidth: 1))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: leading ? .leading : .trailing)
+        .frame(maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(cardFill)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(isWinning ? gold : color.opacity(0.4),
                         lineWidth: isWinning ? 2 : 1)
         )
