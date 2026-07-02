@@ -30,9 +30,6 @@ struct DecksScreen: View {
                             NavigationLink(value: deck.id) {
                                 DeckRowCard(deck: deck)
                             }
-                            .buttonStyle(.plain)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
                                     store.delete(deck)
@@ -40,16 +37,19 @@ struct DecksScreen: View {
                                     Text("Delete")
                                 }
                             }
+                            .listRowBackground(Color.black)
+                            .listRowSeparator(.hidden)
                         }
 
                         NavigationLink(value: GameHistoryRoute(scope: .all, title: "All Games")) {
                             historyRow
                         }
-                        .buttonStyle(.plain)
-                        .listRowBackground(Color.clear)
+                        .listRowBackground(Color.black)
                         .listRowSeparator(.hidden)
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.black)
                 }
             }
             .navigationTitle("Decks")
@@ -102,9 +102,6 @@ struct DecksScreen: View {
                 }
             }
             Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
