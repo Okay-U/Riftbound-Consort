@@ -18,6 +18,8 @@ struct GameHistoryView: View {
     let scope: GameHistoryScope
     let title: String
     @Environment(GameRecordStore.self) var store
+    @State var editing: GameRecord? = nil
+    @State var showEdit = false
 
     private var records: [GameRecord] {
         switch scope {
@@ -71,6 +73,11 @@ struct GameHistoryView: View {
             recordsSection
         }
         .navigationTitle(title)
+        .sheet(isPresented: $showEdit) {
+            if let editing {
+                GameRecordEditSheet(record: editing)
+            }
+        }
     }
 
     private var summarySection: some View {
@@ -123,11 +130,20 @@ struct GameHistoryView: View {
             Section("Games") {
                 ForEach(records) { record in
                     GameHistoryRow(record: record)
-                }
-                .onDelete { offsets in
-                    for offset in offsets {
-                        store.delete(records[offset])
-                    }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                store.delete(record)
+                            } label: {
+                                Text("Delete")
+                            }
+                            Button {
+                                editing = record
+                                showEdit = true
+                            } label: {
+                                Text("Edit")
+                            }
+                            .tint(.blue)
+                        }
                 }
             }
         }

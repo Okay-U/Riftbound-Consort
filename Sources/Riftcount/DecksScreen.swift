@@ -25,23 +25,31 @@ struct DecksScreen: View {
                     }
                     .padding()
                 } else {
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(store.lists) { deck in
-                                NavigationLink(value: deck.id) {
-                                    DeckRowCard(deck: deck)
-                                }
-                                .buttonStyle(.plain)
-                            }
-
-                            NavigationLink(value: GameHistoryRoute(scope: .all, title: "All Games")) {
-                                historyRow
+                    List {
+                        ForEach(store.lists) { deck in
+                            NavigationLink(value: deck.id) {
+                                DeckRowCard(deck: deck)
                             }
                             .buttonStyle(.plain)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    store.delete(deck)
+                                } label: {
+                                    Text("Delete")
+                                }
+                            }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+
+                        NavigationLink(value: GameHistoryRoute(scope: .all, title: "All Games")) {
+                            historyRow
+                        }
+                        .buttonStyle(.plain)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                     }
+                    .listStyle(.plain)
                 }
             }
             .navigationTitle("Decks")

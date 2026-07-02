@@ -173,6 +173,14 @@ struct ScoreboardScreen: View {
                 syncToggleFromTiles()
             }
         )
+        .contextMenu {
+            Button("Default") { viewModel.setColorIndex(-1, for: slot) }
+            ForEach(Array(Palette.colors.enumerated()), id: \.0) { pair in
+                Button(pair.1.name) {
+                    viewModel.setColorIndex(pair.0, for: slot)
+                }
+            }
+        }
     }
 
     /// Round control button. SkipUI's .bordered pills looked off on Android;

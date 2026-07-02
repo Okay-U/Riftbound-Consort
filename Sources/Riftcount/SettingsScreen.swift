@@ -1,31 +1,70 @@
 import SwiftUI
 
-/// Settings subset for Wave 1: haptics + battery saver toggles, version info.
+/// Settings, ported from the iOS Settings view. Omitted on Android:
+/// shake-to-roll (no accelerometer bridge), Live Activity + match mode
+/// (iOS-only / Events wave), onboarding tours (not ported yet),
+/// share/rating links (no Play Store listing yet).
 struct SettingsScreen: View {
     @AppStorage("hapticsEnabled") var hapticsEnabled: Bool = true
     @AppStorage("batterySaver") var batterySaver: Bool = false
 
-    var body: some View {
-        Form {
-            Section("General") {
-                Toggle("Haptic feedback", isOn: $hapticsEnabled)
-                Toggle("Battery saver", isOn: $batterySaver)
-            }
+    private static let supportEmail = "contact-okaydev@proton.me"
 
-            Section("About") {
-                if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
-                   let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
-                    HStack {
-                        Text("Version")
-                        Spacer()
-                        Text("\(version) (\(build))")
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Display & Power") {
+                    Toggle("Battery saver visuals", isOn: $batterySaver)
+                }
+
+                Section("Interaction") {
+                    Toggle("Haptics", isOn: $hapticsEnabled)
+                }
+
+                Section("About") {
+                    if let bugURL = mailURL(subject: "Riftcount Android – Bug Report") {
+                        Link(destination: bugURL) {
+                            Text("Report Bug")
+                        }
+                    }
+                    if let wishURL = mailURL(subject: "Riftcount Android – Feature Request") {
+                        Link(destination: wishURL) {
+                            Text("Wish a Feature")
+                        }
+                    }
+                    if let kofi = URL(string: "https://ko-fi.com/okayunal") {
+                        Link(destination: kofi) {
+                            Text("Buy me a coffee")
+                        }
+                    }
+                    if let privacyURL = URL(string: "https://lopsided-waxflower-e3a.notion.site/Riftscore-Support-and-Privacy-2b2d4130908a805f8211ce98d9d93a36") {
+                        Link(destination: privacyURL) {
+                            Text("Support & Privacy")
+                        }
+                    }
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Riftcount: Score Tracker")
+                            .font(.headline)
+                        if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
+                           let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
+                            Text("Version \(version) (\(build))")
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("Unofficial companion, not affiliated with Riot Games or UVS Games.")
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 }
-                Text("Riftcount for Android — unofficial companion, not affiliated with Riot Games or UVS Games.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
+            .navigationTitle("Settings")
         }
+    }
+
+    private func mailURL(subject: String) -> URL? {
+        let encoded = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? subject
+        return URL(string: "mailto:\(Self.supportEmail)?subject=\(encoded)")
     }
 }
