@@ -9,6 +9,7 @@ struct CardsScreen: View {
     @State var filters = CardFilters()
     @State var primarySort: CardSort = .set
     @State var secondarySort: CardSort? = .energy
+    @State var showFilters = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 8),
@@ -57,6 +58,18 @@ struct CardsScreen: View {
                         Image(systemName: "ellipsis")
                     }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showFilters = true } label: {
+                        // list.bullet is in SkipUI's mapped set; the iOS
+                        // line.3.horizontal.decrease icons are not.
+                        Image(systemName: "list.bullet")
+                            .foregroundStyle(filters.isActive ? Color.accentColor : Color.primary)
+                    }
+                }
+            }
+            .sheet(isPresented: $showFilters) {
+                CardFilterSheet(filters: $filters,
+                                availableDomains: cardStore.availableDomains)
             }
             .onAppear { cardStore.loadIfNeeded() }
         }
@@ -179,22 +192,15 @@ struct CardQuickDetail: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 24)
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 12) {
                     Text(card.name)
                         .font(.title2.bold())
 
-                    if let type = card.classification?.type {
-                        Text([type, card.classification?.rarity]
-                            .compactMap { $0 }
-                            .joined(separator: " · "))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+                    statsRow
 
                     if let text = card.text?.plain, !text.isEmpty {
                         Text(text)
                             .font(.body)
-                            .padding(.top, 4)
                     }
 
                     if let flavour = card.text?.flavour, !flavour.isEmpty {
@@ -203,11 +209,16 @@ struct CardQuickDetail: View {
                             .foregroundStyle(.secondary)
                     }
 
+                    if let artist = card.media?.artist {
+                        Text("Art by \(artist)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     if let label = card.set?.label {
                         Text(label)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                            .padding(.top, 4)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -216,5 +227,31 @@ struct CardQuickDetail: View {
             .padding(.vertical, 16)
         }
         .navigationTitle(card.name)
+    }
+
+    private var statsRow: some View {
+        HStack(spacing: 10) {
+            if let type = card.classification?.type {
+                statBadge(label: type)
+            }
+            if let rarity = card.classification?.rarity {
+                statBadge(label: rarity)
+            }
+            if let energy = card.attributes?.energy {
+                statBadge(label: "⚡ \(energy)")
+            }
+            if let power = card.attributes?.power {
+                statBadge(label: "♻ \(power)")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func statBadge(label: String) -> some View {
+        Text(label)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(Color.secondary.opacity(0.2)))
     }
 }
