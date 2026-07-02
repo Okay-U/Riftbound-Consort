@@ -8,7 +8,7 @@ import SkipFuse
 /// - UserDefaults directly instead of @AppStorage (class context, cross-platform).
 /// - No SharedScoreboard push (App Group widget/Live Activity is iOS-only;
 ///   reintroduce behind #if !os(Android) when the iOS target moves here).
-@Observable public class ScoreboardViewModel {
+@Observable @MainActor public class ScoreboardViewModel {
     var playerCount: Int {
         didSet {
             UserDefaults.standard.set(playerCount, forKey: "playerCount")

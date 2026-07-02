@@ -1,10 +1,41 @@
 import SwiftUI
 
+/// Root tab host. Tab icons are temp placeholders from SkipUI's mapped
+/// symbol set; proper custom icons later.
+struct ContentView: View {
+    @AppStorage("currentTab") var currentTab: String = "score"
+
+    var body: some View {
+        TabView(selection: $currentTab) {
+            ScoreboardScreen()
+                .tabItem { Label("Score", systemImage: "house.fill") }
+                .tag("score")
+
+            DiceScreen()
+                .tabItem { Label("Dice", systemImage: "star.fill") }
+                .tag("dice")
+
+            SettingsScreen()
+                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+                .tag("settings")
+        }
+        .preferredColorScheme(.dark)
+        #if os(Android)
+        // Imperative Haptics calls bump HapticsEngine counters; these
+        // modifiers translate counter changes into Vibrator feedback.
+        .sensoryFeedback(.impact, trigger: HapticsEngine.shared.impactCount)
+        .sensoryFeedback(.selection, trigger: HapticsEngine.shared.selectionCount)
+        .sensoryFeedback(.warning, trigger: HapticsEngine.shared.warningCount)
+        .sensoryFeedback(.success, trigger: HapticsEngine.shared.successCount)
+        #endif
+    }
+}
+
 /// Scoreboard host, ported from the iOS ScoreboardView.
 /// Wave 1 scope: 2p/4p layouts, header (title/XP/reset), footer (undo,
 /// color sheet, quick settings). Timer badge, deck pill, match strip,
 /// and Won/Lost game records come with later waves.
-struct ContentView: View {
+struct ScoreboardScreen: View {
     @State var viewModel = ScoreboardViewModel()
     @State var xpModeAll = false
     @State var perSlotXP: [Bool] = [false, false, false, false]
