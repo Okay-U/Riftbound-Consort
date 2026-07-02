@@ -13,9 +13,9 @@ struct DecksScreen: View {
                 if store.lists.isEmpty {
                     VStack(spacing: 12) {
                         Text("No decks yet")
-                            .font(.headline)
-                        Text("Create a deck, then add cards from the Cards tab.")
-                            .font(.subheadline)
+                            .font(.title3.weight(.semibold))
+                        Text("Tap + to create your first deck.")
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                         Button("New Deck") { showNewDeck = true }
@@ -23,17 +23,17 @@ struct DecksScreen: View {
                     }
                     .padding()
                 } else {
-                    List {
-                        ForEach(store.lists) { deck in
-                            NavigationLink(value: deck.id) {
-                                deckRow(deck)
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(store.lists) { deck in
+                                NavigationLink(value: deck.id) {
+                                    DeckRowCard(deck: deck)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
-                        .onDelete { offsets in
-                            for offset in offsets {
-                                store.delete(store.lists[offset])
-                            }
-                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
                     }
                 }
             }
@@ -54,26 +54,60 @@ struct DecksScreen: View {
         }
     }
 
-    private func deckRow(_ deck: Decklist) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(deck.name)
-                .font(.headline)
-            Text(deckSummary(deck))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+}
+
+/// iOS-parity deck row: gradient card, name + legend, legality badge.
+/// (Win-rate bar returns with the game-records port.)
+struct DeckRowCard: View {
+    let deck: Decklist
+
+    private var legality: DeckLegality { DeckLegality.evaluate(deck) }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(deck.name)
+                    .font(.headline)
+                Text(deck.legend?.cardName ?? "No legend selected")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            legalityBadge
         }
-        .padding(.vertical, 2)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .cardSurface()
     }
 
-    private func deckSummary(_ deck: Decklist) -> String {
+    private var summary: String {
         let mainCount = deck.mainDeck.reduce(0) { $0 + $1.count }
-        var parts: [String] = []
-        if let legend = deck.legend { parts.append(legend.cardName) }
-        parts.append("\(mainCount) main")
+        var parts = ["\(mainCount) main"]
         if !deck.runes.isEmpty {
             parts.append("\(deck.runes.reduce(0) { $0 + $1.count }) runes")
         }
         return parts.joined(separator: " · ")
+    }
+
+    private var legalityBadge: some View {
+        // checkmark.circle.fill is mapped; drawn triangle for issues.
+        Group {
+            if legality.isLegal {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.green)
+            } else {
+                Text("!")
+                    .font(.system(size: 15, weight: .heavy))
+                    .foregroundStyle(.black)
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(Color.orange))
+            }
+        }
     }
 }
 
@@ -139,6 +173,8 @@ struct AddToDeckSheet: View {
 struct DeckDetailScreen: View {
     let deckID: UUID
     @Environment(DecklistStore.self) var store
+    @Environment(\.dismiss) var dismiss
+    @State var confirmDelete = false
 
     private var deck: Decklist? {
         store.lists.first { $0.id == deckID }
@@ -188,6 +224,23 @@ struct DeckDetailScreen: View {
                     }
                 }
                 .navigationTitle(deck.name)
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button { confirmDelete = true } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+                .confirmationDialog("Delete this deck?",
+                                    isPresented: $confirmDelete,
+                                    titleVisibility: .visible) {
+                    Button("Delete", role: .destructive) {
+                        store.delete(deck)
+                        dismiss()
+                    }
+                    Button("Cancel", role: .cancel) {}
+                }
             } else {
                 Text("Deck deleted")
                     .foregroundStyle(.secondary)
