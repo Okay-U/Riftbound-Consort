@@ -11,11 +11,13 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://source.skip.tools/skip.git", from: "1.9.4"),
-        .package(url: "https://source.skip.tools/skip-fuse-ui.git", from: "1.0.0")
+        .package(url: "https://source.skip.tools/skip-fuse-ui.git", from: "1.0.0"),
+        .package(url: "https://source.skip.tools/skip-keychain.git", from: "0.3.2")
     ],
     targets: [
         .target(name: "Riftcount", dependencies: [
-            .product(name: "SkipFuseUI", package: "skip-fuse-ui")
+            .product(name: "SkipFuseUI", package: "skip-fuse-ui"),
+            .product(name: "SkipKeychain", package: "skip-keychain")
         ], resources: [.process("Resources")], plugins: [.plugin(name: "skipstone", package: "skip")]),
     ]
 )

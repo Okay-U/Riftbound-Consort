@@ -8,12 +8,17 @@ struct ContentView: View {
     @State var cardStore = CardStore()
     @State var gameRecordStore = GameRecordStore()
     @State var gameTimer = GameTimer()
+    @State var authSession = AuthSession()
 
     var body: some View {
         TabView(selection: $currentTab) {
             ScoreboardScreen()
                 .tabItem { Label("Score", systemImage: "house.fill") }
                 .tag("score")
+
+            EventsTabView()
+                .tabItem { Label("Events", systemImage: "person.2.fill") }
+                .tag("events")
 
             DiceScreen()
                 .tabItem { Label("Dice", systemImage: "star.fill") }
@@ -35,6 +40,8 @@ struct ContentView: View {
         .environment(cardStore)
         .environment(gameRecordStore)
         .environment(gameTimer)
+        .environment(authSession)
+        .task { await authSession.restore() }
         .preferredColorScheme(.dark)
         #if os(Android)
         // Imperative Haptics calls bump HapticsEngine counters; these
