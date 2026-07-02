@@ -73,6 +73,9 @@ struct GameHistoryView: View {
             recordsSection
         }
         .navigationTitle(title)
+        .navigationDestination(for: GameRecord.self) { record in
+            GameReviewView(record: record)
+        }
         .sheet(isPresented: $showEdit) {
             if let editing {
                 GameRecordEditSheet(record: editing)
@@ -129,7 +132,9 @@ struct GameHistoryView: View {
         } else {
             Section("Games") {
                 ForEach(records) { record in
-                    GameHistoryRow(record: record)
+                    NavigationLink(value: record) {
+                        GameHistoryRow(record: record)
+                    }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 store.delete(record)
