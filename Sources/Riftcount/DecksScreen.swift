@@ -33,6 +33,11 @@ struct DecksScreen: View {
                                 }
                                 .buttonStyle(.plain)
                             }
+
+                            NavigationLink(value: GameHistoryRoute(scope: .all, title: "All Games")) {
+                                historyRow
+                            }
+                            .buttonStyle(.plain)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
@@ -42,6 +47,9 @@ struct DecksScreen: View {
             .navigationTitle("Decks")
             .navigationDestination(for: UUID.self) { deckID in
                 DeckDetailScreen(deckID: deckID)
+            }
+            .navigationDestination(for: GameHistoryRoute.self) { route in
+                GameHistoryView(scope: route.scope, title: route.title)
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -68,14 +76,50 @@ struct DecksScreen: View {
         }
     }
 
+    @Environment(GameRecordStore.self) var recordStore
+
+    private var historyRow: some View {
+        let wins = recordStore.records.filter { $0.result == .won }.count
+        let losses = recordStore.records.filter { $0.result == .lost }.count
+        let total = wins + losses
+        let pct = total == 0 ? 0 : Int(Double(wins) / Double(total) * 100)
+        return HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(total == 0 ? "Game History" : "\(total) games")
+                    .font(.subheadline.weight(.semibold))
+                if total > 0 {
+                    Text("\(wins)W – \(losses)L · \(pct)% winrate")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .cardSurface()
+    }
+
 }
 
-/// iOS-parity deck row: gradient card, name + legend, legality badge.
-/// (Win-rate bar returns with the game-records port.)
+/// iOS-parity deck row: gradient card, name + legend, win-rate bar,
+/// legality badge.
 struct DeckRowCard: View {
     let deck: Decklist
+    @Environment(GameRecordStore.self) var gameRecordStore
 
     private var legality: DeckLegality { DeckLegality.evaluate(deck) }
+
+    private var wins: Int { gameRecordStore.winLoss(for: deck.id).wins }
+    private var losses: Int { gameRecordStore.winLoss(for: deck.id).losses }
+    private var totalGames: Int { wins + losses }
+    private var winRate: Double {
+        totalGames == 0 ? 0 : Double(wins) / Double(totalGames)
+    }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -85,9 +129,7 @@ struct DeckRowCard: View {
                 Text(deck.legend?.cardName ?? "No legend selected")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(summary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                winRateBar
             }
             Spacer()
             legalityBadge
@@ -98,13 +140,28 @@ struct DeckRowCard: View {
         .cardSurface()
     }
 
-    private var summary: String {
-        let mainCount = deck.mainDeck.reduce(0) { $0 + $1.count }
-        var parts = ["\(mainCount) main"]
-        if !deck.runes.isEmpty {
-            parts.append("\(deck.runes.reduce(0) { $0 + $1.count }) runes")
+    private var winRateBar: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Text("\(wins)–\(losses)")
+                    .font(.caption)
+                Text("·")
+                    .foregroundStyle(.secondary)
+                Text(totalGames == 0 ? "no games" : "\(Int(winRate * 100))%")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.2))
+                    Capsule()
+                        .fill(Color.green)
+                        .frame(width: geo.size.width * CGFloat(winRate))
+                }
+            }
+            .frame(height: 4)
         }
-        return parts.joined(separator: " · ")
     }
 
     private var legalityBadge: some View {

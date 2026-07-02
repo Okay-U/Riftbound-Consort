@@ -6,6 +6,8 @@ struct ContentView: View {
     @AppStorage("currentTab") var currentTab: String = "score"
     @State var decklistStore = DecklistStore()
     @State var cardStore = CardStore()
+    @State var gameRecordStore = GameRecordStore()
+    @State var gameTimer = GameTimer()
 
     var body: some View {
         TabView(selection: $currentTab) {
@@ -31,6 +33,8 @@ struct ContentView: View {
         }
         .environment(decklistStore)
         .environment(cardStore)
+        .environment(gameRecordStore)
+        .environment(gameTimer)
         .preferredColorScheme(.dark)
         #if os(Android)
         // Imperative Haptics calls bump HapticsEngine counters; these
@@ -48,11 +52,19 @@ struct ContentView: View {
 /// color sheet, quick settings). Timer badge, deck pill, match strip,
 /// and Won/Lost game records come with later waves.
 struct ScoreboardScreen: View {
+    @Environment(GameTimer.self) var gameTimer
+    @Environment(GameRecordStore.self) var gameRecordStore
+    @Environment(DecklistStore.self) var decklistStore
     @State var viewModel = ScoreboardViewModel()
     @State var xpModeAll = false
     @State var perSlotXP: [Bool] = [false, false, false, false]
     @State var showColorSheet = false
     @State var showQuickSettingsSheet = false
+    @State var showGameSetupSheet = false
+    @State var lastGameEnd: TimeInterval = 0
+    @AppStorage("activeDeckId") var activeDeckId: String = ""
+    @AppStorage("activeOpponent") var activeOpponent: String = ""
+    @AppStorage("activeStartedFirst") var activeStartedFirst: String = ""
 
     private let outerVSpacing: CGFloat = 12
     private let gridSpacing: CGFloat = 12
@@ -111,6 +123,9 @@ struct ScoreboardScreen: View {
         .sheet(isPresented: $showQuickSettingsSheet) {
             QuickSettingsSheet(vm: viewModel)
         }
+        .sheet(isPresented: $showGameSetupSheet) {
+            GameSetupSheet()
+        }
         .onChange(of: viewModel.playerCount) { (_: Int, _: Int) in
             // Reset XP mode tracking when player count changes — stale per-slot
             // entries from removed slots would otherwise drive future tile state.
@@ -135,17 +150,18 @@ struct ScoreboardScreen: View {
 
     private func tileFor(slot: Int, rotation: Double) -> some View {
         let p = viewModel.players[slot]
+        let elapsed = Int(gameTimer.elapsed)
 
         return ScoreTile(
             player: p,
             onConquer: {
-                viewModel.recordEvent(p, type: .conquer, delta: 1, elapsedSeconds: 0)
+                viewModel.recordEvent(p, type: .conquer, delta: 1, elapsedSeconds: elapsed)
             },
             onHold: {
-                viewModel.recordEvent(p, type: .hold, delta: 1, elapsedSeconds: 0)
+                viewModel.recordEvent(p, type: .hold, delta: 1, elapsedSeconds: elapsed)
             },
             onDecrement: {
-                viewModel.recordEvent(p, type: .manual, delta: -1, elapsedSeconds: 0)
+                viewModel.recordEvent(p, type: .manual, delta: -1, elapsedSeconds: elapsed)
             },
             rotation: rotation,
             paletteColor: viewModel.paletteColor(for: slot),
@@ -190,10 +206,68 @@ struct ScoreboardScreen: View {
         }
     }
 
+    private var activeDeckName: String {
+        guard
+            let uuid = UUID(uuidString: activeDeckId),
+            let deck = decklistStore.lists.first(where: { $0.id == uuid })
+        else { return "No deck" }
+        return deck.name
+    }
+
+    private func endGame(_ result: GameResult) {
+        let deckUUID = UUID(uuidString: activeDeckId)
+        let deck = decklistStore.lists.first(where: { $0.id == deckUUID })
+        let opponent = activeOpponent.trimmingCharacters(in: .whitespaces)
+        let now = gameTimer.elapsed
+        // If timer was manually reset since last record, fall back to full elapsed.
+        let delta = now >= lastGameEnd ? now - lastGameEnd : now
+        let startedFirst: Bool? = activeStartedFirst == "first" ? true
+            : activeStartedFirst == "second" ? false
+            : nil
+        let record = GameRecord(
+            deckId: deck?.id,
+            deckName: deck?.name,
+            opponent: opponent,
+            result: result,
+            durationSeconds: Int(delta),
+            events: viewModel.events,
+            startedFirst: startedFirst
+        )
+        gameRecordStore.record(record)
+        lastGameEnd = now
+        viewModel.resetScores()
+    }
+
+    private var deckPill: some View {
+        Button {
+            showGameSetupSheet = true
+        } label: {
+            HStack(spacing: 6) {
+                Text(activeDeckName)
+                    .font(.caption.weight(.medium))
+                if !activeOpponent.isEmpty {
+                    Text("vs \(activeOpponent)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule().fill(Color.secondary.opacity(0.18))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private var headerBar: some View {
-        HStack(alignment: .center) {
-            Text("Scoreboard")
-                .font(.system(size: 26, weight: .bold, design: .rounded))
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Scoreboard")
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                TimerBadgeView()
+                deckPill
+            }
 
             Spacer()
 
@@ -232,6 +306,26 @@ struct ScoreboardScreen: View {
             }
 
             Spacer()
+
+            Button { endGame(.lost) } label: {
+                Text("Lost")
+                    .font(.headline)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 14)
+                    .frame(height: 44)
+                    .background(Capsule().fill(Color.white.opacity(0.10)))
+            }
+            .buttonStyle(.plain)
+
+            Button { endGame(.won) } label: {
+                Text("Won")
+                    .font(.headline)
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 14)
+                    .frame(height: 44)
+                    .background(Capsule().fill(Color.white.opacity(0.10)))
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
     }

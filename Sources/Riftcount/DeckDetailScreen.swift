@@ -74,6 +74,9 @@ struct DeckDetailScreen: View {
                 NavigationLink(value: StatsRoute.odds(deck.id)) {
                     Text("Draw odds")
                 }
+                NavigationLink(value: GameHistoryRoute(scope: .deck(deck.id), title: deck.name)) {
+                    Text("Game history")
+                }
                 Button {
                     showDrawHand = true
                 } label: {
