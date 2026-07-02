@@ -4,6 +4,7 @@ import SwiftUI
 /// symbol set; proper custom icons later.
 struct ContentView: View {
     @AppStorage("currentTab") var currentTab: String = "score"
+    @State var decklistStore = DecklistStore()
 
     var body: some View {
         TabView(selection: $currentTab) {
@@ -19,10 +20,15 @@ struct ContentView: View {
                 .tabItem { Label("Cards", systemImage: "magnifyingglass") }
                 .tag("cards")
 
+            DecksScreen()
+                .tabItem { Label("Decks", systemImage: "list.bullet") }
+                .tag("decks")
+
             SettingsScreen()
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
                 .tag("settings")
         }
+        .environment(decklistStore)
         .preferredColorScheme(.dark)
         #if os(Android)
         // Imperative Haptics calls bump HapticsEngine counters; these

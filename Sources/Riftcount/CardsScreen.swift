@@ -187,6 +187,7 @@ struct CardGalleryCell: View {
 /// (runes, tags, legality) ports in 2b.
 struct CardQuickDetail: View {
     let card: Card
+    @State var showAddToDeck = false
 
     private var isBattlefield: Bool {
         card.classification?.type?.lowercased() == "battlefield"
@@ -242,6 +243,16 @@ struct CardQuickDetail: View {
             .padding(.vertical, 16)
         }
         .navigationTitle(card.name)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { showAddToDeck = true } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $showAddToDeck) {
+            AddToDeckSheet(card: card)
+        }
     }
 
     private var statsRow: some View {
