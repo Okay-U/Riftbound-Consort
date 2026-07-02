@@ -17,7 +17,7 @@ struct EventsTabView: View {
                 }
             }
             .navigationDestination(for: EventRoute.self) { route in
-                EventDetailPlaceholder(eventID: route.id)
+                EventDetailView(eventID: route.id, myAlias: route.alias)
             }
             .navigationDestination(for: StoreSearchRoute.self) { _ in
                 ComingSoonView(title: "Store finder")
@@ -29,26 +29,6 @@ struct EventsTabView: View {
                 ComingSoonView(title: "Store calendar")
             }
         }
-    }
-}
-
-/// Stage-3b placeholder for the event detail screen.
-struct EventDetailPlaceholder: View {
-    let eventID: Int
-
-    var body: some View {
-        VStack(spacing: 10) {
-            Text("Event #\(eventID)")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.white)
-            Text("Pairings, standings and match reporting arrive in the next update step.")
-                .font(.system(size: 13))
-                .foregroundStyle(EventsTheme.textSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(EventsTheme.bg.ignoresSafeArea())
     }
 }
 

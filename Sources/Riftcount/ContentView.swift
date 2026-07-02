@@ -9,6 +9,7 @@ struct ContentView: View {
     @State var gameRecordStore = GameRecordStore()
     @State var gameTimer = GameTimer()
     @State var authSession = AuthSession()
+    @State var matchMode = MatchModeStore()
 
     var body: some View {
         TabView(selection: $currentTab) {
@@ -41,6 +42,7 @@ struct ContentView: View {
         .environment(gameRecordStore)
         .environment(gameTimer)
         .environment(authSession)
+        .environment(matchMode)
         .task { await authSession.restore() }
         .preferredColorScheme(.dark)
         #if os(Android)
