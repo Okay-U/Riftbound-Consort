@@ -18,7 +18,7 @@ struct EventsHomeView: View {
             Group {
                 switch segment {
                 case .events: MyEventsView(embedded: true)
-                case .stores: ComingSoonView(title: "Store finder")
+                case .stores: StoresHomeView()
                 case .profile: ComingSoonView(title: "Player profile")
                 }
             }

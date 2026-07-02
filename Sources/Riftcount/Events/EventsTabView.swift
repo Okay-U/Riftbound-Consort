@@ -20,13 +20,13 @@ struct EventsTabView: View {
                 EventDetailView(eventID: route.id, myAlias: route.alias)
             }
             .navigationDestination(for: StoreSearchRoute.self) { _ in
-                ComingSoonView(title: "Store finder")
+                StoreSearchView()
             }
-            .navigationDestination(for: StoreRoute.self) { _ in
-                ComingSoonView(title: "Store")
+            .navigationDestination(for: StoreRoute.self) { route in
+                StoreDetailView(storeID: route.id)
             }
             .navigationDestination(for: StoreCalendarRoute.self) { _ in
-                ComingSoonView(title: "Store calendar")
+                StoreCalendarView()
             }
         }
     }
