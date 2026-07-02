@@ -64,6 +64,13 @@ struct DeckDetailScreen: View {
         .navigationTitle(deck.name)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
+                // Native share sheet instead of iOS clipboard export.
+                ShareLink(item: DeckTextFormat.export(deck: deck,
+                                                      cardPool: cardStore.allCards)) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
                 Button("Edit") { showEditor = true }
             }
             ToolbarItem(placement: .primaryAction) {

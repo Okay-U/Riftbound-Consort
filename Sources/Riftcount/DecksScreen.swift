@@ -5,7 +5,9 @@ import SwiftUI
 /// stats come in later waves.
 struct DecksScreen: View {
     @Environment(DecklistStore.self) var store
+    @Environment(CardStore.self) var cardStore
     @State var showNewDeck = false
+    @State var showImport = false
 
     var body: some View {
         NavigationStack {
@@ -43,6 +45,14 @@ struct DecksScreen: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
+                    Button { showImport = true } label: {
+                        // square.and.arrow.down is unmapped; arrow rotated
+                        // to point down reads as import.
+                        Image(systemName: "arrow.forward")
+                            .rotationEffect(Angle(degrees: 90))
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
                     Button { showNewDeck = true } label: {
                         Image(systemName: "plus")
                     }
@@ -51,6 +61,10 @@ struct DecksScreen: View {
             .sheet(isPresented: $showNewDeck) {
                 DeckBuilderSheet()
             }
+            .sheet(isPresented: $showImport) {
+                ImportDeckSheet()
+            }
+            .onAppear { cardStore.loadIfNeeded() }
         }
     }
 
