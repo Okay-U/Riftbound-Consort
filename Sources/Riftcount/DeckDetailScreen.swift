@@ -12,7 +12,13 @@ struct DeckDetailScreen: View {
     @State var confirmDelete = false
     @State var showEditor = false
     @State var showRename = false
+    @State var showDrawHand = false
     @State var newName = ""
+
+    enum StatsRoute: Hashable {
+        case stats(UUID)
+        case odds(UUID)
+    }
 
     private var current: Decklist? {
         store.lists.first { $0.id == deckID }
@@ -60,6 +66,43 @@ struct DeckDetailScreen: View {
                          entries: deck.runes,
                          slot: .rune,
                          deck: deck)
+
+            Section("Stats") {
+                NavigationLink(value: StatsRoute.stats(deck.id)) {
+                    Text("Deck stats")
+                }
+                NavigationLink(value: StatsRoute.odds(deck.id)) {
+                    Text("Draw odds")
+                }
+                Button {
+                    showDrawHand = true
+                } label: {
+                    HStack {
+                        Text("Draw hand")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .navigationDestination(for: StatsRoute.self) { route in
+            switch route {
+            case .stats(let id):
+                if let d = store.lists.first(where: { $0.id == id }) {
+                    DeckStatsView(deck: d)
+                }
+            case .odds(let id):
+                if let d = store.lists.first(where: { $0.id == id }) {
+                    DrawProbabilityView(deck: d)
+                }
+            }
+        }
+        .sheet(isPresented: $showDrawHand) {
+            DrawHandView(deck: deck)
         }
         .navigationTitle(deck.name)
         .toolbar {
