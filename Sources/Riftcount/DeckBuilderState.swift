@@ -314,6 +314,104 @@ final class DeckBuilderState {
         return store.lists.first(where: { $0.id == new.id })
     }
 
+    // MARK: - Edit existing deck
+
+    /// Seeds this state from an existing deck so the wizard pickers can be
+    /// reused as an editor. Looks up Card refs from the supplied pool.
+    func loadFromExisting(_ deck: Decklist, cardPool: [Card]) {
+        deckName = deck.name
+        battlefields = []
+        mainDeck = []
+        sideDeck = []
+        signatureIds = []
+        idToIdentity = [:]
+
+        let lookup: (String) -> Card? = { id in
+            cardPool.first(where: { $0.id == id })
+        }
+
+        if let entry = deck.legend, let card = lookup(entry.cardId) {
+            legend = card
+        }
+        if let entry = deck.champion, let card = lookup(entry.cardId) {
+            champion = card
+        }
+        for entry in deck.battlefields {
+            if let card = lookup(entry.cardId) {
+                battlefields.append(card)
+            }
+        }
+        for entry in deck.mainDeck {
+            mainDeck.append(entry)
+            if let card = lookup(entry.cardId) {
+                trackIdentity(card)
+                trackSignature(card)
+            }
+        }
+        for entry in deck.sideDeck {
+            sideDeck.append(entry)
+            if let card = lookup(entry.cardId) {
+                trackIdentity(card)
+                trackSignature(card)
+            }
+        }
+
+        // Seed rune counts by mapping rune entries to their domains.
+        var counts: [String: Int] = [:]
+        for entry in deck.runes {
+            guard let card = lookup(entry.cardId),
+                  let domain = card.classification?.domain?.first?.lowercased()
+            else { continue }
+            counts[domain, default: 0] += entry.count
+        }
+        // Ensure every legend domain has an entry.
+        for d in legendDomains {
+            let key = d.lowercased()
+            if counts[key] == nil { counts[key] = 0 }
+        }
+        runeCounts = counts
+    }
+
+    /// Replaces the slots of an existing deck with this state's current picks.
+    func commitEdits(toDeckId deckId: UUID,
+                     in store: DecklistStore,
+                     runePool: [Card]) {
+        guard let deck = store.lists.first(where: { $0.id == deckId }) else { return }
+
+        // Wipe and reapply all editable slots.
+        for entry in deck.battlefields {
+            store.remove(entry, from: deck, slot: .battlefield)
+        }
+        for entry in deck.mainDeck {
+            store.remove(entry, from: deck, slot: .mainDeck)
+        }
+        for entry in deck.sideDeck {
+            store.remove(entry, from: deck, slot: .sideDeck)
+        }
+        for entry in deck.runes {
+            store.remove(entry, from: deck, slot: .rune)
+        }
+
+        guard let refreshed = store.lists.first(where: { $0.id == deckId }) else { return }
+
+        for bf in battlefields {
+            store.add(bf, to: refreshed, slot: .battlefield)
+        }
+        applyEntries(mainDeck, to: refreshed, slot: .mainDeck, via: store)
+        applyEntries(sideDeck, to: refreshed, slot: .sideDeck, via: store)
+
+        for domain in legendDomains {
+            let key = domain.lowercased()
+            let count = runeCounts[key] ?? 0
+            guard count > 0,
+                  let rune = Card.runeCard(forDomain: domain, in: runePool)
+            else { continue }
+            for _ in 0..<count {
+                store.add(rune, to: refreshed, slot: .rune)
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     private func increment(_ array: inout [DecklistEntry], card: Card) {
