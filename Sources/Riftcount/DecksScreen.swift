@@ -6,7 +6,6 @@ import SwiftUI
 struct DecksScreen: View {
     @Environment(DecklistStore.self) var store
     @State var showNewDeck = false
-    @State var newDeckName = ""
 
     var body: some View {
         NavigationStack {
@@ -50,9 +49,7 @@ struct DecksScreen: View {
                 }
             }
             .sheet(isPresented: $showNewDeck) {
-                NewDeckSheet(name: $newDeckName) { name in
-                    store.create(name: name)
-                }
+                DeckBuilderSheet()
             }
         }
     }
@@ -77,40 +74,6 @@ struct DecksScreen: View {
             parts.append("\(deck.runes.reduce(0) { $0 + $1.count }) runes")
         }
         return parts.joined(separator: " · ")
-    }
-}
-
-struct NewDeckSheet: View {
-    @Binding var name: String
-    let onCreate: (String) -> Void
-    @Environment(\.dismiss) var dismiss
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            SheetHeader(title: "New Deck") { dismiss() }
-
-            TextField("Deck name", text: $name)
-                .textFieldStyle(.roundedBorder)
-                .padding(.horizontal, 16)
-
-            Button {
-                let trimmed = name.trimmingCharacters(in: .whitespaces)
-                guard !trimmed.isEmpty else { return }
-                onCreate(trimmed)
-                name = ""
-                dismiss()
-            } label: {
-                Text("Create")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-            .padding(.horizontal, 16)
-
-            Spacer()
-        }
     }
 }
 

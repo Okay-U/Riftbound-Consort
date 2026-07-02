@@ -4,7 +4,7 @@ import SwiftUI
 /// Wave 2a scope: gallery grid, name search, sort menu, quick detail.
 /// Filter sheet and full detail view follow in 2b.
 struct CardsScreen: View {
-    @State var cardStore = CardStore()
+    @Environment(CardStore.self) var cardStore
     @State var query = ""
     @State var filters = CardFilters()
     @State var primarySort: CardSort = .set

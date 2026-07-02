@@ -5,6 +5,7 @@ import SwiftUI
 struct ContentView: View {
     @AppStorage("currentTab") var currentTab: String = "score"
     @State var decklistStore = DecklistStore()
+    @State var cardStore = CardStore()
 
     var body: some View {
         TabView(selection: $currentTab) {
@@ -29,6 +30,7 @@ struct ContentView: View {
                 .tag("settings")
         }
         .environment(decklistStore)
+        .environment(cardStore)
         .preferredColorScheme(.dark)
         #if os(Android)
         // Imperative Haptics calls bump HapticsEngine counters; these

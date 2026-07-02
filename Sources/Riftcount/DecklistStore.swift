@@ -114,6 +114,10 @@ public final class DecklistStore {
     private func save() {
         do {
             let data = try JSONEncoder().encode(lists)
+            // The documents directory does not exist by default in the
+            // Android app sandbox — create it or the write fails.
+            let dir = fileURL.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             try data.write(to: fileURL, options: .atomic)
         } catch {
             logger.error("DecklistStore save failed: \(error.localizedDescription)")
