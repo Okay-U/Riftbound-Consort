@@ -15,6 +15,10 @@ struct ContentView: View {
                 .tabItem { Label("Dice", systemImage: "star.fill") }
                 .tag("dice")
 
+            CardsScreen()
+                .tabItem { Label("Cards", systemImage: "magnifyingglass") }
+                .tag("cards")
+
             SettingsScreen()
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
                 .tag("settings")
