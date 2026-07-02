@@ -55,15 +55,14 @@ struct CardsScreen: View {
                             }
                         }
                     } label: {
-                        Image(systemName: "ellipsis")
+                        Text("↑↓")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.primary)
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button { showFilters = true } label: {
-                        // list.bullet is in SkipUI's mapped set; the iOS
-                        // line.3.horizontal.decrease icons are not.
-                        Image(systemName: "list.bullet")
-                            .foregroundStyle(filters.isActive ? Color.accentColor : Color.primary)
+                        FilterGlyph(active: filters.isActive)
                     }
                 }
             }
@@ -126,6 +125,22 @@ struct CardsScreen: View {
         }
         .padding(.horizontal, 8)
         .padding(.top, 4)
+    }
+}
+
+/// Funnel-style filter icon drawn by hand — the iOS
+/// line.3.horizontal.decrease symbols are not in SkipUI's mapped set.
+struct FilterGlyph: View {
+    let active: Bool
+
+    var body: some View {
+        VStack(spacing: 3) {
+            Capsule().frame(width: 18, height: 2.5)
+            Capsule().frame(width: 12, height: 2.5)
+            Capsule().frame(width: 6, height: 2.5)
+        }
+        .foregroundStyle(active ? Color.accentColor : Color.primary)
+        .frame(width: 24, height: 20)
     }
 }
 

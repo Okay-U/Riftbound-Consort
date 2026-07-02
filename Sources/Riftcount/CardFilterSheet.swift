@@ -15,8 +15,16 @@ struct CardFilterSheet: View {
                     Text("Filter Cards")
                         .font(.system(size: 20, weight: .bold, design: .rounded))
                     Spacer()
-                    Button("Reset") { filters = CardFilters() }
-                        .foregroundStyle(.red)
+                    Button {
+                        filters = CardFilters()
+                    } label: {
+                        Image(systemName: "arrow.clockwise.circle")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.red)
+                            .frame(width: 30, height: 30)
+                            .background(Circle().fill(Color.white.opacity(0.10)))
+                    }
+                    .buttonStyle(.plain)
                     Button {
                         dismiss()
                     } label: {
@@ -39,17 +47,22 @@ struct CardFilterSheet: View {
 
                 section("Type") {
                     FilterChipRows(options: CardFilters.knownTypes,
-                                   selected: $filters.types)
+                                   selected: $filters.types,
+                                   perRow: 3)
                 }
 
                 section("Series") {
+                    // Two per row: series names are long and wrapped chips
+                    // looked uneven at three.
                     FilterChipRows(options: CardFilters.knownSeries.map(\.name),
-                                   selected: $filters.series)
+                                   selected: $filters.series,
+                                   perRow: 2)
                 }
 
                 section("Rarity") {
                     FilterChipRows(options: CardFilters.knownRarities,
-                                   selected: $filters.rarities)
+                                   selected: $filters.rarities,
+                                   perRow: 2)
                 }
 
                 section("Cost") {
@@ -159,10 +172,11 @@ struct DomainRune: View {
 struct FilterChipRows: View {
     let options: [String]
     @Binding var selected: Set<String>
+    var perRow: Int = 3
 
     private var rows: [[String]] {
-        stride(from: 0, to: options.count, by: 3).map { start in
-            Array(options[start..<min(start + 3, options.count)])
+        stride(from: 0, to: options.count, by: perRow).map { start in
+            Array(options[start..<min(start + perRow, options.count)])
         }
     }
 
@@ -177,9 +191,10 @@ struct FilterChipRows: View {
                         } label: {
                             Text(option)
                                 .font(.subheadline.weight(isOn ? .semibold : .regular))
+                                .lineLimit(1)
                                 .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
                                 .frame(maxWidth: .infinity)
+                                .frame(height: 36)
                                 .background(
                                     isOn
                                         ? Color.accentColor
@@ -191,8 +206,10 @@ struct FilterChipRows: View {
                         .buttonStyle(.plain)
                     }
                     // Pad short rows so chips keep equal width.
-                    ForEach(0..<(3 - row.count), id: \.self) { _ in
-                        Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                    ForEach(0..<(perRow - row.count), id: \.self) { _ in
+                        Color.clear
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 36)
                     }
                 }
             }
