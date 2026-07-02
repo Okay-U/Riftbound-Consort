@@ -8,13 +8,13 @@
 
 ### Current feature set
 
-- **Scoreboard tab**: 2-player or 4-player layout with large tap targets. Each `ScoreTile` has a top half (+) and bottom half (−). Tile flashes green/red on press, runs particle effects when one point away from victory, and triggers gold confetti + ring burst on win.
+- **Scoreboard tab**: 2-player or 4-player layout with large tap targets. Each `ScoreTile` has a top half (+) and bottom half (−). Tile flashes green/red on press (edge flash). Win confetti/particle effects were removed (2026-07-02).
 - **Dice tab**: D6 roller with shake-to-roll support and a Roll button.
 - **Settings tab**: Toggles (battery saver, haptics, shake-to-roll), navigation links to Bug Report / Feature Request / Roadmap / Donation views, version info.
 - **Persistence**: Pure `@AppStorage` / `UserDefaults` — no database, no network, no Keychain.
 - **Quick settings sheet**: Pick winning score (8–12).
 - **Color settings sheet**: Per-slot tile color from a 15-color palette.
-- **Polish**: Win confetti, edge-flash on press, idle timer disabled (screen stays on), shake gesture detection, dark mode default with optional true-black background.
+- **Polish**: Edge-flash on press, idle timer disabled (screen stays on), shake gesture detection, dark mode default with optional true-black background.
 
 ---
 
@@ -28,7 +28,7 @@ All Swift files live in `Riftbound Companiokay/Riftbound Companiokay/`.
 | `Models.swift` | `Player` struct: `Identifiable`, `Hashable`, `id: UUID`, `name`, `score`. |
 | `ScoreboardViewModel.swift` | `final class ObservableObject`. Owns `@Published var players`, `@AppStorage` for `playerCount` (2 or 4) and per-slot color indexes (`colorIdx_0`..`colorIdx_3`). Maintains a 50-step undo `history`. Methods: `increment`, `decrement`, `resetScores`, `undo`, `colorIndex(for:)`, `setColorIndex(_:for:)`, `applyPlayerCount(_:)`. |
 | `ScoreboardView.swift` | Main scoreboard. Uses `GeometryReader` to compute tile heights. 2-player = vertical stack with rotation 180/0. 4-player = `LazyVGrid` 2×2 with top row rotated 180. Header has Reset, footer has Undo, Color sheet, Quick settings, and player-count `Picker`. |
-| `ScoreTile.swift` | Visual tile. `VStack` of two `Button`s (plus on top, minus on bottom) clipped to a `RoundedRectangle`. Uses `PressDimButtonStyle` (defined in this file). Contains private subviews: `EdgeFlashOutside`, `WinBurstOutside`, `OutsideRingMask`, `ParticleOverlay`, `SparkView`, `WinConfettiOverlay`. |
+| `ScoreTile.swift` | Visual tile. `VStack` of two `Button`s (plus on top, minus on bottom) clipped to a `RoundedRectangle`. Uses `PressDimButtonStyle` (defined in this file). Sliding score↔XP faces with rotation-aware swipe. Private subviews: `EdgeFlashOutside`, `OutsideRingMask`. |
 | `DiceView.swift` | D6 dice roller. Local `@State` for `value`, `isRolling`, `rollScale`. `roll()` schedules ~11–14 hops at 0.05s intervals. Subscribes to `ShakeManager.shared.publisher` for shake-to-roll. |
 | `Settings.swift` | Settings `Form` with `@AppStorage` toggles. Includes `Bundle.appVersion`/`appBuild` extension. |
 | `ColorSettingsSheet.swift` | Sheet UI for per-slot tile color. Reads/writes via `vm.colorIndex(for:)` and `vm.setColorIndex(_:for:)`. |
@@ -68,7 +68,7 @@ All Swift files live in `Riftbound Companiokay/Riftbound Companiokay/`.
 - **Combine imports**: This project requires `internal import Combine` (not bare `import Combine`) in every file that uses Combine or `ObservableObject`. Bare `import Combine` causes "Initializer 'init(wrappedValue:)' is not available" build errors.
 - **Concurrency**: Existing code uses `DispatchQueue.main.asyncAfter` and Combine. New async work should prefer Swift structured concurrency (`Task`, `async`/`await`) and `@MainActor` for UI state.
 - **Immutability**: Models are structs; favor `let` over `var`. Mutations only on the view model.
-- **File size**: Target 200–400 lines, max 800. `ScoreTile.swift` (~500 lines) is the exception due to inline particle subviews.
+- **File size**: Target 200–400 lines, max 800. `ScoreTile.swift` (~490 lines) is the largest due to the sliding-face mechanic + effect subviews.
 - **Haptics**: Always go through `Haptics.*` helpers. Never call `UIImpactFeedbackGenerator` directly from views.
 - **No `print()`**: Use `os.Logger` for any new logging.
 - **Secrets**: If an API key is ever needed, use Keychain or build-time `.xcconfig`, never source.
