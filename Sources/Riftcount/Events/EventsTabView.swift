@@ -45,6 +45,6 @@ struct ComingSoonView: View {
                 .foregroundStyle(EventsTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(EventsTheme.bg.ignoresSafeArea())
+        .background(EventsTheme.bg)
     }
 }

@@ -41,7 +41,7 @@ struct MyEventsView: View {
                 content
             }
         }
-        .background(EventsTheme.bg.ignoresSafeArea())
+        .background(EventsTheme.bg)
         .refreshable { await load() }
         .task { if case .idle = status { await load() } }
         .onAppear {

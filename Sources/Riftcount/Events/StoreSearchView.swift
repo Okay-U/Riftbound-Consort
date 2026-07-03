@@ -31,7 +31,7 @@ struct StoreSearchView: View {
                 resultsBody(for: phase).padding(.horizontal, 18).padding(.bottom, 24)
             }
         }
-        .background(EventsTheme.bg.ignoresSafeArea())
+        .background(EventsTheme.bg)
         .task(id: query) { await debouncedSearch() }
     }
 

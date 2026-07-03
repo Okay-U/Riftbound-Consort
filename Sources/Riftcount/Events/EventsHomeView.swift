@@ -15,6 +15,9 @@ struct EventsHomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
+            if showAccountDialog {
+                accountPanel
+            }
             Group {
                 switch segment {
                 case .events: MyEventsView(embedded: true)
@@ -24,34 +27,26 @@ struct EventsHomeView: View {
             }
         }
         .background(EventsTheme.bg.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
     }
+
+    @State var showAccountDialog = false
 
     private var topBar: some View {
         HStack(spacing: 12) {
             segmentControl
-            accountMenu
+            accountButton
         }
         .padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 10)
     }
 
     private var segmentControl: some View {
+        // Explicit buttons: ForEach over the CaseIterable enum rendered
+        // nothing on Compose.
         HStack(spacing: 4) {
-            ForEach(Segment.allCases, id: \.self) { seg in
-                let selected = segment == seg
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) { segment = seg }
-                } label: {
-                    Text(seg.rawValue)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(selected ? EventsTheme.matchFillBottom : EventsTheme.textSecondary)
-                        .frame(maxWidth: .infinity).frame(height: 34)
-                        .background(
-                            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                .fill(selected ? EventsTheme.green : Color.clear)
-                        )
-                }
-                .buttonStyle(.plain)
-            }
+            segButton(.events)
+            segButton(.stores)
+            segButton(.profile)
         }
         .padding(4)
         .background(
@@ -61,17 +56,52 @@ struct EventsHomeView: View {
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(EventsTheme.hairline, lineWidth: 1))
     }
 
-    private var accountMenu: some View {
-        Menu {
-            if let name = session.currentUser?.displayName {
-                Text("Signed in as \(name)")
-            }
-            Button(role: .destructive) {
+    private func segButton(_ seg: Segment) -> some View {
+        let selected = segment == seg
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) { segment = seg }
+        } label: {
+            Text(seg.rawValue)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(selected ? EventsTheme.matchFillBottom : EventsTheme.textSecondary)
+                .frame(maxWidth: .infinity).frame(height: 34)
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(selected ? EventsTheme.green : Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Inline account panel — Menu and confirmationDialog both collapse
+    /// sibling layout on Compose here, so this is a plain toggled row.
+    private var accountPanel: some View {
+        HStack(spacing: 10) {
+            Text(session.currentUser.map { "Signed in as \($0.displayName)" } ?? "Account")
+                .font(.system(size: 13))
+                .foregroundStyle(EventsTheme.textSecondary)
+                .lineLimit(1)
+            Spacer()
+            Button {
+                showAccountDialog = false
                 session.logout()
             } label: {
                 Text("Sign out")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color.red)
+                    .padding(.horizontal, 12).padding(.vertical, 7)
+                    .background(Capsule().fill(Color.red.opacity(0.15)))
             }
-        } label: {
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .eventsCard(radius: 13)
+        .padding(.horizontal, 18)
+        .padding(.bottom, 8)
+    }
+
+    private var accountButton: some View {
+        Button { showAccountDialog.toggle() } label: {
             Image(systemName: "person.crop.circle")
                 .font(.system(size: 18))
                 .foregroundStyle(EventsTheme.textSecondary)
@@ -79,5 +109,6 @@ struct EventsHomeView: View {
                 .background(Circle().fill(EventsTheme.card))
                 .overlay(Circle().stroke(EventsTheme.hairline, lineWidth: 1))
         }
+        .buttonStyle(.plain)
     }
 }
