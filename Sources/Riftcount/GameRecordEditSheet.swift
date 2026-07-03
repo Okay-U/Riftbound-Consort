@@ -77,12 +77,8 @@ struct GameRecordEditSheet: View {
                 }
 
                 sectionTitle("Turn Order")
-                Picker("Going", selection: $startedFirst) {
-                    Text("Unknown").tag("")
-                    Text("First").tag("first")
-                    Text("Second").tag("second")
-                }
-                .pickerStyle(.segmented)
+                SegmentedControl(selection: $startedFirst,
+                                 options: [("Unknown", ""), ("First", "first"), ("Second", "second")])
                 .padding(.horizontal, 16)
 
                 Button {

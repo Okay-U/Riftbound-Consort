@@ -10,6 +10,7 @@ struct CardsScreen: View {
     @State var primarySort: CardSort = .set
     @State var secondarySort: CardSort? = .energy
     @State var showFilters = false
+    @State var showSort = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 8),
@@ -42,19 +43,7 @@ struct CardsScreen: View {
             .searchable(text: $query, prompt: "Search by name…")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Picker("Sort by", selection: $primarySort) {
-                            ForEach(CardSort.allCases) { option in
-                                Text(option.label).tag(option)
-                            }
-                        }
-                        Picker("Then by", selection: $secondarySort) {
-                            Text("None").tag(CardSort?.none)
-                            ForEach(CardSort.allCases) { option in
-                                Text(option.label).tag(CardSort?.some(option))
-                            }
-                        }
-                    } label: {
+                    Button { showSort = true } label: {
                         Text("↑↓")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.primary)
@@ -69,6 +58,9 @@ struct CardsScreen: View {
             .sheet(isPresented: $showFilters) {
                 CardFilterSheet(filters: $filters,
                                 availableDomains: cardStore.availableDomains)
+            }
+            .sheet(isPresented: $showSort) {
+                CardSortSheet(primarySort: $primarySort, secondarySort: $secondarySort)
             }
             .onAppear { cardStore.loadIfNeeded() }
         }
@@ -279,5 +271,80 @@ struct CardQuickDetail: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(Capsule().fill(Color.secondary.opacity(0.2)))
+    }
+}
+
+/// Sort options as a proper sheet — the old toolbar Menu rendered as a bare
+/// two-line dropdown that read like a debug popup.
+struct CardSortSheet: View {
+    @Binding var primarySort: CardSort
+    @Binding var secondarySort: CardSort?
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                SheetHeader(title: "Sort") { dismiss() }
+
+                sectionTitle("Sort by")
+                VStack(spacing: 8) {
+                    ForEach(CardSort.allCases) { option in
+                        sortRow(option.label, selected: primarySort == option) {
+                            primarySort = option
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+
+                sectionTitle("Then by")
+                VStack(spacing: 8) {
+                    sortRow("None", selected: secondarySort == nil) {
+                        secondarySort = nil
+                    }
+                    ForEach(CardSort.allCases) { option in
+                        sortRow(option.label, selected: secondarySort == option) {
+                            secondarySort = option
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+
+                Spacer(minLength: 24)
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 16)
+    }
+
+    private func sortRow(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.selection()
+            action()
+        } label: {
+            HStack {
+                Text(label)
+                    .font(.system(size: 15, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(.white)
+                Spacer()
+                if selected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 46)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(selected ? Color.white.opacity(0.12) : Color.white.opacity(0.05))
+            )
+        }
+        .buttonStyle(.plain)
     }
 }

@@ -319,6 +319,11 @@ struct ScoreTile: View {
                 .clipShape(tileShape)
             }
             .shadow(color: Color.black.opacity(0.18), radius: 8, y: 3)
+            // GeometryReader's first Compose frame measures width 0, which
+            // puts every face/icon at the center before jumping into place —
+            // visible as a flicker when returning to this tab. Hide until
+            // there's a real width.
+            .opacity(w > 0 ? 1 : 0)
             .tileHitArea()
             .rotationEffect(Angle(degrees: rotation))
             .tileSwipeGesture(makeSwipeGesture(width: w))

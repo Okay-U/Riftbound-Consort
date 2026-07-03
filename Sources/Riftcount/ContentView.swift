@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Root tab host. Tab icons are temp placeholders from SkipUI's mapped
-/// symbol set; proper custom icons later.
+/// Root tab host. Tab icons: custom symbolset SVGs bundled in
+/// Module.xcassets (tab.*.fill — Image(systemName:) resolves bundled
+/// symbol assets before the built-in map), plus mapped trophy/gear.
 struct ContentView: View {
     @AppStorage("currentTab") var currentTab: String = "score"
     @AppStorage("didOnboard") var didOnboard: Bool = false
@@ -15,29 +16,32 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $currentTab) {
             ScoreboardScreen()
-                .tabItem { Label("Score", systemImage: "house.fill") }
+                .tabItem { Label("Score", systemImage: "tab.score.fill") }
                 .tag("score")
 
             EventsTabView()
-                .tabItem { Label("Events", systemImage: "person.2.fill") }
+                .tabItem { Label("Events", systemImage: "tab.events.fill") }
                 .tag("events")
 
             DiceScreen()
-                .tabItem { Label("Dice", systemImage: "star.fill") }
+                .tabItem { Label("Dice", systemImage: "tab.dice.fill") }
                 .tag("dice")
 
             CardsScreen()
-                .tabItem { Label("Cards", systemImage: "magnifyingglass") }
+                .tabItem { Label("Cards", systemImage: "tab.cards.fill") }
                 .tag("cards")
 
             DecksScreen()
-                .tabItem { Label("Decks", systemImage: "list.bullet") }
+                .tabItem { Label("Decks", systemImage: "tab.decks.fill") }
                 .tag("decks")
 
             SettingsScreen()
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
                 .tag("settings")
         }
+        // App accent (icon teal). On the tab bar this softens the Material
+        // selection pill from gray to a subtle brand tint.
+        .tint(Color(red: 0.36, green: 0.78, blue: 0.76))
         .environment(decklistStore)
         .environment(cardStore)
         .environment(gameRecordStore)

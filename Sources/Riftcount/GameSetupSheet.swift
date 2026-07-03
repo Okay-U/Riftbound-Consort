@@ -68,12 +68,8 @@ struct GameSetupSheet: View {
                 }
 
                 sectionTitle("Turn Order")
-                Picker("Going", selection: $activeStartedFirst) {
-                    Text("Unknown").tag("")
-                    Text("First").tag("first")
-                    Text("Second").tag("second")
-                }
-                .pickerStyle(.segmented)
+                SegmentedControl(selection: $activeStartedFirst,
+                                 options: [("Unknown", ""), ("First", "first"), ("Second", "second")])
                 .padding(.horizontal, 16)
 
                 Spacer(minLength: 24)

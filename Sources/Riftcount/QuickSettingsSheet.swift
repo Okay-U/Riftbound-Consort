@@ -13,14 +13,10 @@ struct QuickSettingsSheet: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 16)
 
-            Picker("Number of Players", selection: Binding(
+            SegmentedControl(selection: Binding(
                 get: { vm.playerCount },
                 set: { vm.playerCount = $0 }
-            )) {
-                Text("2 Players").tag(2)
-                Text("4 Players").tag(4)
-            }
-            .pickerStyle(.segmented)
+            ), options: [("2 Players", 2), ("4 Players", 4)])
             .padding(.horizontal, 16)
 
             Spacer()

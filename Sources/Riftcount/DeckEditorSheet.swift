@@ -43,12 +43,8 @@ struct DeckEditorSheet: View {
             .padding(.top, 16)
             .padding(.bottom, 8)
 
-            Picker("Section", selection: $section) {
-                ForEach(EditorSection.allCases) { s in
-                    Text(s.rawValue).tag(s)
-                }
-            }
-            .pickerStyle(.segmented)
+            SegmentedControl(selection: $section,
+                             options: EditorSection.allCases.map { ($0.rawValue, $0) })
             .padding(.horizontal, 12)
             .padding(.bottom, 4)
 

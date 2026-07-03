@@ -49,12 +49,8 @@ struct DiceScreen: View {
             Text("Dice")
                 .font(.title2.bold())
 
-            Picker("Die Type", selection: $diceTypeRaw) {
-                ForEach(DieType.allCases) { die in
-                    Text(die.label).tag(die.rawValue)
-                }
-            }
-            .pickerStyle(.segmented)
+            SegmentedControl(selection: $diceTypeRaw,
+                             options: DieType.allCases.map { ($0.label, $0.rawValue) })
             .padding(.horizontal)
             .onChange(of: diceTypeRaw) { (_: Int, _: Int) in
                 value = 1

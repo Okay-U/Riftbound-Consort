@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="300" height="500" viewBox="0 0 300 500" xmlns="http://www.w3.org/2000/svg">
+ <g id="Notes">
+ </g>
+ <g id="Guides">
+  <line id="Capline-S" x1="0" y1="10" x2="300" y2="10" stroke="#27AAE1" stroke-width="0.5"/>
+  <line id="Baseline-S" x1="0" y1="110" x2="300" y2="110" stroke="#27AAE1" stroke-width="0.5"/>
+  <line id="Capline-M" x1="0" y1="170" x2="300" y2="170" stroke="#27AAE1" stroke-width="0.5"/>
+  <line id="Baseline-M" x1="0" y1="270" x2="300" y2="270" stroke="#27AAE1" stroke-width="0.5"/>
+  <line id="Capline-L" x1="0" y1="330" x2="300" y2="330" stroke="#27AAE1" stroke-width="0.5"/>
+  <line id="Baseline-L" x1="0" y1="430" x2="300" y2="430" stroke="#27AAE1" stroke-width="0.5"/>
+ </g>
+ <g id="Symbols">
+  <g id="Regular-S" transform="matrix(1 0 0 1 100 10)">
+   <path class="monochrome-0" d="M40,8 L80,8 Q90,8 90,18 L90,58 Q90,68 80,68 L40,68 Q30,68 30,58 L30,18 Q30,8 40,8 Z"/>
+   <path class="monochrome-0" d="M20,32 L60,32 Q70,32 70,42 L70,82 Q70,92 60,92 L20,92 Q10,92 10,82 L10,42 Q10,32 20,32 Z"/>
+  </g>
+  <g id="Regular-M" transform="matrix(1 0 0 1 100 170)">
+   <path class="monochrome-0" d="M40,8 L80,8 Q90,8 90,18 L90,58 Q90,68 80,68 L40,68 Q30,68 30,58 L30,18 Q30,8 40,8 Z"/>
+   <path class="monochrome-0" d="M20,32 L60,32 Q70,32 70,42 L70,82 Q70,92 60,92 L20,92 Q10,92 10,82 L10,42 Q10,32 20,32 Z"/>
+  </g>
+  <g id="Regular-L" transform="matrix(1 0 0 1 100 330)">
+   <path class="monochrome-0" d="M40,8 L80,8 Q90,8 90,18 L90,58 Q90,68 80,68 L40,68 Q30,68 30,58 L30,18 Q30,8 40,8 Z"/>
+   <path class="monochrome-0" d="M20,32 L60,32 Q70,32 70,42 L70,82 Q70,92 60,92 L20,92 Q10,92 10,82 L10,42 Q10,32 20,32 Z"/>
+  </g>
+ </g>
+</svg>
