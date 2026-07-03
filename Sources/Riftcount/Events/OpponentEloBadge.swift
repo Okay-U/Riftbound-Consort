@@ -8,7 +8,7 @@ import SwiftUI
 struct OpponentEloBadge: View {
     let riftboundID: Int?
     var myRiftboundID: Int? = nil
-    var service: any EloShowdownService = EloShowdownAPI()
+    var service: any EloShowdownService = EloCache.shared
 
     @State var phase: Phase = .idle
 

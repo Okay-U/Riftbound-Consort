@@ -7,7 +7,7 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(AuthSession.self) var session
     @AppStorage("batterySaver") var batterySaver = false
-    var service: any EloShowdownService = EloShowdownAPI()
+    var service: any EloShowdownService = EloCache.shared
 
     @State var state: LoadState = .idle
     @State var scrubIndex: Int?
@@ -47,7 +47,11 @@ struct ProfileView: View {
             }
         }
         .background(EventsTheme.bg)
-        .refreshable { await load() }
+        .refreshable {
+            // Explicit refresh skips the TTL cache and refetches everything.
+            await EloCache.shared.invalidateAll()
+            await load()
+        }
         .task { if case .idle = state { await load() } }
     }
 

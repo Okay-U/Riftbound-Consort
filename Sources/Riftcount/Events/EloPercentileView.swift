@@ -7,7 +7,7 @@ import SwiftUI
 /// until the distribution loads (or if it fails).
 struct EloPercentileView: View {
     let currentElo: Int
-    var service: any EloShowdownService = EloShowdownAPI()
+    var service: any EloShowdownService = EloCache.shared
 
     @State var phase: Phase = .idle
 

@@ -9,7 +9,7 @@ import SwiftUI
 /// Compose), capped at `displayLimit`.
 struct StoreRankingView: View {
     let store: LocatorStore
-    var service: any EloShowdownService = EloShowdownAPI()
+    var service: any EloShowdownService = EloCache.shared
 
     @State var phase: Phase = .idle
 
