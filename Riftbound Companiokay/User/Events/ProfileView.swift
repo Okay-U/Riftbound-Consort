@@ -14,7 +14,7 @@ import Charts
 struct ProfileView: View {
     @EnvironmentObject private var session: AuthSession
     @AppStorage("batterySaver") private var batterySaver = false
-    var service: any EloShowdownService = EloShowdownAPI()
+    var service: any EloShowdownService = EloCache.shared
 
     @State private var state: LoadState = .idle
     @State private var scrubIndex: Int?
@@ -54,7 +54,11 @@ struct ProfileView: View {
             }
         }
         .background(EventsTheme.bg.ignoresSafeArea())
-        .refreshable { await load() }
+        .refreshable {
+            // Explicit refresh skips the TTL cache and refetches everything.
+            await EloCache.shared.invalidateAll()
+            await load()
+        }
         .task { if case .idle = state { await load() } }
     }
 
@@ -437,7 +441,8 @@ struct ProfileView: View {
     /// the scrubber. Light haptic tick only when the selected point actually changes.
     private func updateScrub(_ x: CGFloat, _ proxy: ChartProxy, _ geo: GeometryProxy, _ pts: [ScrubPoint]) {
         guard let first = pts.first, let last = pts.last else { return }
-        let plot = geo[proxy.plotAreaFrame]
+        guard let plotAnchor = proxy.plotFrame else { return }
+        let plot = geo[plotAnchor]
         guard plot.width > 0 else { return }
         let frac = max(0, min(1, (x - plot.origin.x) / plot.width))
         let span = Double(last.offset - first.offset)

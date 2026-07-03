@@ -49,17 +49,19 @@ nonisolated final class EloShowdownAPI: EloShowdownService {
         self.session = URLSession(configuration: config)
 
         // Tolerate both plain ("…Z") and fractional-second ("…+00:00") ISO-8601 —
-        // the v1 endpoints use the former, player-matches uses the latter.
-        let withFraction = ISO8601DateFormatter()
-        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let plain = ISO8601DateFormatter()
-        plain.formatOptions = [.withInternetDateTime]
-
+        // the v1 endpoints use the former, player-matches the latter. Parsed via
+        // Date.ISO8601FormatStyle (Sendable, unlike ISO8601DateFormatter — the
+        // decoding closure is @Sendable).
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         decoder.dateDecodingStrategy = .custom { d in
             let raw = try d.singleValueContainer().decode(String.self)
-            if let date = withFraction.date(from: raw) ?? plain.date(from: raw) { return date }
+            if let date = try? Date(raw, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)) {
+                return date
+            }
+            if let date = try? Date(raw, strategy: Date.ISO8601FormatStyle()) {
+                return date
+            }
             throw DecodingError.dataCorrupted(.init(codingPath: d.codingPath,
                                                     debugDescription: "Unparseable date: \(raw)"))
         }

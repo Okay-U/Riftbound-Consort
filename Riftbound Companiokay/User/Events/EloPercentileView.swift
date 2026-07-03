@@ -13,7 +13,7 @@ import Charts
 
 struct EloPercentileView: View {
     let currentElo: Int
-    var service: any EloShowdownService = EloShowdownAPI()
+    var service: any EloShowdownService = EloCache.shared
 
     @State private var phase: Phase = .idle
 

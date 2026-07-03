@@ -15,7 +15,7 @@ import CoreLocation
 
 struct StoreRankingView: View {
     let store: LocatorStore
-    var service: any EloShowdownService = EloShowdownAPI()
+    var service: any EloShowdownService = EloCache.shared
 
     @State private var phase: Phase = .idle
 
