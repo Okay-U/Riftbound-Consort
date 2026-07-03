@@ -1,10 +1,11 @@
 import SwiftUI
 
 /// Settings, ported from the iOS Settings view. Omitted on Android:
-/// shake-to-roll (no accelerometer bridge), Live Activity + match mode
-/// (iOS-only / Events wave), onboarding tours (not ported yet),
-/// share/rating links (no Play Store listing yet).
+/// shake-to-roll (no accelerometer bridge), Live Activity (iOS-only),
+/// onboarding tours (not ported yet), share/rating links (no Play Store
+/// listing yet).
 struct SettingsScreen: View {
+    @Environment(MatchModeStore.self) var matchMode
     @AppStorage("hapticsEnabled") var hapticsEnabled: Bool = true
     @AppStorage("batterySaver") var batterySaver: Bool = false
 
@@ -19,6 +20,19 @@ struct SettingsScreen: View {
 
                 Section("Interaction") {
                     Toggle("Haptics", isOn: $hapticsEnabled)
+                }
+
+                Section("Tournament") {
+                    // Bound through the store, not @AppStorage: the store only
+                    // reads the persisted flag at init, so an external defaults
+                    // write would leave its published state stale.
+                    Toggle("Match mode", isOn: Binding(
+                        get: { matchMode.enabled },
+                        set: { matchMode.enabled = $0 }
+                    ))
+                    Text("When you're signed in to Events and playing a live tournament, the Scoreboard shows your table, opponent, and a Report button so you can score and submit the match in one place.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("About") {

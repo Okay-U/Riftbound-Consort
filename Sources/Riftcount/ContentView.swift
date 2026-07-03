@@ -56,15 +56,19 @@ struct ContentView: View {
     }
 }
 
-/// Scoreboard host, ported from the iOS ScoreboardView.
-/// Wave 1 scope: 2p/4p layouts, header (title/XP/reset), footer (undo,
-/// color sheet, quick settings). Timer badge, deck pill, match strip,
-/// and Won/Lost game records come with later waves.
+/// Scoreboard host, ported from the iOS ScoreboardView: 2p/4p layouts,
+/// header (title/timer/deck pill/XP/reset), tournament match strip,
+/// footer (undo, colors, quick settings, Won/Lost game records).
 struct ScoreboardScreen: View {
     @Environment(GameTimer.self) var gameTimer
     @Environment(GameRecordStore.self) var gameRecordStore
     @Environment(DecklistStore.self) var decklistStore
+    @Environment(MatchModeStore.self) var matchMode
+    @Environment(AuthSession.self) var session
     @State var viewModel = ScoreboardViewModel()
+    @State var reportingMatch: ResolvedMyMatch?
+    @State var showReport = false
+    @AppStorage("currentTab") var currentTab: String = "score"
     @State var xpModeAll = false
     @State var perSlotXP: [Bool] = [false, false, false, false]
     @State var showColorSheet = false
@@ -84,7 +88,14 @@ struct ScoreboardScreen: View {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: outerVSpacing) {
-                headerBar
+                VStack(spacing: 8) {
+                    headerBar
+
+                    if showMatchStrip, let active = matchMode.active {
+                        matchStrip(active)
+                            .padding(.horizontal, 16)
+                    }
+                }
 
                 GeometryReader { geo in
                     let availableH = geo.size.height
@@ -135,6 +146,23 @@ struct ScoreboardScreen: View {
         .sheet(isPresented: $showGameSetupSheet) {
             GameSetupSheet()
         }
+        .sheet(isPresented: $showReport) {
+            if let reportingMatch {
+                ReportResultSheet(match: reportingMatch,
+                                  isBestOfThree: matchMode.active?.isBestOfThree ?? true,
+                                  token: session.token ?? "",
+                                  onReported: { Task { await matchMode.refresh(session: session) } })
+            }
+        }
+        .task { await matchMode.refresh(session: session) }
+        .onChange(of: currentTab) { (_: String, tab: String) in
+            // Returning to the Scoreboard mid-tournament: re-pull the live
+            // match so the strip isn't stale (the tab keeps this view alive,
+            // so .task won't refire).
+            if tab == "score" {
+                Task { await matchMode.refresh(session: session) }
+            }
+        }
         .onChange(of: viewModel.playerCount) { (_: Int, _: Int) in
             // Reset XP mode tracking when player count changes — stale per-slot
             // entries from removed slots would otherwise drive future tile state.
@@ -145,6 +173,77 @@ struct ScoreboardScreen: View {
 
     private func visibleSlots() -> [Int] {
         viewModel.playerCount == 2 ? [0, 1] : [0, 1, 2, 3]
+    }
+
+    // MARK: - Match mode strip
+
+    private var showMatchStrip: Bool {
+        matchMode.enabled && matchMode.active != nil && viewModel.playerCount == 2
+    }
+
+    /// Slim tournament strip under the header, ported from iOS: table/round,
+    /// you vs opponent, Report (or Reported), dismiss. Icons swapped for
+    /// SkipUI-mapped symbols (trophy.fill/square.and.pencil/checkmark.seal.fill
+    /// aren't in the map).
+    private func matchStrip(_ active: ActiveTournamentMatch) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Image(systemName: "star.fill")
+                    Text("Table \(active.tableNumber.map(String.init) ?? "—")"
+                         + (active.roundLabel.map { " · \($0)" } ?? ""))
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(EventsTheme.green)
+
+                Text("\(active.myName)  vs  \(active.opponentName ?? "TBD")")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(EventsTheme.textPrimary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            if active.isComplete {
+                HStack(spacing: 5) {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("Reported")
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(Capsule().fill(EventsTheme.greenSoft))
+                .foregroundStyle(EventsTheme.green)
+            } else if active.isReportable {
+                Button {
+                    reportingMatch = active.match
+                    showReport = true
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "pencil")
+                        Text("Report")
+                    }
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(EventsTheme.matchFillBottom)
+                    .padding(.horizontal, 14).frame(height: 38)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(EventsTheme.green)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button { matchMode.dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(EventsTheme.textSecondary)
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(EventsTheme.cardInset))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 11)
+        .greenGradientBorder(radius: EventsTheme.pillRadius)
     }
 
     private func syncToggleFromTiles() {
