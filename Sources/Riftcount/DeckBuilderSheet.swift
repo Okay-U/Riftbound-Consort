@@ -8,14 +8,29 @@ struct DeckBuilderSheet: View {
     @Environment(\.dismiss) var dismiss
     @State var state = DeckBuilderState()
     @State var step: DeckBuilderState.Step = .legend
+    @AppStorage("didSeeBuilderTip") var didSeeBuilderTip: Bool = false
+    @State var showBuilderTip: Bool = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            topBar
-            pageForCurrentStep
+        ZStack {
+            VStack(spacing: 0) {
+                topBar
+                pageForCurrentStep
+            }
+
+            if showBuilderTip {
+                BuilderTipOverlay {
+                    withAnimation { showBuilderTip = false }
+                    didSeeBuilderTip = true
+                }
+                .zIndex(10)
+            }
         }
         .onAppear {
             cardStore.loadIfNeeded()
+            if !didSeeBuilderTip {
+                showBuilderTip = true
+            }
         }
     }
 

@@ -4,6 +4,7 @@ import SwiftUI
 /// symbol set; proper custom icons later.
 struct ContentView: View {
     @AppStorage("currentTab") var currentTab: String = "score"
+    @AppStorage("didOnboard") var didOnboard: Bool = false
     @State var decklistStore = DecklistStore()
     @State var cardStore = CardStore()
     @State var gameRecordStore = GameRecordStore()
@@ -44,6 +45,12 @@ struct ContentView: View {
         .environment(authSession)
         .environment(matchMode)
         .task { await authSession.restore() }
+        .fullScreenCover(isPresented: Binding(
+            get: { !didOnboard },
+            set: { newValue in if !newValue { didOnboard = true } }
+        )) {
+            OnboardingView()
+        }
         .preferredColorScheme(.dark)
         #if os(Android)
         // Imperative Haptics calls bump HapticsEngine counters; these

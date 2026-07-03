@@ -1,10 +1,12 @@
 import SwiftUI
 
 /// Events tab, ported from iOS. Gates on Locator sign-in, then shows the
-/// player's own events. Store/detail destinations arrive with stages 3b/3c;
-/// they are placeholders for now. Events onboarding tour comes in 3f.
+/// player's own events. First visit triggers the Events tour (replayable
+/// from Settings).
 struct EventsTabView: View {
     @Environment(AuthSession.self) var session
+    @AppStorage("didOnboardEvents") var didOnboardEvents = false
+    @State var showOnboarding = false
 
     var body: some View {
         NavigationStack {
@@ -28,6 +30,12 @@ struct EventsTabView: View {
             .navigationDestination(for: StoreCalendarRoute.self) { _ in
                 StoreCalendarView()
             }
+        }
+        // Fires when the Events tab is first shown (not at app launch), so the
+        // tour appears on the user's first visit to Events, not before.
+        .onAppear { if !didOnboardEvents { showOnboarding = true } }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            EventsOnboardingView()
         }
     }
 }

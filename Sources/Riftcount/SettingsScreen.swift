@@ -2,12 +2,13 @@ import SwiftUI
 
 /// Settings, ported from the iOS Settings view. Omitted on Android:
 /// shake-to-roll (no accelerometer bridge), Live Activity (iOS-only),
-/// onboarding tours (not ported yet), share/rating links (no Play Store
-/// listing yet).
+/// share/rating links (no Play Store listing yet).
 struct SettingsScreen: View {
     @Environment(MatchModeStore.self) var matchMode
     @AppStorage("hapticsEnabled") var hapticsEnabled: Bool = true
     @AppStorage("batterySaver") var batterySaver: Bool = false
+    @State var showOnboarding = false
+    @State var showEventsOnboarding = false
 
     private static let supportEmail = "contact-okaydev@proton.me"
 
@@ -33,6 +34,19 @@ struct SettingsScreen: View {
                     Text("When you're signed in to Events and playing a live tournament, the Scoreboard shows your table, opponent, and a Report button so you can score and submit the match in one place.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+
+                Section("Help") {
+                    Button {
+                        showOnboarding = true
+                    } label: {
+                        Text("Show tour again")
+                    }
+                    Button {
+                        showEventsOnboarding = true
+                    } label: {
+                        Text("Show Events tour again")
+                    }
                 }
 
                 Section("About") {
@@ -74,6 +88,12 @@ struct SettingsScreen: View {
                 }
             }
             .navigationTitle("Settings")
+            .fullScreenCover(isPresented: $showOnboarding) {
+                OnboardingView()
+            }
+            .fullScreenCover(isPresented: $showEventsOnboarding) {
+                EventsOnboardingView()
+            }
         }
     }
 
