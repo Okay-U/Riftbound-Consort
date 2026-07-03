@@ -312,7 +312,7 @@ struct CardSortSheet: View {
                 Spacer(minLength: 24)
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.fraction(0.85)])
     }
 
     private func sectionTitle(_ text: String) -> some View {

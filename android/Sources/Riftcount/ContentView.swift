@@ -89,6 +89,7 @@ struct ScoreboardScreen: View {
     @AppStorage("activeDeckId") var activeDeckId: String = ""
     @AppStorage("activeOpponent") var activeOpponent: String = ""
     @AppStorage("activeStartedFirst") var activeStartedFirst: String = ""
+    @State var appeared = false
 
     private let outerVSpacing: CGFloat = 12
     private let gridSpacing: CGFloat = 12
@@ -111,7 +112,12 @@ struct ScoreboardScreen: View {
                 GeometryReader { geo in
                     let availableH = geo.size.height
 
-                    if viewModel.playerCount == 2 {
+                    // Compose's first frame measures height 0; rendering the
+                    // grid at zero size and re-laying it out reads as a
+                    // flicker when returning to this tab. Skip the empty frame.
+                    if availableH <= 0 {
+                        Color.clear
+                    } else if viewModel.playerCount == 2 {
                         let tileH = (availableH - gridSpacing) / 2
                         VStack(spacing: gridSpacing) {
                             tileFor(slot: 0, rotation: 180)
@@ -144,8 +150,19 @@ struct ScoreboardScreen: View {
                 footerBar
             }
             .padding(.vertical, outerVSpacing)
+            // Tab switches rebuild this screen from scratch, and Compose
+            // settles the nested GeometryReader layout over a few frames —
+            // visible as tiles flickering into place. A short fade-in
+            // covers the settle.
+            .opacity(appeared ? 1 : 0)
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            appeared = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+                withAnimation(.easeIn(duration: 0.12)) { appeared = true }
+            }
+        }
         .sheet(isPresented: $showColorSheet) {
             ColorSettingsSheet(vm: viewModel,
                                visibleSlots: visibleSlots(),

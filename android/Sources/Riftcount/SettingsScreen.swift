@@ -40,7 +40,7 @@ struct SettingsScreen: View {
                     Button {
                         showOnboarding = true
                     } label: {
-                        Text("Show tour again")
+                        Text("Show General Tutorial")
                     }
                     Button {
                         showEventsOnboarding = true
@@ -50,6 +50,7 @@ struct SettingsScreen: View {
                 }
 
                 Section("About") {
+                    NavigationLink("Acknowledgments") { AcknowledgmentsScreen() }
                     if let bugURL = mailURL(subject: "Riftcount Android – Bug Report") {
                         Link(destination: bugURL) {
                             Text("Report Bug")
