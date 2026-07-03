@@ -22,7 +22,7 @@ struct EventsHomeView: View {
                 switch segment {
                 case .events: MyEventsView(embedded: true)
                 case .stores: StoresHomeView()
-                case .profile: ComingSoonView(title: "Player profile")
+                case .profile: ProfileView()
                 }
             }
         }

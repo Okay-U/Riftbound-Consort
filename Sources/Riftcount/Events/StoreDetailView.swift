@@ -1,9 +1,8 @@
 import SwiftUI
 
 /// Store info + its events (Upcoming / Live / Past), ported from iOS.
-/// Heart toggles the store as a local favorite. Store ranking card
-/// (eloshowdown) arrives with stage 3e. Android system back replaces the
-/// custom back button; the favorite heart moves inline next to the name.
+/// Heart toggles the store as a local favorite. Android system back replaces
+/// the custom back button; the favorite heart moves inline next to the name.
 struct StoreDetailView: View {
     let storeID: String   // game-store UUID
     var service: any LocatorService = RiftboundLocatorService()
@@ -42,6 +41,7 @@ struct StoreDetailView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     if let store {
                         header(store)
+                        StoreRankingView(store: store)
                     }
                     whenPicker
                     eventsList

@@ -4,8 +4,7 @@ import SwiftUI
 /// your-match (green), decklist card, "Can I draw?" outlook, pairings (crown
 /// winners, your table highlighted), standings.
 /// Port notes: EventKit calendar-add omitted (no Android bridge); Android
-/// system back replaces the custom back button; drawn crown glyph; opponent
-/// ELO badge arrives with stage 3e.
+/// system back replaces the custom back button; drawn crown glyph.
 struct EventDetailView: View {
     let eventID: Int
     var myAlias: String? = nil
@@ -362,6 +361,8 @@ struct EventDetailView: View {
                     podMatchList(match)
                 } else {
                     matchVS(match)
+                    OpponentEloBadge(riftboundID: match.opponent?.userEventStatus.user?.id,
+                                     myRiftboundID: session.userID)
                 }
 
                 if match.isComplete {
