@@ -20,6 +20,18 @@ struct AcknowledgmentsView: View {
                 }
             }
 
+            Section("Player stats") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("eloshowdown")
+                        .font(.headline)
+                    Text("Profile stats, ELO ratings and Summoner's DNA powered by eloshowdown.com.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Link("eloshowdown.com", destination: URL(string: "https://eloshowdown.com")!)
+                        .font(.footnote)
+                }
+            }
+
             Section("Domain icons") {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("riftboundfaq")

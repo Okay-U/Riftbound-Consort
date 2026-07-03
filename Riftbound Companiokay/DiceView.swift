@@ -88,6 +88,10 @@ struct DiceView: View {
         }
         .padding()
         .navigationTitle("Dice")
+        // Invisible first-responder that turns motionShake into the
+        // notification ShakeManager republishes — without it in the tree,
+        // shake-to-roll never fires (regressed in the dice redesign).
+        .background(ShakeDetector().frame(width: 1, height: 1))
         .onReceive(ShakeManager.shared.publisher) { _ in
             if diceShakeToRoll && currentTab == "dice" {
                 roll()

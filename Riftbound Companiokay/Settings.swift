@@ -68,7 +68,7 @@ struct Settings: View {
                     Button {
                         showOnboarding = true
                     } label: {
-                        Label("Show tour again", systemImage: "sparkles")
+                        Label("Show General Tutorial", systemImage: "sparkles")
                     }
                     Button {
                         showEventsOnboarding = true
@@ -78,6 +78,7 @@ struct Settings: View {
                 }
 
                 Section("About") {
+                    NavigationLink("Acknowledgments") { AcknowledgmentsView() }
                     NavigationLink("Report Bug") { BugReportView() }
                     NavigationLink("Wish a Feature") { FeatureRequestView() }
                     ShareLink(
@@ -90,8 +91,9 @@ struct Settings: View {
                     Link(destination: URL(string: "https://apps.apple.com/de/app/riftcount-score-tracker/id6755601459?action=write-review")!) {
                         Label("Leave a Rating", systemImage: "star.fill")
                     }
-                    NavigationLink("Buy me a coffee") { DonationView() }
-                    NavigationLink("Acknowledgments") { AcknowledgmentsView() }
+                    Link(destination: SupportConfig.donationURL) {
+                        Label("Buy me a coffee", systemImage: "cup.and.saucer.fill")
+                    }
                     if let privacyURL = URL(string: "https://lopsided-waxflower-e3a.notion.site/Riftscore-Support-and-Privacy-2b2d4130908a805f8211ce98d9d93a36") {
                         Link(destination: privacyURL) {
                             Label("Support & Privacy", systemImage: "lock.shield")
