@@ -80,8 +80,7 @@ struct ScoreboardScreen: View {
     @State var reportingMatch: ResolvedMyMatch?
     @State var showReport = false
     @AppStorage("currentTab") var currentTab: String = "score"
-    @State var xpModeAll = false
-    @State var perSlotXP: [Bool] = [false, false, false, false]
+    @State var xpStepperMode = false
     @State var showColorSheet = false
     @State var showQuickSettingsSheet = false
     @State var showGameSetupSheet = false
@@ -191,12 +190,37 @@ struct ScoreboardScreen: View {
                 Task { await matchMode.refresh(session: session) }
             }
         }
-        .onChange(of: viewModel.playerCount) { (_: Int, _: Int) in
-            // Reset XP mode tracking when player count changes — stale per-slot
-            // entries from removed slots would otherwise drive future tile state.
-            perSlotXP = [false, false, false, false]
-            xpModeAll = false
+        // Auto-enable the XP stepper when a level-up legend (Poppy / Master Yi -
+        // Wuju Master) is on either side. `.task` covers launch; the two AppStorage
+        // watchers cover deck/opponent changes (SkipUI has no onChange initial:).
+        // Manual toggling still overrides until the next selection change.
+        .task { xpStepperMode = xpLegendActive }
+        .onChange(of: activeDeckId) { (_: String, _: String) in
+            xpStepperMode = xpLegendActive
         }
+        .onChange(of: activeOpponent) { (_: String, _: String) in
+            xpStepperMode = xpLegendActive
+        }
+    }
+
+    /// True when the active deck's legend/champion or the opponent's legend is
+    /// one of the XP-counter legends that this app auto-arms the stepper for.
+    private var xpLegendActive: Bool {
+        legendTriggersXP(activeDeck()?.legend?.cardName)
+            || legendTriggersXP(activeDeck()?.champion?.cardName)
+            || legendTriggersXP(activeOpponent)
+    }
+
+    private func activeDeck() -> Decklist? {
+        guard let uuid = UUID(uuidString: activeDeckId) else { return nil }
+        return decklistStore.lists.first(where: { $0.id == uuid })
+    }
+
+    private func legendTriggersXP(_ name: String?) -> Bool {
+        guard let n = name?.trimmingCharacters(in: .whitespaces).lowercased(), !n.isEmpty
+        else { return false }
+        // "Poppy" and any "Poppy - …" variant; the Wuju Master Yi legend exactly.
+        return n.hasPrefix("poppy") || n == "master yi - wuju master"
     }
 
     private func visibleSlots() -> [Int] {
@@ -274,16 +298,6 @@ struct ScoreboardScreen: View {
         .greenGradientBorder(radius: EventsTheme.pillRadius)
     }
 
-    private func syncToggleFromTiles() {
-        let states = visibleSlots().map { perSlotXP[$0] }
-        if states.allSatisfy({ $0 }) {
-            xpModeAll = true
-        } else if states.allSatisfy({ !$0 }) {
-            xpModeAll = false
-        }
-        // mixed states: leave xpModeAll unchanged
-    }
-
     private func tileFor(slot: Int, rotation: Double) -> some View {
         let p = viewModel.players[slot]
         let elapsed = Int(gameTimer.elapsed)
@@ -303,11 +317,7 @@ struct ScoreboardScreen: View {
             paletteColor: viewModel.paletteColor(for: slot),
             onXPIncrement: { viewModel.incrementXP(p) },
             onXPDecrement: { viewModel.decrementXP(p) },
-            desiredXPMode: xpModeAll,
-            onModeChange: { isXP in
-                perSlotXP[slot] = isXP
-                syncToggleFromTiles()
-            }
+            xpStepperEnabled: xpStepperMode
         )
         .contextMenu {
             Button("Default") { viewModel.setColorIndex(-1, for: slot) }
@@ -415,8 +425,8 @@ struct ScoreboardScreen: View {
 
             Spacer()
 
-            circleButton(tint: xpModeAll ? Color(red: 0.98, green: 0.86, blue: 0.35) : .primary,
-                         action: { xpModeAll.toggle() }) {
+            circleButton(tint: xpStepperMode ? Color(red: 0.98, green: 0.86, blue: 0.35) : .primary,
+                         action: { xpStepperMode.toggle() }) {
                 Text("XP")
                     .font(.subheadline.weight(.bold))
             }

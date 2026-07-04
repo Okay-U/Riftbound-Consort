@@ -23,8 +23,7 @@ struct ScoreboardView: View {
     @State private var showQuickSettingsSheet = false
     @State private var showGameSetupSheet = false
     @State private var lastGameEnd: TimeInterval = 0
-    @State private var xpModeAll: Bool = false
-    @State private var perSlotXP: [Bool] = [false, false, false, false]
+    @State private var xpStepperMode: Bool = false
     @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
     @AppStorage("currentTab") private var currentTab: String = "score"
     @Environment(\.scenePhase) private var scenePhase
@@ -137,12 +136,30 @@ struct ScoreboardView: View {
             }
         }
         .onChange(of: vm.playerCount, initial: false) { _, _ in
-            // Reset XP mode tracking when player count changes — stale per-slot
-            // entries from removed slots would otherwise drive future tile state.
-            perSlotXP = [false, false, false, false]
-            xpModeAll = false
             syncLiveActivity()
         }
+        // Auto-enable the XP stepper when a level-up legend (Poppy / Master Yi -
+        // Wuju Master) is on either side. Fires on launch and whenever the deck
+        // or opponent selection changes; manual toggling still overrides until
+        // the next selection change.
+        .onChange(of: xpLegendActive, initial: true) { _, active in
+            xpStepperMode = active
+        }
+    }
+
+    /// True when the active deck's legend/champion or the opponent's legend is
+    /// one of the XP-counter legends that this app auto-arms the stepper for.
+    private var xpLegendActive: Bool {
+        legendTriggersXP(activeDeck()?.legend?.cardName)
+            || legendTriggersXP(activeDeck()?.champion?.cardName)
+            || legendTriggersXP(activeOpponent)
+    }
+
+    private func legendTriggersXP(_ name: String?) -> Bool {
+        guard let n = name?.trimmingCharacters(in: .whitespaces).lowercased(), !n.isEmpty
+        else { return false }
+        // "Poppy" and any "Poppy - …" variant; the Wuju Master Yi legend exactly.
+        return n.hasPrefix("poppy") || n == "master yi - wuju master"
     }
 
     private var activeDeckName: String {
@@ -299,16 +316,6 @@ struct ScoreboardView: View {
         .greenGradientBorder(radius: EventsTheme.pillRadius)
     }
 
-    private func syncToggleFromTiles() {
-        let states = visibleSlots().map { perSlotXP[$0] }
-        if states.allSatisfy({ $0 }) {
-            xpModeAll = true
-        } else if states.allSatisfy({ !$0 }) {
-            xpModeAll = false
-        }
-        // mixed states: leave xpModeAll unchanged
-    }
-
     private func tileFor(slot: Int, rotation: Double) -> some View {
         let p = vm.players[slot]
         let idx = vm.colorIndex(for: slot)
@@ -329,11 +336,7 @@ struct ScoreboardView: View {
             color: fill,
             onXPIncrement: { vm.incrementXP(p) },
             onXPDecrement: { vm.decrementXP(p) },
-            desiredXPMode: xpModeAll,
-            onModeChange: { isXP in
-                perSlotXP[slot] = isXP
-                syncToggleFromTiles()
-            }
+            xpStepperEnabled: xpStepperMode
         )
         .contextMenu {
             Button("Default") { vm.setColorIndex(-1, for: slot) }
@@ -364,14 +367,14 @@ struct ScoreboardView: View {
                 deckPill
             }
             Spacer()
-            Button { xpModeAll.toggle() } label: {
+            Button { xpStepperMode.toggle() } label: {
                 Text("XP")
                     .font(.subheadline.weight(.bold))
                     .frame(width: 28, height: 28)
             }
             .buttonStyle(.bordered)
-            .tint(xpModeAll ? .yellow : nil)
-            .accessibilityLabel(xpModeAll ? "Switch all tiles to score" : "Switch all tiles to XP")
+            .tint(xpStepperMode ? .yellow : nil)
+            .accessibilityLabel(xpStepperMode ? "Hide XP steppers" : "Show XP steppers")
 
             Button { vm.resetScores() } label: {
                 Image(systemName: "arrow.counterclockwise")

@@ -18,6 +18,7 @@ struct StoreRankingView: View {
     var service: any EloShowdownService = EloCache.shared
 
     @State private var phase: Phase = .idle
+    @State private var expanded = false
 
     enum Phase {
         case idle, loading
@@ -29,54 +30,71 @@ struct StoreRankingView: View {
     private let visibleRows = 10       // rows shown before scrolling
     private let rowHeight: CGFloat = 44
 
+    // Collapsed by default so the store's events stay visible above the fold;
+    // the leaderboard (geocode + community + season + rows) only loads on the
+    // first expand — opening a store no longer fires those requests at all.
     var body: some View {
-        Group {
-            switch phase {
-            case .idle, .loading:
-                loadingCard
-            case .loaded(let city, let rows):
-                rankingCard(city: city, rows: rows)
-            case .unavailable:
-                unavailableCard
-            }
-        }
-        .task { await load() }
-    }
-
-    // MARK: - Cards
-
-    private var loadingCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader("trophy.fill", "Local ranking")
-            ProgressView().frame(maxWidth: .infinity).padding(.vertical, 12)
-        }
-        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-        .eventsCard(radius: 18)
-    }
-
-    private var unavailableCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionHeader("trophy.fill", "Local ranking")
-            HStack(spacing: 10) {
-                Image(systemName: "person.2.slash")
-                    .font(.system(size: 16)).foregroundStyle(EventsTheme.textTertiary)
-                Text("Not enough player data for this region's community yet.")
-                    .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
+        VStack(alignment: .leading, spacing: expanded ? 12 : 0) {
+            headerButton
+            if expanded {
+                switch phase {
+                case .idle, .loading:
+                    ProgressView().frame(maxWidth: .infinity).padding(.vertical, 12)
+                case .loaded(let city, let rows):
+                    rankingContent(city: city, rows: rows)
+                case .unavailable:
+                    unavailableRow
+                }
             }
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
         .eventsCard(radius: 18)
     }
 
-    private func rankingCard(city: String, rows: [EloLeaderRow]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+    // MARK: - Header
+
+    private var headerButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+            if expanded {
+                Task { await load() }   // no-op unless still .idle
+            }
+        } label: {
             SectionHeader("trophy.fill", "Local ranking") {
-                Text(city)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(EventsTheme.green)
-                    .padding(.horizontal, 9).padding(.vertical, 4)
-                    .background(EventsTheme.greenSoft, in: Capsule())
+                HStack(spacing: 8) {
+                    if case .loaded(let city, _) = phase { cityBadge(city) }
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(EventsTheme.textTertiary)
+                        .rotationEffect(.degrees(expanded ? 180 : 0))
+                }
             }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func cityBadge(_ city: String) -> some View {
+        Text(city)
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(EventsTheme.green)
+            .padding(.horizontal, 9).padding(.vertical, 4)
+            .background(EventsTheme.greenSoft, in: Capsule())
+    }
+
+    // MARK: - Expanded content
+
+    private var unavailableRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "person.2.slash")
+                .font(.system(size: 16)).foregroundStyle(EventsTheme.textTertiary)
+            Text("Not enough player data for this region's community yet.")
+                .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
+        }
+    }
+
+    private func rankingContent(city: String, rows: [EloLeaderRow]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Top players in \(city), via eloshowdown.")
                 .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
 
@@ -91,8 +109,6 @@ struct StoreRankingView: View {
             }
             .frame(height: CGFloat(min(shown.count, visibleRows)) * rowHeight)
         }
-        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-        .eventsCard(radius: 18)
     }
 
     private func rankRow(_ row: EloLeaderRow) -> some View {

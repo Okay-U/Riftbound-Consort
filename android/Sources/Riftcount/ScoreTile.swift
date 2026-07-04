@@ -12,8 +12,10 @@ struct ScoreTile: View {
     var paletteColor: PaletteColor? = nil
     let onXPIncrement: () -> Void
     let onXPDecrement: () -> Void
-    var desiredXPMode: Bool = false
-    var onModeChange: (Bool) -> Void = { _ in }
+    /// When true the score face shows the interactive XP stepper (± around the
+    /// XP count). When false it shows a read-only "XP N" badge (only if xp > 0),
+    /// and XP is edited by swiping to the XP face — the pre-stepper behavior.
+    var xpStepperEnabled: Bool = false
 
     // Tile mode (score vs xp)
     enum TileMode { case score, xp }
@@ -83,23 +85,8 @@ struct ScoreTile: View {
         if tileMode == .score {
             ZStack {
                 bigDigits("\(player.score)")
-
-                if player.xp > 0 {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            Text("XP \(player.xp)")
-                                .font(.system(size: 12, weight: .heavy, design: .rounded))
-                                .foregroundStyle(gold.opacity(0.9))
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 4)
-                                .background(Capsule().fill(Color.black.opacity(0.28)))
-                                .padding(.trailing, 14)
-                                .padding(.bottom, 12)
-                        }
-                    }
-                }
+                // XP badge/stepper lives in the interactive layer now
+                // (xpScoreFaceOverlay) so its ± buttons can receive taps.
             }
         } else {
             ZStack {
@@ -173,7 +160,6 @@ struct ScoreTile: View {
         // Bookkeeping only — no visual state changes after the animation.
         DispatchQueue.main.asyncAfter(deadline: .now() + parkCommitDelay + flipDuration) {
             isFlipping = false
-            onModeChange(target == .xp)
         }
     }
 
@@ -315,6 +301,10 @@ struct ScoreTile: View {
                         .offset(x: positionFor(.score, width: w))
                         .allowsHitTesting(mode == .score && !isDragging)
                         .zIndex(1)
+                    xpScoreFaceOverlay
+                        .offset(x: positionFor(.score, width: w))
+                        .allowsHitTesting(xpStepperEnabled && mode == .score && !isDragging)
+                        .zIndex(2)
                 }
                 .clipShape(tileShape)
             }
@@ -327,13 +317,85 @@ struct ScoreTile: View {
             .tileHitArea()
             .rotationEffect(Angle(degrees: rotation))
             .tileSwipeGesture(makeSwipeGesture(width: w))
-            .onChange(of: desiredXPMode) { (_: Bool, newValue: Bool) in
-                let target: TileMode = newValue ? .xp : .score
-                guard mode != target, !isFlipping else { return }
-                let direction: SwipeDir = newValue ? .left : .right
-                performFlip(to: target, direction: direction, width: w)
+        }
+    }
+
+    // MARK: - XP score-face overlay
+
+    // Stepper when XP mode is on, else the classic read-only badge (hidden
+    // entirely at xp 0 — the original behavior).
+    @ViewBuilder
+    private var xpScoreFaceOverlay: some View {
+        if xpStepperEnabled {
+            xpStepper
+        } else if player.xp > 0 {
+            xpReadOnlyBadge
+        }
+    }
+
+    private var xpReadOnlyBadge: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                Text("XP \(player.xp)")
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .foregroundStyle(gold.opacity(0.9))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.black.opacity(0.28)))
+                    .padding(.trailing, 14)
+                    .padding(.bottom, 12)
             }
         }
+    }
+
+    // Quick XP stepper on the score face — heavy-XP decks shouldn't need a
+    // swipe to the XP face for every point. ± are bold Text glyphs (Skip maps
+    // plus.circle.fill but not minus.circle.fill, so glyphs keep both sides
+    // matched); dims when XP is 0 to stay quiet.
+    private var xpStepper: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                HStack(spacing: 2) {
+                    // onTapGesture, not Button — any Skip Button keeps Compose's
+                    // ripple indication; a tap gesture has none.
+                    stepperGlyph("−")
+                        .onTapGesture { xpStepperMinus() }
+
+                    Text("XP \(player.xp)")
+                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .fixedSize()
+
+                    stepperGlyph("+")
+                        .onTapGesture { xpStepperPlus() }
+                }
+                .foregroundStyle(gold.opacity(player.xp > 0 ? 0.9 : 0.55))
+                .padding(.horizontal, 2)
+                .background(Capsule().fill(Color.black.opacity(0.28)))
+                .padding(.trailing, 10)
+                .padding(.bottom, 8)
+            }
+        }
+    }
+
+    private func stepperGlyph(_ s: String) -> some View {
+        Text(s)
+            .font(.system(size: 20, weight: .heavy, design: .rounded))
+            .frame(width: 34, height: 34)
+            .tileHitArea()
+    }
+
+    private func xpStepperPlus() {
+        Haptics.light()
+        onXPIncrement()
+    }
+
+    private func xpStepperMinus() {
+        Haptics.rigid(0.7)
+        onXPDecrement()
     }
 
     // MARK: - Actions
