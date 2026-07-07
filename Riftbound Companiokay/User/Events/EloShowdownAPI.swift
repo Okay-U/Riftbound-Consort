@@ -23,9 +23,6 @@ protocol EloShowdownService: Sendable {
     func achievements(playerID: Int) async throws -> [EloAchievement]
     func rank(playerID: Int) async throws -> EloRank
     func currentSeason() async throws -> EloSeason
-    /// Paged match list (newest first). Keyed by the eloshowdown internal player id
-    /// (EloPlayer.id, same id used by the /players/{id}/… endpoints) — NOT the Riftbound id.
-    func matchHistory(playerID: Int, seasonSlug: String, page: Int, pageSize: Int) async throws -> EloMatchPage
     /// Community (city) leaderboard by current ELO. `community` is a slug from `communities()`.
     func leaderboard(season: String, community: String?, country: String?, limit: Int) async throws -> [EloLeaderRow]
     /// Registry of communities (cities) — used to resolve a store's city to a slug.
@@ -38,8 +35,6 @@ protocol EloShowdownService: Sendable {
 
 nonisolated final class EloShowdownAPI: EloShowdownService {
     private let base = URL(string: "https://eloshowdown.com/api/v1/")!
-    // Match history lives on the website's own (non-v1) API base, keyed by Riftbound id.
-    private let webBase = URL(string: "https://eloshowdown.com/riftbound/api/")!
     private let session: URLSession
     private let decoder: JSONDecoder
 
@@ -114,11 +109,6 @@ nonisolated final class EloShowdownAPI: EloShowdownService {
 
     func currentSeason() async throws -> EloSeason {
         try await get("seasons/current")
-    }
-
-    func matchHistory(playerID: Int, seasonSlug: String, page: Int, pageSize: Int) async throws -> EloMatchPage {
-        try await get("player-matches/\(playerID)/\(encoded(seasonSlug))/?page=\(page)&page_size=\(pageSize)",
-                      relativeTo: webBase)
     }
 
     func leaderboard(season: String, community: String?, country: String?, limit: Int) async throws -> [EloLeaderRow] {

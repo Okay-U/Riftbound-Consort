@@ -11,9 +11,7 @@ struct ProfileView: View {
 
     @State var state: LoadState = .idle
     @State var scrubIndex: Int?
-    @State var matchPage: EloMatchPage?
     @State var matchPageNum = 1
-    @State var loadingMatches = false
 
     enum LoadState {
         case idle, loading
@@ -74,7 +72,7 @@ struct ProfileView: View {
                 dnaCard(dna, profileURL: eloProfileURL(data))
             }
             if let history = data.history, history.points.count >= 2 { eloChartCard(history) }
-            matchHistoryCard(playerID: data.player.id, season: data.season.slug)
+            matchHistoryCard(data.history?.points ?? [])
             profileFooter(data)
         }
         .padding(.horizontal, 18)
@@ -498,37 +496,42 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Match history (paged, newest first)
+    // MARK: - Match history (paged locally, newest first)
 
-    private func matchHistoryCard(playerID: Int, season: String) -> some View {
+    // Built from the elo-history points we already fetch for the ELO chart —
+    // the dev added opponent_id/opponent_name/result to them (2026-07) at our
+    // request, so the old unofficial player-matches endpoint (and its extra
+    // request per page) is gone. Paging is a local slice.
+    private var matchesPerPage: Int { 5 }
+
+    private func matchHistoryCard(_ points: [EloHistoryPoint]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             EventsSectionHeader("Match History") { Image(systemName: "list.bullet") }
             matchColumnHeader
             Rectangle().fill(EventsTheme.hairline).frame(height: 1)
-            if let page = matchPage {
-                if page.results.isEmpty {
-                    Text("No matches this season yet.")
-                        .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
-                        .padding(.vertical, 8)
-                } else {
-                    // The API's `date` is the import time (identical within an event),
-                    // so sort newest-first by match id (== eloshowdown's own order).
-                    let ordered = page.results.sorted { $0.id > $1.id }
-                    VStack(spacing: 0) {
-                        ForEach(ordered) { match in
-                            matchRow(match)
-                            Rectangle().fill(EventsTheme.hairline).frame(height: 1)
-                        }
-                    }
-                    matchPaginationBar(page, playerID: playerID, season: season)
-                }
+            if points.isEmpty {
+                Text("No matches this season yet.")
+                    .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
+                    .padding(.vertical, 8)
             } else {
-                ProgressView().frame(maxWidth: .infinity).padding(.vertical, 24)
+                // The API's `date` is the import time (identical within an event),
+                // so sort newest-first by match id (== eloshowdown's own order).
+                let ordered = points.sorted { $0.matchId > $1.matchId }
+                let totalPages = max((ordered.count + matchesPerPage - 1) / matchesPerPage, 1)
+                let current = min(max(matchPageNum, 1), totalPages)
+                let start = (current - 1) * matchesPerPage
+                let visible = Array(ordered[start ..< min(start + matchesPerPage, ordered.count)])
+                VStack(spacing: 0) {
+                    ForEach(visible) { point in
+                        matchRow(point)
+                        Rectangle().fill(EventsTheme.hairline).frame(height: 1)
+                    }
+                }
+                matchPaginationBar(current: current, totalPages: totalPages)
             }
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
         .eventsCard(radius: 18)
-        .task { if matchPage == nil { await loadMatches(page: 1, playerID: playerID, season: season) } }
     }
 
     private var matchColumnHeader: some View {
@@ -542,11 +545,11 @@ struct ProfileView: View {
         .foregroundStyle(EventsTheme.textTertiary)
     }
 
-    private func matchRow(_ match: EloMatch) -> some View {
-        let style = matchResultStyle(match.result)
-        let delta = Int((match.eloChange ?? 0).rounded())
+    private func matchRow(_ point: EloHistoryPoint) -> some View {
+        let style = matchResultStyle(point.result)
+        let delta = point.eloChange ?? 0
         return HStack(spacing: 8) {
-            Text(match.opponent?.name ?? "—")
+            Text(point.opponentName ?? "—")
                 .font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -556,7 +559,7 @@ struct ProfileView: View {
             Text(delta > 0 ? "+\(delta)" : "\(delta)")
                 .font(.system(size: 13, weight: .heavy)).foregroundStyle(style.color)
                 .frame(width: 52, alignment: .trailing)
-            Text(match.date?.formatted(.dateTime.month(.abbreviated).day()) ?? "—")
+            Text(point.date?.formatted(.dateTime.month(.abbreviated).day()) ?? "—")
                 .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
                 .frame(width: 52, alignment: .trailing)
         }
@@ -571,48 +574,26 @@ struct ProfileView: View {
         }
     }
 
-    private func matchPaginationBar(_ page: EloMatchPage, playerID: Int, season: String) -> some View {
-        let total = max(page.numPages ?? 1, 1)
-        let current = page.page ?? matchPageNum
-        return HStack {
-            Button {
-                Task { await loadMatches(page: current - 1, playerID: playerID, season: season) }
-            } label: {
+    private func matchPaginationBar(current: Int, totalPages: Int) -> some View {
+        HStack {
+            Button { matchPageNum = current - 1 } label: {
                 Text("‹ Newer")
             }
-            .disabled(current <= 1 || loadingMatches)
+            .disabled(current <= 1)
 
             Spacer()
-            if loadingMatches {
-                ProgressView()
-            } else {
-                Text("Page \(current) of \(total)")
-                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(EventsTheme.textSecondary)
-            }
+            Text("Page \(current) of \(totalPages)")
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(EventsTheme.textSecondary)
             Spacer()
 
-            Button {
-                Task { await loadMatches(page: current + 1, playerID: playerID, season: season) }
-            } label: {
+            Button { matchPageNum = current + 1 } label: {
                 Text("Older ›")
             }
-            .disabled(current >= total || loadingMatches)
+            .disabled(current >= totalPages)
         }
         .font(.system(size: 13, weight: .bold))
         .tint(EventsTheme.green)
         .padding(.top, 10)
-    }
-
-    @MainActor
-    private func loadMatches(page: Int, playerID: Int, season: String) async {
-        guard page >= 1, !loadingMatches else { return }
-        loadingMatches = true
-        defer { loadingMatches = false }
-        if let result = try? await service.matchHistory(playerID: playerID,
-                                                        seasonSlug: season, page: page, pageSize: 5) {
-            matchPage = result
-            matchPageNum = result.page ?? page
-        }
     }
 
     // MARK: - Attribution (required)
@@ -668,8 +649,7 @@ struct ProfileView: View {
     private func load() async {
         guard let userID = session.userID else { state = .failed("Sign in to see your profile."); return }
         state = .loading
-        matchPage = nil          // refetch page 1 of match history for the new load
-        matchPageNum = 1
+        matchPageNum = 1         // back to page 1 of match history for the new load
         do {
             guard let player = try await resolvePlayer(userID: userID) else {
                 state = .noProfile

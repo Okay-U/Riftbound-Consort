@@ -214,41 +214,12 @@ nonisolated struct EloBucket: Decodable, Sendable, Identifiable {
     var mid: Int { (bucketMin + bucketMax) / 2 }
 }
 
-// MARK: - Match history (paged)
-
-/// One page of a player's match list (newest first). From eloshowdown's
-/// `/riftbound/api/player-matches/{riftboundId}/{seasonSlug}/` endpoint, which is
-/// keyed by the Riftbound id (== our AuthSession.userID), not the internal id.
-nonisolated struct EloMatchPage: Decodable, Sendable {
-    let count: Int?
-    let numPages: Int?
-    let page: Int?
-    let pageSize: Int?
-    let results: [EloMatch]
-}
-
-nonisolated struct EloMatch: Decodable, Sendable, Identifiable {
-    let id: Int
-    let date: Date?
-    let tournament: EloMatchTournament?
-    let opponent: EloMatchOpponent?
-    let result: String?       // "win" / "loss" / "draw"
-    let eloChange: Double?
-}
-
-nonisolated struct EloMatchTournament: Decodable, Sendable, Identifiable {
-    let id: Int
-    let name: String?
-    let startDate: Date?
-}
-
-nonisolated struct EloMatchOpponent: Decodable, Sendable, Identifiable {
-    let id: Int
-    let name: String?
-}
-
 // MARK: - ELO history + recent form
 
+/// Whole-season, per-match ELO history. Also feeds the Match History card:
+/// the eloshowdown dev added opponent_id/opponent_name/result to the points
+/// (2026-07) at our request, replacing the unofficial `player-matches` web
+/// endpoint we used to page through.
 nonisolated struct EloHistory: Decodable, Sendable {
     let seasonSlug: String?
     let points: [EloHistoryPoint]
@@ -260,6 +231,9 @@ nonisolated struct EloHistoryPoint: Decodable, Sendable, Identifiable {
     let eloAfter: Int?
     let eloChange: Int?
     let matchId: Int
+    let opponentId: Int?
+    let opponentName: String?
+    let result: String?       // "win" / "loss" / "draw"
 
     var id: Int { matchId }
 }

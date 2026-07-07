@@ -87,13 +87,6 @@ actor EloCache: EloShowdownService {
         try await cached("season", slowTTL) { try await upstream.currentSeason() }
     }
 
-    func matchHistory(playerID: Int, seasonSlug: String, page: Int, pageSize: Int) async throws -> EloMatchPage {
-        try await cached("matches:\(playerID):\(seasonSlug):\(page):\(pageSize)", ttl) {
-            try await upstream.matchHistory(playerID: playerID, seasonSlug: seasonSlug,
-                                            page: page, pageSize: pageSize)
-        }
-    }
-
     func leaderboard(season: String, community: String?, country: String?, limit: Int) async throws -> [EloLeaderRow] {
         try await cached("leaderboard:\(season):\(community ?? "-"):\(country ?? "-"):\(limit)", ttl) {
             try await upstream.leaderboard(season: season, community: community,
