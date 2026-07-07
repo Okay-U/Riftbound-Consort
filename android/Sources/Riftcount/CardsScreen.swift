@@ -11,6 +11,12 @@ struct CardsScreen: View {
     @State var secondarySort: CardSort? = .energy
     @State var showFilters = false
     @State var showSort = false
+    // Filter+sort of the full card DB is too expensive to run per body
+    // evaluation on Compose: near the top of the list the collapsing
+    // search bar / title animate with scroll, re-evaluating body every
+    // frame → whole-DB re-sort per frame → jank at the top and on tab
+    // switches. Cache the result; recompute only when an input changes.
+    @State var displayedCards: [Card] = []
 
     private let columns = [
         GridItem(.flexible(), spacing: 8),
@@ -18,11 +24,11 @@ struct CardsScreen: View {
         GridItem(.flexible(), spacing: 8),
     ]
 
-    private var displayedCards: [Card] {
-        cardStore.filtered(query: query,
-                           filters: filters,
-                           primarySort: primarySort,
-                           secondarySort: secondarySort)
+    private func refreshDisplayed() {
+        displayedCards = cardStore.filtered(query: query,
+                                            filters: filters,
+                                            primarySort: primarySort,
+                                            secondarySort: secondarySort)
     }
 
     var body: some View {
@@ -62,7 +68,25 @@ struct CardsScreen: View {
             .sheet(isPresented: $showSort) {
                 CardSortSheet(primarySort: $primarySort, secondarySort: $secondarySort)
             }
-            .onAppear { cardStore.loadIfNeeded() }
+            .onAppear {
+                cardStore.loadIfNeeded()
+                if displayedCards.isEmpty { refreshDisplayed() }
+            }
+            .onChange(of: cardStore.allCards.count) { (_: Int, _: Int) in
+                refreshDisplayed()
+            }
+            .onChange(of: query) { (_: String, _: String) in
+                refreshDisplayed()
+            }
+            .onChange(of: filters) { (_: CardFilters, _: CardFilters) in
+                refreshDisplayed()
+            }
+            .onChange(of: primarySort) { (_: CardSort, _: CardSort) in
+                refreshDisplayed()
+            }
+            .onChange(of: secondarySort) { (_: CardSort?, _: CardSort?) in
+                refreshDisplayed()
+            }
         }
     }
 
