@@ -6,6 +6,10 @@ import SwiftUI
 struct CardFilterSheet: View {
     @Binding var filters: CardFilters
     let availableDomains: [String]
+    // Data-driven (baseline ∪ loaded DB) so new-set types/rarities appear
+    // without an app update; defaults keep old call sites compiling.
+    var availableTypes: [String] = CardFilters.knownTypes
+    var availableRarities: [String] = CardFilters.knownRarities
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
@@ -46,7 +50,7 @@ struct CardFilterSheet: View {
                 }
 
                 section("Type") {
-                    FilterChipRows(options: CardFilters.knownTypes,
+                    FilterChipRows(options: availableTypes,
                                    selected: $filters.types,
                                    perRow: 3)
                 }
@@ -60,7 +64,7 @@ struct CardFilterSheet: View {
                 }
 
                 section("Rarity") {
-                    FilterChipRows(options: CardFilters.knownRarities,
+                    FilterChipRows(options: availableRarities,
                                    selected: $filters.rarities,
                                    perRow: 2)
                 }
@@ -70,15 +74,15 @@ struct CardFilterSheet: View {
                         StatRangeRow(label: "Energy",
                                      min: $filters.minEnergy,
                                      max: $filters.maxEnergy,
-                                     bounds: 0...12)
+                                     bounds: 0...CardFilters.energyCap)
                         StatRangeRow(label: "Power",
                                      min: $filters.minPower,
                                      max: $filters.maxPower,
-                                     bounds: 0...12)
+                                     bounds: 0...CardFilters.powerCap)
                         StatRangeRow(label: "Might",
                                      min: $filters.minMight,
                                      max: $filters.maxMight,
-                                     bounds: 0...14)
+                                     bounds: 0...CardFilters.mightCap)
                     }
                 }
             }

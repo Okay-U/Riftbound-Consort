@@ -57,21 +57,31 @@ struct CardFilters: Equatable {
     var rarities: Set<String> = []
 
     var minEnergy: Int = 0
-    var maxEnergy: Int = 12
+    var maxEnergy: Int = CardFilters.energyCap
     var minPower: Int = 0
-    var maxPower: Int = 12
+    var maxPower: Int = CardFilters.powerCap
     var minMight: Int = 0
-    var maxMight: Int = 14
+    var maxMight: Int = CardFilters.mightCap
 
     var isActive: Bool {
         !domains.isEmpty || !types.isEmpty || !series.isEmpty || !rarities.isEmpty
-            || minEnergy > 0 || maxEnergy < 12
-            || minPower > 0 || maxPower < 12
-            || minMight > 0 || maxMight < 14
+            || minEnergy > 0 || maxEnergy < Self.energyCap
+            || minPower > 0 || maxPower < Self.powerCap
+            || minMight > 0 || maxMight < Self.mightCap
     }
 
     // MARK: - Known options
 
+    // Slider caps. A max slider AT its cap means "no upper limit" (matchesCost
+    // skips the check) so cards from future sets exceeding the cap still show.
+    static let energyCap = 12
+    static let powerCap  = 12
+    static let mightCap  = 14
+
+    // Baselines only — the filter sheet unions these with whatever types/
+    // rarities actually exist in the loaded card DB (CardStore.availableTypes/
+    // availableRarities), so new-set additions (e.g. Vendetta's Unit-Gear)
+    // appear without an app update.
     static let knownTypes    = ["Unit", "Spell", "Gear", "Battlefield", "Legend"]
     static let knownRarities = ["Common", "Uncommon", "Epic", "Showcase"]
 
@@ -80,7 +90,8 @@ struct CardFilters: Equatable {
         ("Origins",         "Origins"),
         ("Proving Grounds", "Proving Grounds"),
         ("Spiritforge",     "Spiritforge"),
-        ("Unleashed",       "Unleashed")
+        ("Unleashed",       "Unleashed"),
+        ("Vendetta",        "Vendetta")     // Set 4, releases 2026-07-31
     ]
 
     // Token subtype → parent type (lowercase)

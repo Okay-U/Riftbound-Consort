@@ -15,8 +15,10 @@ struct CardsScreen: View {
     // evaluation on Compose: near the top of the list the collapsing
     // search bar / title animate with scroll, re-evaluating body every
     // frame → whole-DB re-sort per frame → jank at the top and on tab
-    // switches. Cache the result; recompute only when an input changes.
+    // switches. Cache the result; recompute only when an input changes —
+    // debounced for slider/typing sources that fire dozens of times a second.
     @State var displayedCards: [Card] = []
+    @State var refreshTask: Task<Void, Never>?
 
     private let columns = [
         GridItem(.flexible(), spacing: 8),
@@ -24,11 +26,18 @@ struct CardsScreen: View {
         GridItem(.flexible(), spacing: 8),
     ]
 
-    private func refreshDisplayed() {
-        displayedCards = cardStore.filtered(query: query,
-                                            filters: filters,
-                                            primarySort: primarySort,
-                                            secondarySort: secondarySort)
+    private func scheduleRefresh(debounce: Bool) {
+        refreshTask?.cancel()
+        refreshTask = Task { @MainActor in
+            if debounce {
+                try? await Task.sleep(nanoseconds: 120_000_000)
+                if Task.isCancelled { return }
+            }
+            displayedCards = cardStore.filtered(query: query,
+                                                filters: filters,
+                                                primarySort: primarySort,
+                                                secondarySort: secondarySort)
+        }
     }
 
     var body: some View {
@@ -63,29 +72,31 @@ struct CardsScreen: View {
             }
             .sheet(isPresented: $showFilters) {
                 CardFilterSheet(filters: $filters,
-                                availableDomains: cardStore.availableDomains)
+                                availableDomains: cardStore.availableDomains,
+                                availableTypes: cardStore.availableTypes,
+                                availableRarities: cardStore.availableRarities)
             }
             .sheet(isPresented: $showSort) {
                 CardSortSheet(primarySort: $primarySort, secondarySort: $secondarySort)
             }
             .onAppear {
                 cardStore.loadIfNeeded()
-                if displayedCards.isEmpty { refreshDisplayed() }
+                if displayedCards.isEmpty { scheduleRefresh(debounce: false) }
             }
             .onChange(of: cardStore.allCards.count) { (_: Int, _: Int) in
-                refreshDisplayed()
+                scheduleRefresh(debounce: false)
             }
             .onChange(of: query) { (_: String, _: String) in
-                refreshDisplayed()
+                scheduleRefresh(debounce: true)
             }
             .onChange(of: filters) { (_: CardFilters, _: CardFilters) in
-                refreshDisplayed()
+                scheduleRefresh(debounce: true)
             }
             .onChange(of: primarySort) { (_: CardSort, _: CardSort) in
-                refreshDisplayed()
+                scheduleRefresh(debounce: false)
             }
             .onChange(of: secondarySort) { (_: CardSort?, _: CardSort?) in
-                refreshDisplayed()
+                scheduleRefresh(debounce: false)
             }
         }
     }

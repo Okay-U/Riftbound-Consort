@@ -14,6 +14,12 @@ struct CardSearchView: View {
     @State private var primarySort: CardSort = .set
     @State private var secondarySort: CardSort? = .energy
     @State private var showFilters = false
+    // Filter+sort of the whole DB is too expensive to run per body eval —
+    // a filter-sheet slider mutates `filters` dozens of times per second and
+    // re-sorting 1000+ cards each tick froze the sliders. Cache the result
+    // and recompute debounced when an input changes.
+    @State private var displayedCards: [Card] = []
+    @State private var refreshTask: Task<Void, Never>?
 
     private let columns = [
         GridItem(.flexible(), spacing: 8),
@@ -21,11 +27,18 @@ struct CardSearchView: View {
         GridItem(.flexible(), spacing: 8)
     ]
 
-    private var displayedCards: [Card] {
-        cardStore.filtered(query: query,
-                           filters: filters,
-                           primarySort: primarySort,
-                           secondarySort: secondarySort)
+    private func scheduleRefresh(debounce: Bool) {
+        refreshTask?.cancel()
+        refreshTask = Task { @MainActor in
+            if debounce {
+                try? await Task.sleep(nanoseconds: 120_000_000)
+                if Task.isCancelled { return }
+            }
+            displayedCards = cardStore.filtered(query: query,
+                                                filters: filters,
+                                                primarySort: primarySort,
+                                                secondarySort: secondarySort)
+        }
     }
 
     var body: some View {
@@ -105,9 +118,19 @@ struct CardSearchView: View {
         }
         .sheet(isPresented: $showFilters) {
             CardFilterSheet(filters: $filters,
-                            availableDomains: cardStore.availableDomains)
+                            availableDomains: cardStore.availableDomains,
+                            availableTypes: cardStore.availableTypes,
+                            availableRarities: cardStore.availableRarities)
         }
-        .onAppear { cardStore.loadIfNeeded() }
+        .onAppear {
+            cardStore.loadIfNeeded()
+            if displayedCards.isEmpty { scheduleRefresh(debounce: false) }
+        }
+        .onChange(of: cardStore.allCards.count) { _, _ in scheduleRefresh(debounce: false) }
+        .onChange(of: query) { _, _ in scheduleRefresh(debounce: true) }
+        .onChange(of: filters) { _, _ in scheduleRefresh(debounce: true) }
+        .onChange(of: primarySort) { _, _ in scheduleRefresh(debounce: false) }
+        .onChange(of: secondarySort) { _, _ in scheduleRefresh(debounce: false) }
     }
 }
 

@@ -18,6 +18,42 @@ final class CardStore: ObservableObject {
         return Array(Set(all)).sorted()
     }
 
+    /// Baseline types plus any new type actually present in the loaded DB
+    /// (e.g. Vendetta's Unit-Gear), so future sets filter without an app
+    /// update. Token subtypes (tokenParentMap keys) stay hidden — they're
+    /// reachable through their parent type.
+    var availableTypes: [String] {
+        dynamicOptions(baseline: CardFilters.knownTypes,
+                       values: allCards.compactMap { $0.classification?.type },
+                       excluding: Set(CardFilters.tokenParentMap.keys))
+    }
+
+    /// Baseline rarities plus any new rarity present in the loaded DB.
+    /// "Rare" is deliberately not a baseline: it marks legends, which have
+    /// their own type chip — but if a future set puts it on other cards it
+    /// appears here automatically.
+    var availableRarities: [String] {
+        dynamicOptions(baseline: CardFilters.knownRarities,
+                       values: allCards.compactMap { $0.classification?.rarity },
+                       excluding: ["rare"])
+    }
+
+    /// Baseline order first, then unseen values (case-insensitive dedupe)
+    /// sorted alphabetically at the end.
+    private func dynamicOptions(baseline: [String],
+                                values: [String],
+                                excluding: Set<String>) -> [String] {
+        var seen = Set(baseline.map { $0.lowercased() })
+        var extras: Set<String> = []
+        for value in values {
+            let key = value.lowercased()
+            guard !seen.contains(key), !excluding.contains(key) else { continue }
+            seen.insert(key)
+            extras.insert(value)
+        }
+        return baseline + extras.sorted()
+    }
+
     private let repo = RiftcodexCardRepository()
     private var loadTask: Task<Void, Never>?
 
@@ -150,8 +186,13 @@ final class CardStore: ObservableObject {
         let energy = card.attributes?.energy ?? 0
         let power  = card.attributes?.power  ?? 0
         let might  = card.attributes?.might  ?? 0
-        return energy >= filters.minEnergy && energy <= filters.maxEnergy
-            && power  >= filters.minPower  && power  <= filters.maxPower
-            && might  >= filters.minMight  && might  <= filters.maxMight
+        // A max slider AT its cap means "no upper limit" so future-set cards
+        // exceeding today's caps still show with default filters.
+        return energy >= filters.minEnergy
+            && (filters.maxEnergy >= CardFilters.energyCap || energy <= filters.maxEnergy)
+            && power >= filters.minPower
+            && (filters.maxPower >= CardFilters.powerCap || power <= filters.maxPower)
+            && might >= filters.minMight
+            && (filters.maxMight >= CardFilters.mightCap || might <= filters.maxMight)
     }
 }

@@ -8,6 +8,10 @@ import SwiftUI
 struct CardFilterSheet: View {
     @Binding var filters: CardFilters
     let availableDomains: [String]
+    // Data-driven (baseline ∪ loaded DB) so new-set types/rarities appear
+    // without an app update; defaults keep old call sites compiling.
+    var availableTypes: [String] = CardFilters.knownTypes
+    var availableRarities: [String] = CardFilters.knownRarities
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -26,7 +30,7 @@ struct CardFilterSheet: View {
                 // Type
                 Section("Type") {
                     FilterChipsGrid(
-                        options: CardFilters.knownTypes,
+                        options: availableTypes,
                         selected: $filters.types
                     )
                 }
@@ -42,7 +46,7 @@ struct CardFilterSheet: View {
                 // Rarity
                 Section("Rarity") {
                     FilterChipsGrid(
-                        options: CardFilters.knownRarities,
+                        options: availableRarities,
                         selected: $filters.rarities
                     )
                 }
@@ -53,19 +57,19 @@ struct CardFilterSheet: View {
                         label: "Energy",
                         min: $filters.minEnergy,
                         max: $filters.maxEnergy,
-                        bounds: 0...12
+                        bounds: 0...CardFilters.energyCap
                     )
                     StatRangeRow(
                         label: "Power",
                         min: $filters.minPower,
                         max: $filters.maxPower,
-                        bounds: 0...12
+                        bounds: 0...CardFilters.powerCap
                     )
                     StatRangeRow(
                         label: "Might",
                         min: $filters.minMight,
                         max: $filters.maxMight,
-                        bounds: 0...14
+                        bounds: 0...CardFilters.mightCap
                     )
                 }
             }
@@ -164,6 +168,9 @@ private struct FilterChipsGrid: View {
                 } label: {
                     Text(option)
                         .font(.subheadline.weight(isOn ? .semibold : .regular))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)   // "Proving Grounds" would wrap → taller chip
+                        .frame(minHeight: 20)      // scaled-down text must not shrink the chip
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .frame(maxWidth: .infinity)
