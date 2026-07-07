@@ -13,7 +13,7 @@
 
 ### Feature set (both platforms, full parity)
 
-- **Scoreboard tab**: 2p/4p tiles (conquer/hold/minus), sliding score↔XP faces, per-slot colors, game timer, deck pill + opponent, Won/Lost game records, undo (50 steps), tournament match strip (match mode).
+- **Scoreboard tab**: 2p/4p tiles (conquer/hold/minus), sliding score↔XP faces, XP-stepper mode (header XP button toggles ± on the score face; auto-arms when a level-up legend — Poppy / Master Yi - Wuju Master — is on either side), per-slot colors, game timer, deck pill + opponent, Won/Lost game records, undo (50 steps), tournament match strip (match mode).
 - **Events tab**: Riftbound Locator integration (login via Keychain-stored token, my events, event detail with pairings/standings/register/drop/report result, Can-I-Draw top-cut math), store finder (search, favorites, calendar), eloshowdown player profile (ELO, rank crests, Summoner's DNA radar, match history, percentile), opponent scouting + H2H. Elo requests go through a TTL cache (`EloCache`).
 - **Dice tab**: D6/D8/D12/D20. Shake-to-roll (iOS only).
 - **Cards tab**: riftcodex card DB, search/sort/filters, card detail, add to deck.
@@ -39,7 +39,7 @@ Detailed feature/spec history lives in memory `session_state.md`; Android port s
 
 - **iOS: the user builds in Xcode themselves — do NOT run xcodebuild.**
 - **Android**: from `android/`: `skip android build` (compile gate), `skip app launch --android` (build+install+launch on booted emulator; boot via `emulator -avd SkipSpike`). Deploy to emulator, the USER verifies — no screenshot verification.
-- Android release packaging currently broken (see memory `android-port.md`); debug APK path works.
+- **Android release**: `skip export` from `android/` → `.build/skip-export/Riftcount-release.{apk,aab}`. Needs `kotlin.daemon.jvmargs` heap in `Android/gradle.properties` (already set); if `mergeReleaseJniLibFolders` reports "Duplicate resources", clear the stale incremental merge caches under `.build/Android/**/intermediates` and re-run. Signs with the debug keystore until `Android/app/keystore.properties` exists (gitignored; see memory `android-port.md`).
 
 ## Coding Conventions (iOS)
 
