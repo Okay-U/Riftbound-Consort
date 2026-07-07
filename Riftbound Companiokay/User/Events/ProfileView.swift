@@ -441,7 +441,7 @@ struct ProfileView: View {
         guard let first = pts.first, let last = pts.last else { return }
         guard let plotAnchor = proxy.plotFrame else { return }
         let plot = geo[plotAnchor]
-        guard plot.width > 0 goelse { return }
+        guard plot.width > 0 else { return }
         let frac = max(0, min(1, (x - plot.origin.x) / plot.width))
         let span = Double(last.offset - first.offset)
         let rawOffset = Double(first.offset) + frac * span
