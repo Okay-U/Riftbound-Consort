@@ -24,7 +24,6 @@ android {
     }
     packaging {
         jniLibs {
-            keepDebugSymbols.add("**/*.so")
             pickFirsts.add("**/*.so")
             // this option would compress JNI .so files and reduce overall size for Skip Fuse apps, but cost more at install time
             //useLegacyPackaging = true
@@ -79,12 +78,28 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Keep native debug symbols for debugging/symbolication. Release
+            // strips them — the Swift runtime .so files carry hundreds of MB
+            // of debug info otherwise.
+            packaging {
+                jniLibs {
+                    keepDebugSymbols.add("**/*.so")
+                }
+            }
+        }
         release {
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false // can be set to true for debugging release build, but needs to be false when uploading to store
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            ndk {
+                // Ship 64-bit ARM only: every Android phone since ~2019 is
+                // arm64; armeabi-v7a/x86/x86_64 are legacy or emulator-only.
+                // Debug stays unfiltered for emulators of any arch.
+                abiFilters += listOf("arm64-v8a")
+            }
         }
     }
 }
