@@ -10,14 +10,20 @@ import UIKit
 /// events bump counters on this engine and the root view maps them to
 /// `.sensoryFeedback` modifiers (SkipUI bridges those to the Vibrator;
 /// VIBRATE permission is set in AndroidManifest.xml).
-@Observable @MainActor public final class HapticsEngine {
-    public static let shared = HapticsEngine()
-    private init() {}
+/// Haptic events are queued by bumping UserDefaults counters: @AppStorage is
+/// the one reliably-reactive cross-view channel on Skip (raw @Observable
+/// singletons are not tracked by Compose), and HapticsDriver in ContentView
+/// maps counter changes to sensoryFeedback.
+@MainActor enum HapticTick {
+    static let impact = "hapticTick.impact"
+    static let selection = "hapticTick.selection"
+    static let warning = "hapticTick.warning"
+    static let success = "hapticTick.success"
 
-    var impactCount = 0
-    var selectionCount = 0
-    var warningCount = 0
-    var successCount = 0
+    static func bump(_ key: String) {
+        let d = UserDefaults.standard
+        d.set(d.integer(forKey: key) + 1, forKey: key)
+    }
 }
 
 @MainActor
@@ -33,7 +39,7 @@ enum Haptics {
         gen.prepare()
         gen.notificationOccurred(.success)
         #else
-        HapticsEngine.shared.successCount += 1
+        HapticTick.bump(HapticTick.success)
         #endif
     }
 
@@ -44,7 +50,7 @@ enum Haptics {
         gen.prepare()
         gen.notificationOccurred(.warning)
         #else
-        HapticsEngine.shared.warningCount += 1
+        HapticTick.bump(HapticTick.warning)
         #endif
     }
 
@@ -55,7 +61,7 @@ enum Haptics {
         gen.prepare()
         gen.impactOccurred(intensity: max(0.0, min(1.0, intensity)))
         #else
-        HapticsEngine.shared.impactCount += 1
+        HapticTick.bump(HapticTick.impact)
         #endif
     }
 
@@ -66,7 +72,7 @@ enum Haptics {
         gen.prepare()
         gen.impactOccurred(intensity: max(0.0, min(1.0, intensity)))
         #else
-        HapticsEngine.shared.impactCount += 1
+        HapticTick.bump(HapticTick.impact)
         #endif
     }
 
@@ -77,7 +83,7 @@ enum Haptics {
         gen.prepare()
         gen.impactOccurred(intensity: max(0.0, min(1.0, intensity)))
         #else
-        HapticsEngine.shared.impactCount += 1
+        HapticTick.bump(HapticTick.impact)
         #endif
     }
 
@@ -88,7 +94,7 @@ enum Haptics {
         gen.prepare()
         gen.selectionChanged()
         #else
-        HapticsEngine.shared.selectionCount += 1
+        HapticTick.bump(HapticTick.selection)
         #endif
     }
 }

@@ -14,6 +14,20 @@ struct ContentView: View {
     @State var matchMode = MatchModeStore()
 
     var body: some View {
+        #if os(Android)
+        // ZStack, not .overlay: SkipUI drops overlay(alignment:) content on
+        // the tab root, so the driver never composed there (haptics then only
+        // fired on unrelated recompositions like tab switches).
+        ZStack(alignment: .bottomLeading) {
+            tabRoot
+            HapticsDriver().allowsHitTesting(false)
+        }
+        #else
+        tabRoot
+        #endif
+    }
+
+    private var tabRoot: some View {
         TabView(selection: $currentTab) {
             ScoreboardScreen()
                 .tabItem { Label("Score", systemImage: "tab.score.fill") }
@@ -56,16 +70,35 @@ struct ContentView: View {
             OnboardingView()
         }
         .preferredColorScheme(.dark)
-        #if os(Android)
-        // Imperative Haptics calls bump HapticsEngine counters; these
-        // modifiers translate counter changes into Vibrator feedback.
-        .sensoryFeedback(.impact, trigger: HapticsEngine.shared.impactCount)
-        .sensoryFeedback(.selection, trigger: HapticsEngine.shared.selectionCount)
-        .sensoryFeedback(.warning, trigger: HapticsEngine.shared.warningCount)
-        .sensoryFeedback(.success, trigger: HapticsEngine.shared.successCount)
-        #endif
     }
 }
+
+#if os(Android)
+/// Turns Haptics.* events into Vibrator feedback (~50ms latency verified via
+/// dumpsys vibrator_manager). History: putting sensoryFeedback on the tab
+/// root deferred vibrations to the next unrelated recomposition (tab switch)
+/// because Compose never tracks a raw @Observable singleton — via plain let,
+/// @State, onChange(of:) or rendered reads. UserDefaults counters observed
+/// through @AppStorage are the channel Skip bridges reactively.
+struct HapticsDriver: View {
+    // @AppStorage is the only cross-view reactive channel Skip reliably
+    // bridges (@Observable singletons aren't tracked by Compose): Haptics.*
+    // bumps these UserDefaults counters and the trigger change vibrates.
+    @AppStorage(HapticTick.impact) var impactTick = 0
+    @AppStorage(HapticTick.selection) var selectionTick = 0
+    @AppStorage(HapticTick.warning) var warningTick = 0
+    @AppStorage(HapticTick.success) var successTick = 0
+
+    var body: some View {
+        Color.clear
+            .frame(width: 1, height: 1)
+            .sensoryFeedback(.impact, trigger: impactTick)
+            .sensoryFeedback(.selection, trigger: selectionTick)
+            .sensoryFeedback(.warning, trigger: warningTick)
+            .sensoryFeedback(.success, trigger: successTick)
+    }
+}
+#endif
 
 /// Scoreboard host, ported from the iOS ScoreboardView: 2p/4p layouts,
 /// header (title/timer/deck pill/XP/reset), tournament match strip,
