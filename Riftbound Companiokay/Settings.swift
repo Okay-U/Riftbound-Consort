@@ -11,7 +11,6 @@ import ActivityKit
 #endif
 
 struct Settings: View {
-    @AppStorage("batterySaver") private var batterySaver: Bool = false
     @AppStorage("hapticsEnabled") private var hapticsEnabled: Bool = true
     @AppStorage("soundsEnabled") private var soundsEnabled: Bool = false
     @AppStorage("diceShakeToRoll") private var diceShakeToRoll: Bool = true
@@ -32,11 +31,6 @@ struct Settings: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Display & Power") {
-                    Toggle("Battery saver visuals", isOn: $batterySaver)
-                        .help("Reduces glow/blur and disables 7-point particles to save power.")
-                }
-
                 Section("Interaction") {
                     Toggle("Haptics", isOn: $hapticsEnabled)
                     Toggle("Shake to roll dice", isOn: $diceShakeToRoll)

@@ -12,7 +12,6 @@ import SwiftUI
 
 struct EventsOnboardingView: View {
     @AppStorage("didOnboardEvents") private var didOnboardEvents = false
-    @AppStorage("batterySaver") private var batterySaver = false
     @Environment(\.dismiss) private var dismiss
     @State private var index = 0
 
@@ -24,7 +23,7 @@ struct EventsOnboardingView: View {
 
             TabView(selection: $index) {
                 ForEach(Array(pages.enumerated()), id: \.element.id) { i, page in
-                    EventsOnboardingPageView(page: page, batterySaver: batterySaver)
+                    EventsOnboardingPageView(page: page)
                         .tag(i)
                 }
             }
@@ -77,7 +76,7 @@ struct EventsOnboardingView: View {
                                    startPoint: .topLeading, endPoint: .bottomTrailing),
                     in: RoundedRectangle(cornerRadius: EventsTheme.ctaRadius, style: .continuous)
                 )
-                .shadow(color: batterySaver ? .clear : EventsTheme.green.opacity(0.35), radius: 16, y: 8)
+                .shadow(color: EventsTheme.green.opacity(0.35), radius: 16, y: 8)
         }
     }
 
@@ -98,7 +97,6 @@ struct EventsOnboardingView: View {
 
 private struct EventsOnboardingPageView: View {
     let page: EventsOnboardingPage
-    let batterySaver: Bool
 
     var body: some View {
         ScrollView {
@@ -133,12 +131,10 @@ private struct EventsOnboardingPageView: View {
 
     private var hero: some View {
         ZStack {
-            if !batterySaver {
-                RadialGradient(colors: [EventsTheme.green.opacity(0.35), .clear],
-                               center: .center, startRadius: 0, endRadius: 110)
-                    .frame(width: 220, height: 220)
-                    .allowsHitTesting(false)
-            }
+            RadialGradient(colors: [EventsTheme.green.opacity(0.35), .clear],
+                           center: .center, startRadius: 0, endRadius: 110)
+                .frame(width: 220, height: 220)
+                .allowsHitTesting(false)
             Circle()
                 .fill(EventsTheme.greenSoft)
                 .frame(width: 100, height: 100)

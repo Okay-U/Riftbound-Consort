@@ -23,7 +23,6 @@ struct ScoreTile: View {
     var xpStepperEnabled: Bool = false
 
     // Settings
-    @AppStorage("batterySaver")   private var batterySaver: Bool = false
     @AppStorage("soundsEnabled")  private var soundsEnabled: Bool = false
 
     // Visual feedback
@@ -417,27 +416,27 @@ struct ScoreTile: View {
 
     private func plusTapped() {
         // Reached only in XP mode (score mode uses conquer/hold buttons).
-        triggerEdgeFlash(.green, reduced: batterySaver)
+        triggerEdgeFlash(.green)
         Haptics.light()
         onXPIncrement()
     }
 
     private func conquerTapped() {
         guard mode == .score else { return }
-        triggerEdgeFlash(.green, reduced: batterySaver)
+        triggerEdgeFlash(.green)
         Haptics.light()
         onConquer()
     }
 
     private func holdTapped() {
         guard mode == .score else { return }
-        triggerEdgeFlash(.green, reduced: batterySaver)
+        triggerEdgeFlash(.green)
         Haptics.light()
         onHold()
     }
 
     private func minusTapped() {
-        triggerEdgeFlash(.red, reduced: batterySaver)
+        triggerEdgeFlash(.red)
         Haptics.rigid(0.7)
         if mode == .score {
             onDecrement()
@@ -446,12 +445,12 @@ struct ScoreTile: View {
         }
     }
 
-    private func triggerEdgeFlash(_ color: Color, reduced: Bool) {
+    private func triggerEdgeFlash(_ color: Color) {
         flashColor = color
         flashOpacity = 0.0
-        let up = reduced ? 0.0 : 0.16
-        let down = reduced ? 0.0 : 0.22
-        let maxAlpha: CGFloat = reduced ? 0.0 : 0.65
+        let up = 0.16
+        let down = 0.22
+        let maxAlpha: CGFloat = 0.65
 
         withAnimation(.easeOut(duration: up)) {
             flashOpacity = maxAlpha

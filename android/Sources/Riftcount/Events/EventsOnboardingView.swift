@@ -7,7 +7,6 @@ import SwiftUI
 /// (store search is list-only on Android).
 struct EventsOnboardingView: View {
     @AppStorage("didOnboardEvents") var didOnboardEvents = false
-    @AppStorage("batterySaver") var batterySaver = false
     @Environment(\.dismiss) var dismiss
     @State var index = 0
 
@@ -19,7 +18,7 @@ struct EventsOnboardingView: View {
 
             TabView(selection: $index) {
                 ForEach(pages) { page in
-                    EventsOnboardingPageView(page: page, batterySaver: batterySaver)
+                    EventsOnboardingPageView(page: page)
                         .tag(page.index)
                 }
             }
@@ -74,7 +73,7 @@ struct EventsOnboardingView: View {
                                            startPoint: .topLeading, endPoint: .bottomTrailing)
                         )
                 )
-                .shadow(color: batterySaver ? .clear : EventsTheme.green.opacity(0.35), radius: 16, y: 8)
+                .shadow(color: EventsTheme.green.opacity(0.35), radius: 16, y: 8)
         }
         .buttonStyle(.plain)
     }
@@ -96,7 +95,6 @@ struct EventsOnboardingView: View {
 
 struct EventsOnboardingPageView: View {
     let page: EventsOnboardingPage
-    let batterySaver: Bool
 
     var body: some View {
         ScrollView {
@@ -131,12 +129,10 @@ struct EventsOnboardingPageView: View {
 
     private var hero: some View {
         ZStack {
-            if !batterySaver {
-                RadialGradient(colors: [EventsTheme.green.opacity(0.35), .clear],
-                               center: .center, startRadius: 0, endRadius: 110)
-                    .frame(width: 220, height: 220)
-                    .allowsHitTesting(false)
-            }
+            RadialGradient(colors: [EventsTheme.green.opacity(0.35), .clear],
+                           center: .center, startRadius: 0, endRadius: 110)
+                .frame(width: 220, height: 220)
+                .allowsHitTesting(false)
             Circle()
                 .fill(EventsTheme.greenSoft)
                 .frame(width: 100, height: 100)

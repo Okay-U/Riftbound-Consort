@@ -13,7 +13,6 @@ import Charts
 
 struct ProfileView: View {
     @EnvironmentObject private var session: AuthSession
-    @AppStorage("batterySaver") private var batterySaver = false
     var service: any EloShowdownService = EloCache.shared
 
     @State private var state: LoadState = .idle
@@ -146,11 +145,9 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .background(alignment: .topTrailing) {
-            if !batterySaver {
-                RadialGradient(colors: [color.opacity(0.22), .clear],
-                               center: .topTrailing, startRadius: 0, endRadius: 240)
-                    .allowsHitTesting(false)
-            }
+            RadialGradient(colors: [color.opacity(0.22), .clear],
+                           center: .topTrailing, startRadius: 0, endRadius: 240)
+                .allowsHitTesting(false)
         }
         .background(
             LinearGradient(colors: [EventsTheme.overviewFillTop, EventsTheme.overviewFillBottom],
@@ -163,12 +160,10 @@ struct ProfileView: View {
     private func emblem(tier: String, color: Color) -> some View {
         // Shared crest (asset or shield fallback) with the profile's glow behind it.
         ZStack {
-            if !batterySaver {
-                Circle().fill(RadialGradient(colors: [color.opacity(0.40), .clear],
-                                             center: .center, startRadius: 0, endRadius: 28))
-            }
+            Circle().fill(RadialGradient(colors: [color.opacity(0.40), .clear],
+                                         center: .center, startRadius: 0, endRadius: 28))
             RankCrest(tier: tier, size: 46)
-                .shadow(color: color.opacity(0.45), radius: batterySaver ? 0 : 5)
+                .shadow(color: color.opacity(0.45), radius: 5)
         }
         .frame(width: 46, height: 46)
     }

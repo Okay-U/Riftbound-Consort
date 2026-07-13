@@ -11,7 +11,6 @@ import SwiftUI
 
 struct MyEventsView: View {
     @EnvironmentObject private var session: AuthSession
-    @AppStorage("batterySaver") private var batterySaver = false
     var service: any LocatorService = RiftboundLocatorService()
     var embedded = false   // true when shown under the Events/Stores segmented nav
 
@@ -150,11 +149,9 @@ struct MyEventsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(alignment: .topTrailing) {
-            if !batterySaver {
-                RadialGradient(colors: [EventsTheme.green.opacity(0.3), .clear],
-                               center: .topTrailing, startRadius: 0, endRadius: 200)
-                    .allowsHitTesting(false)
-            }
+            RadialGradient(colors: [EventsTheme.green.opacity(0.3), .clear],
+                           center: .topTrailing, startRadius: 0, endRadius: 200)
+                .allowsHitTesting(false)
         }
         .greenGradientBorder(radius: 18)
     }

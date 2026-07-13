@@ -5,7 +5,6 @@ import SwiftUI
 /// is kept (SkipKeychain). Port: FocusState/submitLabel dropped, eye glyph drawn.
 struct LoginView: View {
     @Environment(AuthSession.self) var session
-    @AppStorage("batterySaver") var batterySaver = false
 
     @State var email = ""
     @State var password = ""
@@ -101,7 +100,7 @@ struct LoginView: View {
                     .fill(LinearGradient(colors: [EventsTheme.green, EventsTheme.green.opacity(0.75)],
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
             )
-            .shadow(color: batterySaver ? Color.clear : EventsTheme.green.opacity(0.35), radius: 18, y: 10)
+            .shadow(color: EventsTheme.green.opacity(0.35), radius: 18, y: 10)
             .opacity(canSubmit ? 1 : 0.5)
         }
         .buttonStyle(.plain)

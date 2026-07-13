@@ -11,7 +11,6 @@ import SwiftUI
 
 struct LoginView: View {
     @EnvironmentObject private var session: AuthSession
-    @AppStorage("batterySaver") private var batterySaver = false
 
     @State private var email = ""
     @State private var password = ""
@@ -124,7 +123,7 @@ struct LoginView: View {
                                startPoint: .topLeading, endPoint: .bottomTrailing),
                 in: RoundedRectangle(cornerRadius: EventsTheme.ctaRadius, style: .continuous)
             )
-            .shadow(color: batterySaver ? .clear : EventsTheme.green.opacity(0.35), radius: 18, y: 10)
+            .shadow(color: EventsTheme.green.opacity(0.35), radius: 18, y: 10)
             .opacity(canSubmit ? 1 : 0.5)
         }
         .disabled(!canSubmit)

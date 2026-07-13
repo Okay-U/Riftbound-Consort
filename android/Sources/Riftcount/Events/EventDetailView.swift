@@ -12,7 +12,6 @@ struct EventDetailView: View {
 
     @Environment(AuthSession.self) var session
     @Environment(MatchModeStore.self) var matchMode
-    @AppStorage("batterySaver") var batterySaver = false
     @AppStorage("currentTab") var currentTab: String = "score"
     @Environment(\.dismiss) var dismiss
     @State var state: LoadState = .idle
@@ -293,11 +292,9 @@ struct EventDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(alignment: .topTrailing) {
-            if !batterySaver {
-                RadialGradient(colors: [EventsTheme.green.opacity(0.28), Color.clear],
-                               center: .topTrailing, startRadius: 0, endRadius: 220)
-                    .allowsHitTesting(false)
-            }
+            RadialGradient(colors: [EventsTheme.green.opacity(0.28), Color.clear],
+                           center: .topTrailing, startRadius: 0, endRadius: 220)
+                .allowsHitTesting(false)
         }
         .background(
             LinearGradient(colors: [EventsTheme.overviewFillTop, EventsTheme.overviewFillBottom],

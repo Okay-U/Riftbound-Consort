@@ -6,7 +6,6 @@ import SwiftUI
 struct SettingsScreen: View {
     @Environment(MatchModeStore.self) var matchMode
     @AppStorage("hapticsEnabled") var hapticsEnabled: Bool = true
-    @AppStorage("batterySaver") var batterySaver: Bool = false
     @State var showOnboarding = false
     @State var showEventsOnboarding = false
 
@@ -15,10 +14,6 @@ struct SettingsScreen: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Display & Power") {
-                    Toggle("Battery saver visuals", isOn: $batterySaver)
-                }
-
                 Section("Interaction") {
                     Toggle("Haptics", isOn: $hapticsEnabled)
                 }
