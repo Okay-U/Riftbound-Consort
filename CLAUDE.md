@@ -18,7 +18,7 @@
 - **Dice tab**: D6/D8/D12/D20. Shake-to-roll (iOS only).
 - **Cards tab**: riftcodex card DB, search/sort/filters, card detail, add to deck.
 - **Decks tab**: 7-step builder wizard, deck detail editing, import/export as text, draw hand, draw odds (hypergeometric), deck stats, game history + review.
-- **Settings**: battery saver, haptics, match mode, tours replay, acknowledgments, about.
+- **Settings**: haptics, match mode, tours replay, acknowledgments, about. (Battery-saver toggle removed 2026-07-13 — placebo; true-black is the real saver.)
 - **Onboarding**: 6-page main tour, Events tour, builder tip overlay.
 - iOS-only: Live Activity (lock screen scoreboard), shake-to-roll, keep-screen-on, widgets. Android-only: Photon geocoder (replaces CLGeocoder).
 
