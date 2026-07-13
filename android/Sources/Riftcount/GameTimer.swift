@@ -19,7 +19,7 @@ public final class GameTimer {
         isRunning = true
         ticker = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 100_000_000)
+                try? await Task.sleep(nanoseconds: 250_000_000)
                 self?.tick()
             }
         }
@@ -32,6 +32,7 @@ public final class GameTimer {
         ticker = nil
         startDate = nil
         isRunning = false
+        elapsed = accumulated   // exact value on the badge while paused
     }
 
     func reset() {
@@ -45,6 +46,14 @@ public final class GameTimer {
 
     private func tick() {
         guard isRunning, let startDate else { return }
-        elapsed = accumulated + Date().timeIntervalSince(startDate)
+        let now = accumulated + Date().timeIntervalSince(startDate)
+        // Mutate only when the displayed second changes: every @Observable
+        // mutation recomposes every observer — the ENTIRE scoreboard. The old
+        // 0.1s tick meant 10 full recompositions per second for the whole
+        // game; now it's 1 (the 0.25s tick itself is cheap Date math, keeping
+        // second-flips on time).
+        if Int(now) != Int(elapsed) {
+            elapsed = now
+        }
     }
 }
