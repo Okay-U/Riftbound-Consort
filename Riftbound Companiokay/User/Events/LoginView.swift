@@ -38,6 +38,7 @@ struct LoginView: View {
 
                 signInButton
                 tokenHint
+                googleHint
             }
             .padding(.horizontal, 22)
             .padding(.vertical, 16)
@@ -135,6 +136,25 @@ struct LoginView: View {
             Text("Uses your locator.riftbound.uvsgames.com account. Only a login token is kept on device. Never your password.")
                 .font(.system(size: 12.5))
                 .foregroundStyle(EventsTheme.textSecondary)
+        }
+    }
+
+    // Google/Apple sign-in can't work here (the Locator API rejects tokens
+    // from third-party OAuth clients), but Google-signup accounts have no
+    // password — setting one on the website unlocks this login.
+    private var googleHint: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "info.circle").font(.system(size: 11)).foregroundStyle(EventsTheme.textTertiary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Signed up with Google? Set a password on the Locator site first (Account settings → Change Password), then sign in here with your email.")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(EventsTheme.textSecondary)
+                if let url = URL(string: "https://locator.riftbound.uvsgames.com") {
+                    Link("Open Locator site", destination: url)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .tint(EventsTheme.green)
+                }
+            }
         }
     }
 
