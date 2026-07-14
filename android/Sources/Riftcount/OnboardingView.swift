@@ -269,7 +269,7 @@ struct OnboardingPage: Identifiable {
             index: 0,
             title: "Riftcount",
             subtitle: "Score tracker and more for Riftbound TCG",
-            glyph: .symbol("trophy"),
+            glyph: .symbol("tab.events.fill"),   // bundled asset; SkipUI's "trophy" renders as a warning icon
             tint: .yellow,
             bullets: [
                 OnboardingBullet(glyph: .symbol("star.fill"),
@@ -383,7 +383,7 @@ struct OnboardingPage: Identifiable {
                 OnboardingBullet(glyph: .symbol("bell.fill"),
                                  title: "Haptics",
                                  detail: "Toggle feedback to taste"),
-                OnboardingBullet(glyph: .symbol("trophy"),
+                OnboardingBullet(glyph: .symbol("tab.events.fill"),
                                  title: "Match mode",
                                  detail: "Link live tournament matches to your Scoreboard")
             ]

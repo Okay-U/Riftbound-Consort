@@ -199,7 +199,10 @@ struct EventsOnboardingPage: Identifiable {
     static let all: [EventsOnboardingPage] = [
         EventsOnboardingPage(
             index: 0,
-            symbol: "trophy",
+            // Bundled symbolset, NOT "trophy": SkipUI lists trophy in its map
+            // but renders it as a warning icon (same reason the tab bar uses
+            // the drawn tab.events.fill asset).
+            symbol: "tab.events.fill",
             title: "Events",
             subtitle: "Your tournament companion for Riftbound.",
             bullets: [
