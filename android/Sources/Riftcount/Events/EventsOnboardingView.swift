@@ -157,6 +157,9 @@ struct EventsOnboardingPageView: View {
             Group {
                 if bullet.symbol == "building" {
                     BuildingGlyph()
+                } else if bullet.symbol == "minibars" {
+                    // chart.bar.fill is unmapped on SkipUI (warning icon)
+                    MiniBarsGlyph()
                 } else {
                     Image(systemName: bullet.symbol)
                         .font(.system(size: 15, weight: .semibold))
@@ -268,7 +271,7 @@ struct EventsOnboardingPage: Identifiable {
                       detail: "Track your place as rounds finish."),
                 .init(symbol: "pencil", title: "Report results",
                       detail: "Submit your match without leaving the app."),
-                .init(symbol: "chart.bar.fill", title: "Can I draw?",
+                .init(symbol: "minibars", title: "Can I draw?",
                       detail: "Your top-cut outlook, shown automatically.")
             ]
         ),

@@ -146,6 +146,7 @@ enum OnboardingGlyph {
     case undo       // mirrored clockwise arrow
     case filter     // funnel (reuses FilterGlyph)
     case palette    // 2×2 color dots
+    case bars       // 3 rising bars (chart.bar.fill is unmapped → warning icon)
 }
 
 struct OnboardingGlyphView: View {
@@ -163,6 +164,19 @@ struct OnboardingGlyphView: View {
             Text(string)
                 .font(.system(size: size * 0.85, weight: .bold))
                 .foregroundStyle(tint)
+        case .bars:
+            HStack(alignment: .bottom, spacing: size * 0.12) {
+                RoundedRectangle(cornerRadius: size * 0.06)
+                    .fill(tint)
+                    .frame(width: size * 0.2, height: size * 0.4)
+                RoundedRectangle(cornerRadius: size * 0.06)
+                    .fill(tint)
+                    .frame(width: size * 0.2, height: size * 0.75)
+                RoundedRectangle(cornerRadius: size * 0.06)
+                    .fill(tint)
+                    .frame(width: size * 0.2, height: size * 0.55)
+            }
+            .frame(width: size, height: size, alignment: .bottom)
         case .tiles:
             VStack(spacing: size * 0.09) {
                 RoundedRectangle(cornerRadius: size * 0.12)
@@ -362,7 +376,7 @@ struct OnboardingPage: Identifiable {
                 OnboardingBullet(glyph: .text("%"),
                                  title: "Draw odds",
                                  detail: "Hypergeometric chance to draw key cards by turn N"),
-                OnboardingBullet(glyph: .symbol("chart.bar.fill"),
+                OnboardingBullet(glyph: .bars,
                                  title: "Deck stats",
                                  detail: "Energy curve, power by domain, type breakdown"),
                 OnboardingBullet(glyph: .symbol("square.and.arrow.up"),
