@@ -359,8 +359,11 @@ struct DeckDetailScreen: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(entries, id: \.cardId) { entry in
-                    entryRow(entry, slot: slot, deck: deck)
+                // One LazyColumn backs the whole List on Compose, so row keys
+                // must be unique across sections — the same card can sit in
+                // both main and side deck (typical for imported decks).
+                ForEach(entries.map { SlotKeyedEntry(slot: slot, entry: $0) }) { item in
+                    entryRow(item.entry, slot: slot, deck: deck)
                 }
             }
         }
@@ -395,6 +398,14 @@ struct DeckDetailScreen: View {
             }
         }
     }
+}
+
+/// Wraps a deck entry with its slot so ForEach keys stay unique across the
+/// shared LazyColumn (duplicate keys are a fatal error on Compose).
+struct SlotKeyedEntry: Identifiable {
+    let slot: DeckSlot
+    let entry: DecklistEntry
+    var id: String { "\(slot.rawValue)|\(entry.cardId)" }
 }
 
 // MARK: - Drawn ± glyphs (minus.circle / plus.circle are not in SkipUI's map)
