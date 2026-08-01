@@ -54,6 +54,17 @@ public final class CardStore {
     private let repo = RiftcodexCardRepository()
     private var loadTask: Task<Void, Never>?
 
+    /// Drops rows that are the same physical card twice (same riftbound_id).
+    /// Distinct printings (e.g. "ven-042" vs "ven-042a") keep separate ids.
+    private static func dedupe(_ cards: [Card]) -> [Card] {
+        var seen = Set<String>()
+        var out: [Card] = []
+        for card in cards where seen.insert(card.riftboundId ?? card.id).inserted {
+            out.append(card)
+        }
+        return out
+    }
+
     private static func computeLegendNames(from cards: [Card]) -> [String] {
         var names: Set<String> = []
         for card in cards {
@@ -86,8 +97,11 @@ public final class CardStore {
                     if accumulated.count >= result.total || result.items.isEmpty { break }
                     page += 1
                 }
-                allCards = accumulated
-                legendNames = Self.computeLegendNames(from: accumulated)
+                // riftcodex has shipped literal duplicate rows (same riftbound_id,
+                // different DB id — seen with the Vendetta ingest); keep the first.
+                let unique = Self.dedupe(accumulated)
+                allCards = unique
+                legendNames = Self.computeLegendNames(from: unique)
             } catch is CancellationError {
                 // ignored
             } catch {
