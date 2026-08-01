@@ -58,6 +58,9 @@ open class MainActivity: AppCompatActivity {
         logger.info("starting activity")
         UIApplication.launch(this)
         enableEdgeToEdge()
+        // Parity with iOS isIdleTimerDisabled: never let the screen lock while
+        // scorekeeping. Flag only applies while this activity is visible.
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         setContent {
             val saveableStateHolder = rememberSaveableStateHolder()

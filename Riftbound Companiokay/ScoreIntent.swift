@@ -18,6 +18,7 @@ struct ScoreIntent: LiveActivityIntent {
         self.delta = delta
     }
 
+    @MainActor
     func perform() async throws -> some IntentResult {
         let newScores = SharedScoreboard.mutateScore(slot: slot, delta: delta)
         for activity in Activity<GameActivityAttributes>.activities {

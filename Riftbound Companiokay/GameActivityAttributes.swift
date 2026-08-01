@@ -2,7 +2,9 @@ import Foundation
 #if os(iOS)
 import ActivityKit
 
-struct GameActivityAttributes: ActivityAttributes {
+// nonisolated: the project defaults to MainActor isolation, but ActivityKit
+// touches this conformance from concurrent contexts (Swift 6 build error).
+nonisolated struct GameActivityAttributes: ActivityAttributes {
     public typealias ContentState = State
 
     public struct State: Codable, Hashable {
