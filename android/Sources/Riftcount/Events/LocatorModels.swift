@@ -35,6 +35,9 @@ struct LocatorEvent: Decodable, Sendable, Identifiable {
     let currency: String?
     let settings: LocatorEventSettings?
     let tournamentPhases: [LocatorPhase]
+    /// Scorekeeper's round clock. Only meaningful while `timerIsRunning`.
+    let timerEndDatetime: Date?
+    let timerIsRunning: Bool?
 
     /// Registration is open (you can join; payment, if any, is in person).
     var isOpenForRegistration: Bool {
@@ -98,6 +101,47 @@ struct LocatorEvent: Decodable, Sendable, Identifiable {
 
     /// All rounds across every phase, in order.
     var allRounds: [LocatorRound] { tournamentPhases.flatMap(\.rounds) }
+
+    /// When the current round's clock runs out (nil when no clock is running).
+    var roundEndsAt: Date? { timerIsRunning == true ? timerEndDatetime : nil }
+
+    /// Event hasn't begun yet: no round has pairings and the start time is ahead.
+    var isUpcoming: Bool {
+        guard !isFinished else { return false }
+        if allRounds.contains(where: { $0.pairingsStatus == "GENERATED" }) { return false }
+        guard let start = startDatetime else { return true }
+        return start > Date()
+    }
+
+    /// Rounds whose pairings exist — the ones worth offering in the round switcher.
+    var browsableRounds: [LocatorRound] {
+        allRounds.filter { $0.pairingsStatus == "GENERATED" }
+    }
+
+    /// Phase-aware label for any round: "Round 3 of 5", or the bracket stage.
+    func label(for round: LocatorRound) -> String {
+        guard let phase = phase(of: round) else { return "Round \(round.roundNumber)" }
+        if (phase.roundType ?? "").uppercased().contains("ELIMINATION") {
+            return Self.eliminationStage(of: round, in: phase)
+        }
+        if let total = phase.numberOfRounds { return "Round \(round.roundNumber) of \(total)" }
+        return "Round \(round.roundNumber)"
+    }
+
+    /// Short label for a round chip: "R3", or the bracket stage for elim rounds.
+    func shortLabel(for round: LocatorRound) -> String {
+        guard let phase = phase(of: round),
+              (phase.roundType ?? "").uppercased().contains("ELIMINATION") else {
+            return "R\(round.roundNumber)"
+        }
+        let stage = Self.eliminationStage(of: round, in: phase)
+        switch stage {
+        case "Final":        return "F"
+        case "Semifinal":    return "SF"
+        case "Quarterfinal": return "QF"
+        default:             return stage
+        }
+    }
 
     /// The round being played now, else the latest one with pairings.
     var currentRound: LocatorRound? {
@@ -365,6 +409,20 @@ struct LocatorStanding: Decodable, Sendable, Identifiable {
 /// Current user's registration status for an event.
 struct LocatorRegistrationStatus: Decodable, Sendable {
     let registrationStatus: String?
+}
+
+/// Event-level sign-up counters (public): how full the event is.
+struct LocatorEventCapacity: Decodable, Sendable {
+    let registrationOpen: Bool?
+    let registeredUserCount: Int?
+    let capacity: Int?
+    let isAtCapacity: Bool?
+
+    /// 0…1 fill ratio, nil when the event has no seat cap.
+    var fillRatio: Double? {
+        guard let capacity, capacity > 0, let count = registeredUserCount else { return nil }
+        return min(1.0, Double(count) / Double(capacity))
+    }
 }
 
 /// The signed-in user's decklist submission(s) for an event.

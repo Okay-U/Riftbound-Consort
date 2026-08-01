@@ -29,6 +29,12 @@ struct EventDetailView: View {
     @State private var calendarStore: EKEventStore?
     @State private var calendarDraft: CalendarEventDraft?
     @State private var calendarError: String?
+    @State private var selectedRoundID: Int?
+    /// Pairings per round id. Completed rounds never change, so this cache
+    /// survives pull-to-refresh.
+    @State private var roundPairings: [Int: [LocatorMatch]] = [:]
+    @State private var myResults: [RoundResult]?
+    @State private var myResultsLoading = false
 
     enum LoadState {
         case idle, loading
@@ -42,6 +48,18 @@ struct EventDetailView: View {
         let standings: [LocatorStanding]
         let myMatch: ResolvedMyMatch?
         let myName: String?
+        let capacity: LocatorEventCapacity?
+    }
+
+    /// One finished round in "Your results": opponent, game score, outcome.
+    struct RoundResult: Identifiable {
+        enum Outcome { case win, loss, draw, bye }
+        let id: Int            // round id
+        let roundLabel: String
+        let opponent: String?
+        let myGames: Int
+        let oppGames: Int
+        let outcome: Outcome
     }
 
     var body: some View {
@@ -56,6 +74,9 @@ struct EventDetailView: View {
             }
         }
         .background(EventsTheme.bg.ignoresSafeArea())
+        // Must sit on the ScrollView itself — on an inner view the environment
+        // action never reaches the scroll view and the gesture does nothing.
+        .refreshable { await load() }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
@@ -145,6 +166,8 @@ struct EventDetailView: View {
         VStack(alignment: .leading, spacing: 18) {
             overviewCard(data.event)
 
+            if data.event.isUpcoming { upcomingCard(data.event, data.capacity) }
+
             if data.myMatch == nil, session.token != nil, !data.event.isFinished,
                registered || data.event.isOpenForRegistration {
                 registerCard(data.event)
@@ -158,12 +181,10 @@ struct EventDetailView: View {
 
             cutOutlookCard(data)
 
-            if !data.matches.isEmpty {
-                let label = data.event.currentRoundLabel.map { " · \($0)" } ?? ""
-                VStack(alignment: .leading, spacing: 11) {
-                    SectionHeader("person.2.shield.fill", "Pairings" + label)
-                    VStack(spacing: 8) { ForEach(data.matches) { pairingRow($0, myName: data.myName) } }
-                }
+            myResultsCard(data)
+
+            if !data.matches.isEmpty || data.event.browsableRounds.count > 1 {
+                pairingsSection(data)
             }
 
             if !data.standings.isEmpty {
@@ -175,7 +196,6 @@ struct EventDetailView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
-        .refreshable { await load() }
         .confirmationDialog("Register for this event?",
                             isPresented: $confirmingRegister, titleVisibility: .visible) {
             Button("Register · pay in person") { Task { await register(data.event) } }
@@ -382,7 +402,32 @@ struct EventDetailView: View {
                     }
                 }
             }
+            if let ends = event.roundEndsAt, !event.isFinished {
+                roundClock(ends)
+            }
         }
+    }
+
+    /// Live countdown fed by the scorekeeper's round clock.
+    private func roundClock(_ ends: Date) -> some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let left = ends.timeIntervalSince(context.date)
+            HStack(spacing: 6) {
+                Image(systemName: "timer")
+                Text(left > 0 ? "Round clock  \(Self.clockText(left))" : "Round time is up — turns")
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .monospacedDigit()
+            .foregroundStyle(left > 0 ? EventsTheme.green : EventsTheme.gold)
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(left > 0 ? EventsTheme.greenSoft : EventsTheme.gold.opacity(0.14), in: Capsule())
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private static func clockText(_ t: TimeInterval) -> String {
+        let total = Int(t)
+        return String(format: "%d:%02d", total / 60, total % 60)
     }
 
     // MARK: - Your match
@@ -420,7 +465,9 @@ struct EventDetailView: View {
                 } else {
                     matchVS(match)
                     OpponentEloBadge(riftboundID: match.opponent?.userEventStatus.user?.id,
-                                     myRiftboundID: session.userID)
+                                     opponentName: match.opponent?.displayName,
+                                     myRiftboundID: session.userID,
+                                     myName: match.me.displayName)
                 }
 
                 if match.isComplete {
@@ -489,7 +536,8 @@ struct EventDetailView: View {
             match: match,
             isBestOfThree: event.isBestOfThree,
             eventName: event.name,
-            roundLabel: event.currentRoundLabel
+            roundLabel: event.currentRoundLabel,
+            roundEndsAt: event.roundEndsAt
         ))
         currentTab = "score"
     }
@@ -663,6 +711,297 @@ struct EventDetailView: View {
         }
     }
 
+    // MARK: - Upcoming (pre-event)
+
+    @ViewBuilder
+    private func upcomingCard(_ event: LocatorEvent, _ capacity: LocatorEventCapacity?) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "hourglass")
+                    Text("Starts in")
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(EventsTheme.green)
+                Spacer()
+                if let start = event.startDatetime {
+                    Text(start.formatted(date: .abbreviated, time: .shortened))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(EventsTheme.textSecondary)
+                }
+            }
+
+            if let start = event.startDatetime {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Text(Self.countdownText(to: start, now: context.date))
+                        .font(.system(size: 34, weight: .heavy))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                        .contentTransition(.numericText())
+                }
+            }
+
+            if let capacity, let count = capacity.registeredUserCount {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(EventsTheme.green)
+                        Text(capacity.capacity.map { "\(count) of \($0) players registered" }
+                             ?? "\(count) players registered")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Spacer()
+                    }
+                    if let ratio = capacity.fillRatio {
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Color.white.opacity(0.08))
+                                Capsule().fill(EventsTheme.green)
+                                    .frame(width: max(6, geo.size.width * ratio))
+                            }
+                        }
+                        .frame(height: 5)
+                    }
+                }
+            }
+
+            formatChips(event)
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .eventsCard(radius: 18)
+    }
+
+    private func formatChips(_ event: LocatorEvent) -> some View {
+        var chips: [String] = [event.isBestOfThree ? "Best of 3" : "Best of 1"]
+        if let rounds = event.swissRoundsTotal, rounds > 0 { chips.append("Swiss · \(rounds) rounds") }
+        if let cut = event.resolvedCutSize, cut > 0 { chips.append("Top \(cut)") }
+        chips.append(priceLine(event))
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(chips, id: \.self) { chip in
+                    Text(chip)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(EventsTheme.textSecondary)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Color.white.opacity(0.06), in: Capsule())
+                }
+            }
+        }
+    }
+
+    private static func countdownText(to start: Date, now: Date) -> String {
+        let left = start.timeIntervalSince(now)
+        guard left > 0 else { return "Starting…" }
+        let total = Int(left)
+        let days = total / 86400
+        let hours = (total % 86400) / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        if days > 0 { return "\(days)d \(hours)h" }
+        if hours > 0 { return String(format: "%dh %02dm", hours, minutes) }
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    // MARK: - Pairings section (round switcher)
+
+    @ViewBuilder
+    private func pairingsSection(_ data: Loaded) -> some View {
+        let currentID = data.event.currentRound?.id
+        let rounds = data.event.browsableRounds
+        let shownID = selectedRoundID ?? currentID
+        let shownRound = rounds.first { $0.id == shownID }
+        let label = shownRound.map { " · " + data.event.label(for: $0) }
+            ?? (data.event.currentRoundLabel.map { " · \($0)" } ?? "")
+
+        VStack(alignment: .leading, spacing: 11) {
+            SectionHeader("person.2.shield.fill", "Pairings" + label)
+
+            if rounds.count > 1 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(rounds) { round in
+                            roundChip(round,
+                                      isSelected: round.id == shownID,
+                                      isCurrent: round.id == currentID,
+                                      event: data.event)
+                        }
+                    }
+                }
+            }
+
+            if selectedRoundID == nil || selectedRoundID == currentID {
+                VStack(spacing: 8) { ForEach(data.matches) { pairingRow($0, myName: data.myName) } }
+            } else if let matches = selectedRoundID.flatMap({ roundPairings[$0] }) {
+                VStack(spacing: 8) { ForEach(matches) { pairingRow($0, myName: data.myName) } }
+            } else {
+                HStack { Spacer(); ProgressView().tint(EventsTheme.green); Spacer() }
+                    .frame(height: 80)
+            }
+        }
+    }
+
+    private func roundChip(_ round: LocatorRound, isSelected: Bool, isCurrent: Bool, event: LocatorEvent) -> some View {
+        Button {
+            selectRound(round, currentID: event.currentRound?.id)
+        } label: {
+            HStack(spacing: 4) {
+                if isCurrent {
+                    Circle()
+                        .fill(isSelected ? EventsTheme.matchFillBottom : EventsTheme.green)
+                        .frame(width: 5, height: 5)
+                }
+                Text(event.shortLabel(for: round))
+            }
+            .font(.system(size: 12, weight: .bold))
+            .foregroundStyle(isSelected ? EventsTheme.matchFillBottom : EventsTheme.textSecondary)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .background(isSelected ? EventsTheme.green : Color.white.opacity(0.06), in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func selectRound(_ round: LocatorRound, currentID: Int?) {
+        if round.id == currentID { selectedRoundID = nil; return }
+        selectedRoundID = round.id
+        guard roundPairings[round.id] == nil else { return }
+        Task { await loadRound(round) }
+    }
+
+    @MainActor
+    private func loadRound(_ round: LocatorRound) async {
+        guard let fetched = try? await service.pairings(eventID: eventID, roundID: round.id) else {
+            // Fetch failed: drop back to the live round instead of spinning forever.
+            if selectedRoundID == round.id { selectedRoundID = nil }
+            return
+        }
+        roundPairings[round.id] = fetched.sorted { ($0.tableNumber ?? .max) < ($1.tableNumber ?? .max) }
+    }
+
+    // MARK: - Your results (round by round)
+
+    @ViewBuilder
+    private func myResultsCard(_ data: Loaded) -> some View {
+        let completed = data.event.browsableRounds.filter { ($0.status ?? "").uppercased() == "COMPLETE" }
+        if data.myName != nil, !completed.isEmpty, !data.event.isUpcoming {
+            VStack(alignment: .leading, spacing: 11) {
+                SectionHeader("clock.arrow.circlepath", "Your results")
+                if let results = myResults {
+                    if results.isEmpty {
+                        Text("No finished matches for you yet.")
+                            .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
+                            .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                            .eventsCard(radius: 14)
+                    } else {
+                        VStack(spacing: 0) {
+                            ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
+                                myResultRow(result)
+                                if index < results.count - 1 {
+                                    Rectangle().fill(EventsTheme.hairline).frame(height: 1).padding(.leading, 14)
+                                }
+                            }
+                        }
+                        .eventsCard(radius: 14)
+                    }
+                } else {
+                    Button {
+                        Task { await loadMyResults(data) }
+                    } label: {
+                        HStack(spacing: 6) {
+                            if myResultsLoading {
+                                ProgressView().tint(EventsTheme.green)
+                            } else {
+                                Image(systemName: "clock.arrow.circlepath")
+                                Text("Show round by round")
+                            }
+                        }
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(EventsTheme.green)
+                        .frame(maxWidth: .infinity).frame(height: 42)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(EventsTheme.green.opacity(0.5), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(myResultsLoading)
+                }
+            }
+        }
+    }
+
+    private func myResultRow(_ result: RoundResult) -> some View {
+        HStack(spacing: 12) {
+            Text(result.roundLabel)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(EventsTheme.textTertiary)
+                .frame(width: 30, alignment: .leading)
+            Text(result.opponent.map { "vs \($0)" } ?? "Bye")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white).lineLimit(1)
+            Spacer()
+            if result.outcome != .bye {
+                Text("\(result.myGames)–\(result.oppGames)")
+                    .font(.system(size: 13, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(EventsTheme.textSecondary)
+            }
+            outcomeBadge(result.outcome)
+        }
+        .padding(.vertical, 10).padding(.horizontal, 14)
+    }
+
+    private func outcomeBadge(_ outcome: RoundResult.Outcome) -> some View {
+        let label: String
+        let color: Color
+        let bg: Color
+        switch outcome {
+        case .win:  label = "W";   color = EventsTheme.matchFillBottom; bg = EventsTheme.green
+        case .loss: label = "L";   color = .white;                      bg = Color.red.opacity(0.72)
+        case .draw: label = "D";   color = .white;                      bg = Color.white.opacity(0.16)
+        case .bye:  label = "BYE"; color = EventsTheme.green;           bg = EventsTheme.greenSoft
+        }
+        return Text(label)
+            .font(.system(size: 11, weight: .heavy))
+            .padding(.horizontal, 8)
+            .frame(minWidth: 26).frame(height: 24)
+            .background(bg, in: Capsule())
+            .foregroundStyle(color)
+    }
+
+    @MainActor
+    private func loadMyResults(_ data: Loaded) async {
+        guard let myName = data.myName, !myResultsLoading else { return }
+        myResultsLoading = true
+        defer { myResultsLoading = false }
+
+        var out: [RoundResult] = []
+        let completed = data.event.browsableRounds.filter { ($0.status ?? "").uppercased() == "COMPLETE" }
+        for round in completed {
+            let matches: [LocatorMatch]
+            if let cached = roundPairings[round.id] {
+                matches = cached
+            } else if let fetched = try? await service.pairings(eventID: eventID, roundID: round.id) {
+                let sorted = fetched.sorted { ($0.tableNumber ?? .max) < ($1.tableNumber ?? .max) }
+                roundPairings[round.id] = sorted
+                matches = sorted
+            } else { continue }
+
+            guard let match = matches.first(where: { $0.players.contains { isMe($0.tvDisplayName, myName) } })
+            else { continue }
+            let me = match.players.first { isMe($0.tvDisplayName, myName) }
+            let opp = match.players.first { !isMe($0.tvDisplayName, myName) }
+            let outcome: RoundResult.Outcome
+            if match.isBye || opp == nil { outcome = .bye }
+            else if me?.isWinner == true { outcome = .win }
+            else if opp?.isWinner == true { outcome = .loss }
+            else { outcome = .draw }
+            out.append(RoundResult(id: round.id,
+                                   roundLabel: data.event.shortLabel(for: round),
+                                   opponent: opp?.tvDisplayName,
+                                   myGames: me?.gamesWon ?? 0,
+                                   oppGames: opp?.gamesWon ?? 0,
+                                   outcome: outcome))
+        }
+        myResults = out
+    }
+
     // MARK: - Standings
 
     @ViewBuilder
@@ -727,7 +1066,9 @@ struct EventDetailView: View {
 
     @MainActor
     private func load() async {
-        state = .loading
+        // Keep loaded content mounted during pull-to-refresh; a full swap to the
+        // spinner branch tears down the scroll view and breaks the refresh gesture.
+        if case .loaded = state {} else { state = .loading }
         do {
             async let event = service.event(id: eventID)
             async let pairings = service.pairings(eventID: eventID)
@@ -748,12 +1089,24 @@ struct EventDetailView: View {
                 }
             }
 
+            // Sign-up counters only matter before the event starts (public call).
+            let capacity = e.isUpcoming ? (try? await service.capacity(eventID: eventID)) : nil
+
             let sortedMatches = m.sorted { ($0.tableNumber ?? .max) < ($1.tableNumber ?? .max) }
-            state = .loaded(Loaded(event: e,
-                                   matches: sortedMatches,
-                                   standings: s,
-                                   myMatch: resolved,
-                                   myName: resolved?.me.displayName ?? myAlias))
+            let loaded = Loaded(event: e,
+                                matches: sortedMatches,
+                                standings: s,
+                                myMatch: resolved,
+                                myName: resolved?.me.displayName ?? myAlias,
+                                capacity: capacity)
+            state = .loaded(loaded)
+
+            // A refresh may have completed another round; extend "Your results"
+            // if the user already opened it (completed rounds stay cached).
+            if myResults != nil {
+                myResults = nil
+                await loadMyResults(loaded)
+            }
         } catch {
             if session.signOutIfUnauthorized(error) { dismiss(); return }
             state = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)

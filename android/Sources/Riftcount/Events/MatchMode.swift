@@ -10,6 +10,8 @@ struct ActiveTournamentMatch: Sendable, Identifiable {
     let isBestOfThree: Bool
     let eventName: String?
     let roundLabel: String?
+    /// Scorekeeper's round clock at adoption time (nil = no clock running).
+    var roundEndsAt: Date? = nil
 
     var id: Int { match.matchID }
     var tableNumber: Int? { match.tableNumber }
@@ -98,7 +100,8 @@ final class MatchModeStore {
             match: resolved,
             isBestOfThree: event.isBestOfThree,
             eventName: event.name,
-            roundLabel: event.currentRoundLabel
+            roundLabel: event.currentRoundLabel,
+            roundEndsAt: event.roundEndsAt
         )
     }
 }

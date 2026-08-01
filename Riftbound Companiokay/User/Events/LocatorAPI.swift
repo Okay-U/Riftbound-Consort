@@ -12,7 +12,9 @@ import Foundation
 protocol LocatorService: Sendable {
     func event(id: Int) async throws -> LocatorEvent
     func pairings(eventID: Int) async throws -> [LocatorMatch]
+    func pairings(eventID: Int, roundID: Int) async throws -> [LocatorMatch]
     func standings(eventID: Int) async throws -> [LocatorStanding]
+    func capacity(eventID: Int) async throws -> LocatorEventCapacity
     func myEvents(token: String, page: Int) async throws -> LocatorPage<LocatorUserEventStatus>
     func myMatch(roundID: Int, token: String) async throws -> LocatorMyMatch
     func storesNearby(latitude: Double, longitude: Double, miles: Int, page: Int) async throws -> LocatorPage<LocatorStoreWrapper>
@@ -54,6 +56,17 @@ nonisolated final class RiftboundLocatorService: LocatorService {
     func pairings(eventID: Int) async throws -> [LocatorMatch] {
         let page: LocatorPage<LocatorMatch> = try await get("player/events/\(eventID)/tv/matches/?page_size=500")
         return page.results
+    }
+
+    /// Pairings of one specific round (the no-round call returns only the current one).
+    func pairings(eventID: Int, roundID: Int) async throws -> [LocatorMatch] {
+        let page: LocatorPage<LocatorMatch> = try await get("player/events/\(eventID)/tv/matches/?round_id=\(roundID)&page_size=500")
+        return page.results
+    }
+
+    /// Public sign-up counters (registered count / capacity).
+    func capacity(eventID: Int) async throws -> LocatorEventCapacity {
+        try await get("player/events/\(eventID)/registration-status/")
     }
 
     func standings(eventID: Int) async throws -> [LocatorStanding] {

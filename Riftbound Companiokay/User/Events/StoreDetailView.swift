@@ -259,7 +259,8 @@ struct StoreDetailView: View {
     @MainActor
     private func loadEvents(reset: Bool) async {
         guard let sid = store?.id, !eventsLoading else { return }
-        if reset { events = []; nextPage = nil }
+        // Don't blank the list on refresh — old rows stay until new data lands.
+        if reset { nextPage = nil }
         let page = reset ? 1 : (nextPage ?? 1)
         eventsLoading = true
         eventsError = false
