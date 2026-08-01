@@ -138,6 +138,8 @@ final class ScoreboardViewModel: ObservableObject {
         pushShared()
     }
 
+    var canUndo: Bool { !history.isEmpty }
+
     func undo() {
         guard let last = history.popLast(),
               last.scores.count == players.count,

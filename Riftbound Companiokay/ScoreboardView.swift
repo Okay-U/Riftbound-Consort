@@ -29,6 +29,9 @@ struct ScoreboardView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var liveActivityDebounce: Task<Void, Never>?
     @State private var reportingMatch: ResolvedMyMatch?
+    @State private var confirmReset = false
+    @State private var undoToastVisible = false
+    @State private var undoToastGeneration = 0
 
     private let outerVSpacing: CGFloat = 12
     private let gridSpacing: CGFloat = 12
@@ -83,6 +86,7 @@ struct ScoreboardView: View {
             }
             .padding(.vertical, outerVSpacing)
         }
+        .overlay(alignment: .bottom) { undoToast }
         .navigationBarHidden(true)
         .sheet(isPresented: $showColorSheet) {
             ColorSettingsSheet(visibleSlots: visibleSlots(), showSheet: $showColorSheet)
@@ -203,6 +207,35 @@ struct ScoreboardView: View {
         activeDeck()?.name
     }
 
+    // MARK: - Undo toast
+
+    /// Always mounted, opacity-driven — brief "undone" confirmation above the footer.
+    private var undoToast: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.uturn.backward")
+                .font(.system(size: 11, weight: .bold))
+            Text("Action undone")
+                .font(.system(size: 13, weight: .semibold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .background(Capsule().fill(Color.white.opacity(0.14)))
+        .padding(.bottom, 64)
+        .opacity(undoToastVisible ? 1 : 0)
+        .allowsHitTesting(false)
+    }
+
+    private func showUndoToast() {
+        undoToastGeneration += 1
+        let generation = undoToastGeneration
+        withAnimation(.easeOut(duration: 0.15)) { undoToastVisible = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_600_000_000)
+            guard generation == undoToastGeneration else { return }  // newer undo keeps it up
+            withAnimation(.easeIn(duration: 0.3)) { undoToastVisible = false }
+        }
+    }
+
     private func currentOpponent() -> String? {
         let s = activeOpponent.trimmingCharacters(in: .whitespaces)
         return s.isEmpty ? nil : s
@@ -268,6 +301,18 @@ struct ScoreboardView: View {
                     Image(systemName: "trophy.fill")
                     Text("Table \(active.tableNumber.map(String.init) ?? "—")"
                          + (active.roundLabel.map { " · \($0)" } ?? ""))
+                    if let ends = active.roundEndsAt {
+                        // Scorekeeper's round clock, ticking with the strip.
+                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                            let left = Int(ends.timeIntervalSince(context.date))
+                            HStack(spacing: 3) {
+                                Image(systemName: "timer")
+                                Text(left > 0 ? String(format: "%d:%02d", left / 60, left % 60) : "Time")
+                            }
+                            .foregroundStyle(left > 0 ? EventsTheme.green : EventsTheme.gold)
+                            .monospacedDigit()
+                        }
+                    }
                 }
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(EventsTheme.green)
@@ -376,7 +421,7 @@ struct ScoreboardView: View {
             .tint(xpStepperMode ? .yellow : nil)
             .accessibilityLabel(xpStepperMode ? "Hide XP steppers" : "Show XP steppers")
 
-            Button { vm.resetScores() } label: {
+            Button { confirmReset = true } label: {
                 Image(systemName: "arrow.counterclockwise")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.red)
@@ -384,6 +429,13 @@ struct ScoreboardView: View {
             }
             .buttonStyle(.bordered)
             .accessibilityLabel("Reset scores")
+            .confirmationDialog("Reset the scoreboard?",
+                                isPresented: $confirmReset, titleVisibility: .visible) {
+                Button("Reset", role: .destructive) { vm.resetScores() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Scores and XP go back to 0. Undo can still bring them back.")
+            }
         }
         .padding(.horizontal, 16)
     }
@@ -414,7 +466,11 @@ struct ScoreboardView: View {
 
     private var footerBar: some View {
         HStack(spacing: 12) {
-            Button { vm.undo() } label: {
+            Button {
+                guard vm.canUndo else { return }
+                vm.undo()
+                showUndoToast()
+            } label: {
                 Label("", systemImage: "arrow.uturn.backward")
             }
             .buttonStyle(.bordered)

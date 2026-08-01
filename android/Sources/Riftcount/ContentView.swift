@@ -118,6 +118,9 @@ struct ScoreboardScreen: View {
     @State var showQuickSettingsSheet = false
     @State var showGameSetupSheet = false
     @State var lastGameEnd: TimeInterval = 0
+    @State var confirmReset = false
+    @State var undoToastVisible = false
+    @State var undoToastGeneration = 0
     @AppStorage("activeDeckId") var activeDeckId: String = ""
     @AppStorage("activeOpponent") var activeOpponent: String = ""
     @AppStorage("activeStartedFirst") var activeStartedFirst: String = ""
@@ -187,6 +190,15 @@ struct ScoreboardScreen: View {
             // visible as tiles flickering into place. A short fade-in
             // covers the settle.
             .opacity(appeared ? 1 : 0)
+
+            undoToast
+        }
+        .confirmationDialog("Reset the scoreboard?",
+                            isPresented: $confirmReset, titleVisibility: .visible) {
+            Button("Reset", role: .destructive) { viewModel.resetScores() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Scores and XP go back to 0. Undo can still bring them back.")
         }
         .preferredColorScheme(.dark)
         .onAppear {
@@ -277,6 +289,17 @@ struct ScoreboardScreen: View {
                     Image(systemName: "star.fill")
                     Text("Table \(active.tableNumber.map(String.init) ?? "—")"
                          + (active.roundLabel.map { " · \($0)" } ?? ""))
+                    if let ends = active.roundEndsAt {
+                        // Scorekeeper's round clock, ticking with the strip.
+                        SecondTicker { now in
+                            let left = Int(ends.timeIntervalSince(now))
+                            HStack(spacing: 3) {
+                                ClockGlyph(size: 11, color: left > 0 ? EventsTheme.green : EventsTheme.gold)
+                                Text(left > 0 ? String(format: "%d:%02d", left / 60, left % 60) : "Time")
+                            }
+                            .foregroundStyle(left > 0 ? EventsTheme.green : EventsTheme.gold)
+                        }
+                    }
                 }
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(EventsTheme.green)
@@ -464,7 +487,7 @@ struct ScoreboardScreen: View {
                     .font(.subheadline.weight(.bold))
             }
 
-            circleButton(tint: .red, action: { viewModel.resetScores() }) {
+            circleButton(tint: .red, action: { confirmReset = true }) {
                 Image(systemName: "arrow.clockwise.circle")
                     .font(.title3.weight(.semibold))
             }
@@ -472,10 +495,48 @@ struct ScoreboardScreen: View {
         .padding(.horizontal, 16)
     }
 
+    // MARK: - Undo toast
+
+    /// Always mounted, opacity-driven — brief "undone" confirmation above the
+    /// footer (ZStack child, not overlay: SkipUI drops overlay content here).
+    private var undoToast: some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.clockwise.circle")
+                    .font(.system(size: 12, weight: .bold))
+                    .scaleEffect(x: -1, y: 1)
+                Text("Action undone")
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .background(Capsule().fill(Color.white.opacity(0.14)))
+            .padding(.bottom, 64)
+        }
+        .opacity(undoToastVisible ? 1 : 0)
+        .allowsHitTesting(false)
+    }
+
+    private func showUndoToast() {
+        undoToastGeneration += 1
+        let generation = undoToastGeneration
+        withAnimation(.easeOut(duration: 0.15)) { undoToastVisible = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_600_000_000)
+            guard generation == undoToastGeneration else { return }  // newer undo keeps it up
+            withAnimation(.easeIn(duration: 0.3)) { undoToastVisible = false }
+        }
+    }
+
     private var footerBar: some View {
         HStack(spacing: 12) {
             circleButton(disabled: !viewModel.canUndo,
-                         action: { viewModel.undo() }) {
+                         action: {
+                             guard viewModel.canUndo else { return }
+                             viewModel.undo()
+                             showUndoToast()
+                         }) {
                 // Mirrored clockwise arrow = counterclockwise undo
                 // (arrow.counterclockwise is not in SkipUI's symbol map).
                 Image(systemName: "arrow.clockwise.circle")
