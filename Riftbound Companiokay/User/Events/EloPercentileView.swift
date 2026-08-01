@@ -13,6 +13,8 @@ import Charts
 
 struct EloPercentileView: View {
     let currentElo: Int
+    /// Season slug the distribution should come from (nil = current/newest).
+    var season: String? = nil
     var service: any EloShowdownService = EloCache.shared
 
     @State private var phase: Phase = .idle
@@ -78,7 +80,7 @@ struct EloPercentileView: View {
     private func load() async {
         guard case .idle = phase else { return }
         phase = .loading
-        guard let dist = try? await service.eloDistribution(), !dist.buckets.isEmpty else {
+        guard let dist = try? await service.eloDistribution(season: season), !dist.buckets.isEmpty else {
             phase = .hidden
             return
         }

@@ -1,63 +1,100 @@
 import SwiftUI
 
-/// Compact opponent scouting line for the live "Your match" card, ported from
-/// iOS: the opponent's eloshowdown tier crest + current ELO + their last 3
-/// results + H2H vs you. Resolved from the opponent's Riftbound id (the
-/// Locator user id on the pairing) via eloshowdown lookup. Renders nothing
-/// until data loads, and nothing at all without an eloshowdown profile.
+/// Scouting row for the "Your match" card, ported from iOS: both sides'
+/// eloshowdown tier crest and current ELO, mirrored under the two player names,
+/// plus the head-to-head line from the signed-in player's perspective. Players
+/// resolve from their Riftbound id (display name as fallback); a side without
+/// an eloshowdown profile is left out, and the whole row hides when neither
+/// side has data.
 struct OpponentEloBadge: View {
     let riftboundID: Int?
+    /// Per-event display name — fallback resolution when the pairing carries no
+    /// usable Riftbound id (eloshowdown mirrors Locator names exactly).
+    var opponentName: String? = nil
     var myRiftboundID: Int? = nil
+    var myName: String? = nil
     var service: any EloShowdownService = EloCache.shared
 
     @State var phase: Phase = .idle
 
     enum Phase { case idle, loading, loaded(Loaded), hidden }
-    struct Loaded { let elo: Int?; let tier: String?; let form: [String]; let h2h: EloH2H? }
+
+    /// One player's scouting numbers.
+    struct Side {
+        let elo: Int?
+        let tier: String?
+
+        var isEmpty: Bool { elo == nil && tier == nil }
+    }
+
+    struct Loaded { let me: Side?; let opponent: Side?; let h2h: EloH2H?; let opponentLabel: String? }
 
     var body: some View {
         Group {
-            if case .loaded(let data) = phase { row(data) }
+            if case .loaded(let data) = phase {
+                row(data)
+            } else {
+                // Never let the body collapse to EmptyView: .task/.onAppear
+                // don't fire on it, so load() would never run.
+                Color.clear.frame(width: 1, height: 1)
+            }
         }
         .task { await load() }
     }
 
+    // MARK: - Row
+
     private func row(_ data: Loaded) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 8) {
-                RankCrest(tier: data.tier, size: 22)
-                if let elo = data.elo {
-                    Text("\(elo)")
-                        .font(.system(size: 15, weight: .heavy))
-                        .foregroundStyle(.white)
-                    Text("ELO")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(EventsTheme.textTertiary)
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                sideColumn(data.me, mine: true)
                 Spacer(minLength: 8)
-                if !data.form.isEmpty {
-                    Text("last 3")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(EventsTheme.textTertiary)
-                    HStack(spacing: 3) {
-                        ForEach(Array(data.form.enumerated()), id: \.offset) { _, result in
-                            miniPill(result)
-                        }
-                    }
-                }
+                sideColumn(data.opponent, mine: false)
             }
-            if let h2h = data.h2h, h2h.hasHistory { h2hLine(h2h) }
+            if let h2h = data.h2h, h2h.hasHistory { h2hLine(h2h, opponent: data.opponentLabel) }
         }
-        .padding(.top, 6)
+        .padding(.top, 8)
     }
 
-    private func h2hLine(_ h2h: EloH2H) -> some View {
+    /// Crest + ELO, mirrored so each column hugs its own player's name in the
+    /// VS row above.
+    @ViewBuilder
+    private func sideColumn(_ side: Side?, mine: Bool) -> some View {
+        if let side, !side.isEmpty {
+            HStack(spacing: 6) {
+                if mine {
+                    RankCrest(tier: side.tier, size: 20)
+                    eloText(side.elo)
+                } else {
+                    eloText(side.elo)
+                    RankCrest(tier: side.tier, size: 20)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func eloText(_ elo: Int?) -> some View {
+        if let elo {
+            HStack(spacing: 4) {
+                Text("\(elo)")
+                    .font(.system(size: 15, weight: .heavy))
+                    .foregroundStyle(.white)
+                Text("ELO")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(EventsTheme.textTertiary)
+            }
+        }
+    }
+
+    private func h2hLine(_ h2h: EloH2H, opponent: String?) -> some View {
         let draws = h2h.draws ?? 0
         let record = "\(h2h.wins ?? 0)–\(h2h.losses ?? 0)" + (draws > 0 ? "–\(draws)" : "")
         return HStack(spacing: 6) {
             // arrow.left.arrow.right isn't in SkipUI's symbol map.
             Text("↔")
-            Text("H2H vs you \(record)")
+            Text("You vs \(opponent ?? "opponent")").lineLimit(1)
+            Text(record).foregroundStyle(.white)
             if let swing = h2h.eloSwingTotal, swing != 0 {
                 Text(swing > 0 ? "+\(swing)" : "\(swing)")
                     .foregroundStyle(swing > 0 ? EventsTheme.green : .red)
@@ -70,56 +107,64 @@ struct OpponentEloBadge: View {
         .foregroundStyle(EventsTheme.textSecondary)
     }
 
-    private func miniPill(_ result: String) -> some View {
-        let colors = pillColors(result)
-        return Text(result.uppercased())
-            .font(.system(size: 9, weight: .bold))
-            .frame(width: 16, height: 16)
-            .background(Circle().fill(colors.bg))
-            .foregroundStyle(colors.fg)
-    }
-
-    private func pillColors(_ result: String) -> (bg: Color, fg: Color) {
-        switch result.uppercased() {
-        case "W": return (EventsTheme.green, EventsTheme.matchFillBottom)
-        case "L": return (Color.red.opacity(0.85), .white)
-        default:  return (EventsTheme.textTertiary.opacity(0.45), .white)
-        }
-    }
+    // MARK: - Load
 
     @MainActor
     private func load() async {
         guard case .idle = phase else { return }
-        guard let rid = riftboundID else { phase = .hidden; return }
         phase = .loading
-        guard let player = try? await service.lookup(riftboundID: String(rid)) else {
+
+        async let opponentPlayer = resolve(id: riftboundID, name: opponentName)
+        async let mePlayer = resolve(id: myRiftboundID, name: myName)
+        let (opponent, me) = await (opponentPlayer, mePlayer)
+
+        guard opponent != nil || me != nil else {
+            logger.info("EloBadge: neither side resolved — hiding")
             phase = .hidden
             return
         }
-        async let seasonTask = service.currentSeason()
-        async let statsTask = service.stats(playerID: player.id)
-        async let rankTask = service.rank(playerID: player.id)
-        async let formTask = service.form(playerID: player.id)
-        async let meTask = lookupMe()
 
-        let season = try? await seasonTask
-        let stats = try? await statsTask
-        let elo = stats?.seasons.first { $0.seasonSlug == season?.slug }?.currentElo
-        let tier = (try? await rankTask)?.tier
-        let form = Array(((try? await formTask)?.lastN ?? []).suffix(3))
+        // One season resolution for both sides.
+        let season = try? await service.currentSeason()
+        async let opponentSide = side(for: opponent, season: season?.slug)
+        async let meSide = side(for: me, season: season?.slug)
 
         var h2h: EloH2H?
-        if let me = await meTask {
-            h2h = try? await service.headToHead(playerID: me.id, opponentID: player.id)
+        if let me, let opponent {
+            h2h = try? await service.headToHead(playerID: me.id, opponentID: opponent.id)
         }
 
-        if elo == nil, tier == nil, form.isEmpty, h2h?.hasHistory != true { phase = .hidden; return }
-        phase = .loaded(Loaded(elo: elo, tier: tier, form: form, h2h: h2h))
+        let (opp, mine) = await (opponentSide, meSide)
+        let label = opponent?.displayName ?? opponentName
+        if opp?.isEmpty != false, mine?.isEmpty != false, h2h?.hasHistory != true {
+            logger.info("EloBadge: resolved but empty — hiding")
+            phase = .hidden
+            return
+        }
+        phase = .loaded(Loaded(me: mine, opponent: opp, h2h: h2h, opponentLabel: label))
     }
 
-    /// Resolve the signed-in user to their eloshowdown player (for the H2H lookup).
-    private func lookupMe() async -> EloPlayer? {
-        guard let mine = myRiftboundID else { return nil }
-        return try? await service.lookup(riftboundID: String(mine))
+    private func side(for player: EloPlayer?, season: String?) async -> Side? {
+        guard let player else { return nil }
+        async let statsTask = service.stats(playerID: player.id)
+        async let rankTask = service.rank(playerID: player.id, season: season)
+
+        let elo = (try? await statsTask)?.seasons.first { $0.seasonSlug == season }?.currentElo
+        let tier = (try? await rankTask)?.tier
+        return Side(elo: elo, tier: tier)
+    }
+
+    /// Primary: Riftbound-id lookup. Fallback: exact display-name match — the
+    /// pairing payload doesn't always carry a usable id for every player.
+    private func resolve(id: Int?, name: String?) async -> EloPlayer? {
+        if let id, let player = try? await service.lookup(riftboundID: String(id)) {
+            return player
+        }
+        guard let name = name?.trimmingCharacters(in: .whitespaces), name.count >= 3,
+              let hits = try? await service.search(query: name),
+              let hit = hits.first(where: { $0.displayName.caseInsensitiveCompare(name) == .orderedSame }),
+              let player = try? await service.player(id: hit.id)
+        else { return nil }
+        return player
     }
 }

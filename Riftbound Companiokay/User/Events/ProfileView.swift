@@ -18,6 +18,8 @@ struct ProfileView: View {
     @State private var state: LoadState = .idle
     @State private var scrubIndex: Int?
     @State private var matchPageNum = 1
+    /// nil = the resolved current/newest season; a slug = user picked one.
+    @State private var selectedSeasonSlug: String?
 
     enum LoadState {
         case idle, loading
@@ -29,6 +31,8 @@ struct ProfileView: View {
     struct Loaded {
         let player: EloPlayer
         let season: EloSeason
+        /// Every season the player appeared in — drives the season switcher.
+        let seasons: [EloSeasonStats]
         let current: EloSeasonStats?
         let rank: EloRank?
         let dna: EloDNA?
@@ -66,13 +70,14 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 18) {
             attribution(data)
             header(data)
+            if data.seasons.count > 1 { seasonSwitcher(data) }
             if let current = data.current {
                 seasonCard(current, seasonName: data.season.name ?? data.season.slug)
             } else {
                 noSeasonCard(data.season.name ?? "this season")
             }
             if let elo = data.current?.currentElo {
-                EloPercentileView(currentElo: elo)
+                EloPercentileView(currentElo: elo, season: data.season.slug)
             }
             if let dna = data.dna, !dna.dimensions.ordered.isEmpty {
                 dnaCard(dna, profileURL: eloProfileURL(data))
@@ -84,6 +89,35 @@ struct ProfileView: View {
         .padding(.horizontal, 18)
         .padding(.top, 10)
         .padding(.bottom, 24)
+    }
+
+    /// Season chips (same look as the event round switcher). Newest first,
+    /// as the stats endpoint delivers them.
+    private func seasonSwitcher(_ data: Loaded) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(data.seasons, id: \.seasonSlug) { season in
+                    let isSelected = season.seasonSlug == data.season.slug
+                    Button {
+                        guard !isSelected else { return }
+                        selectedSeasonSlug = season.seasonSlug
+                        Task { await load() }
+                    } label: {
+                        Text(shortSeasonLabel(season))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(isSelected ? EventsTheme.matchFillBottom : EventsTheme.textSecondary)
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .background(isSelected ? EventsTheme.green : Color.white.opacity(0.06), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func shortSeasonLabel(_ season: EloSeasonStats) -> String {
+        if let n = firstInt(season.seasonName) ?? firstInt(season.seasonSlug) { return "Season \(n)" }
+        return season.seasonName ?? season.seasonSlug
     }
 
     private func profileFooter(_ data: Loaded) -> some View {
@@ -626,25 +660,36 @@ struct ProfileView: View {
     @MainActor
     private func load() async {
         guard let userID = session.userID else { state = .failed("Sign in to see your profile."); return }
-        state = .loading
+        // Keep loaded content mounted during pull-to-refresh; a full swap to the
+        // spinner branch tears down the scroll view and breaks the refresh gesture.
+        if case .loaded = state {} else { state = .loading }
         matchPageNum = 1         // back to page 1 of match history for the new load
         do {
             guard let player = try await resolvePlayer(userID: userID) else {
                 state = .noProfile
                 return
             }
-            async let season = service.currentSeason()
-            async let stats = service.stats(playerID: player.id)
-            // Optional extras — a missing one shouldn't fail the whole screen.
-            async let dnaTask = service.dna(playerID: player.id)
-            async let formTask = service.form(playerID: player.id)
-            async let historyTask = service.eloHistory(playerID: player.id)
-            async let rankTask = service.rank(playerID: player.id)
+            // Stats first: its season list feeds the switcher and resolves the
+            // slug every season-scoped call below gets pinned to.
+            let st = try await service.stats(playerID: player.id)
+            let fallbackSeason = try? await service.currentSeason()
+            let slug = selectedSeasonSlug
+                ?? fallbackSeason?.slug
+                ?? st.seasons.first?.seasonSlug
+                ?? ""
+            let current = st.seasons.first { $0.seasonSlug == slug }
+            let season = EloSeason(slug: slug,
+                                   name: current?.seasonName ?? fallbackSeason?.name,
+                                   start: nil, end: nil, isCurrent: nil)
 
-            let s = try await season
-            let st = try await stats
-            let current = st.seasons.first { $0.seasonSlug == s.slug }
-            state = .loaded(Loaded(player: player, season: s, current: current,
+            // Optional extras — a missing one shouldn't fail the whole screen.
+            async let dnaTask = service.dna(playerID: player.id, season: slug)
+            async let formTask = service.form(playerID: player.id, season: slug)
+            async let historyTask = service.eloHistory(playerID: player.id, season: slug)
+            async let rankTask = service.rank(playerID: player.id, season: slug)
+
+            state = .loaded(Loaded(player: player, season: season,
+                                   seasons: st.seasons, current: current,
                                    rank: try? await rankTask,
                                    dna: try? await dnaTask,
                                    form: try? await formTask,

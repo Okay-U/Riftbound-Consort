@@ -55,20 +55,37 @@ actor EloCache: EloShowdownService {
         try await cached("player:\(id)", ttl) { try await upstream.player(id: id) }
     }
 
+    /// Slug that season-scoped endpoints get pinned to when the caller passes
+    /// nil. The server's own "current" default is empty between seasons, so
+    /// requests always carry an explicit slug when one can be resolved.
+    private func resolveSeason(_ season: String?) async -> String? {
+        if let season { return season }
+        return try? await currentSeason().slug
+    }
+
     func stats(playerID: Int) async throws -> EloStats {
         try await cached("stats:\(playerID)", ttl) { try await upstream.stats(playerID: playerID) }
     }
 
-    func dna(playerID: Int) async throws -> EloDNA {
-        try await cached("dna:\(playerID)", ttl) { try await upstream.dna(playerID: playerID) }
+    func dna(playerID: Int, season: String?) async throws -> EloDNA {
+        let season = await resolveSeason(season)
+        return try await cached("dna:\(playerID):\(season ?? "-")", ttl) {
+            try await upstream.dna(playerID: playerID, season: season)
+        }
     }
 
-    func form(playerID: Int) async throws -> EloForm {
-        try await cached("form:\(playerID)", ttl) { try await upstream.form(playerID: playerID) }
+    func form(playerID: Int, season: String?) async throws -> EloForm {
+        let season = await resolveSeason(season)
+        return try await cached("form:\(playerID):\(season ?? "-")", ttl) {
+            try await upstream.form(playerID: playerID, season: season)
+        }
     }
 
-    func eloHistory(playerID: Int) async throws -> EloHistory {
-        try await cached("history:\(playerID)", ttl) { try await upstream.eloHistory(playerID: playerID) }
+    func eloHistory(playerID: Int, season: String?) async throws -> EloHistory {
+        let season = await resolveSeason(season)
+        return try await cached("history:\(playerID):\(season ?? "-")", ttl) {
+            try await upstream.eloHistory(playerID: playerID, season: season)
+        }
     }
 
     func topOpponents(playerID: Int) async throws -> [EloOpponent] {
@@ -79,8 +96,11 @@ actor EloCache: EloShowdownService {
         try await cached("achievements:\(playerID)", ttl) { try await upstream.achievements(playerID: playerID) }
     }
 
-    func rank(playerID: Int) async throws -> EloRank {
-        try await cached("rank:\(playerID)", ttl) { try await upstream.rank(playerID: playerID) }
+    func rank(playerID: Int, season: String?) async throws -> EloRank {
+        let season = await resolveSeason(season)
+        return try await cached("rank:\(playerID):\(season ?? "-")", ttl) {
+            try await upstream.rank(playerID: playerID, season: season)
+        }
     }
 
     func currentSeason() async throws -> EloSeason {
@@ -104,8 +124,11 @@ actor EloCache: EloShowdownService {
         }
     }
 
-    func eloDistribution() async throws -> EloDistribution {
-        try await cached("distribution", slowTTL) { try await upstream.eloDistribution() }
+    func eloDistribution(season: String?) async throws -> EloDistribution {
+        let season = await resolveSeason(season)
+        return try await cached("distribution:\(season ?? "-")", slowTTL) {
+            try await upstream.eloDistribution(season: season)
+        }
     }
 
     // MARK: - Store

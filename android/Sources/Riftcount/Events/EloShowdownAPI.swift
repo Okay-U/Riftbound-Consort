@@ -12,13 +12,15 @@ protocol EloShowdownService: Sendable {
     func lookup(riftboundID: String) async throws -> EloPlayer?
     func search(query: String) async throws -> [EloSearchResult]
     func player(id: Int) async throws -> EloPlayer
+    /// All seasons the player appeared in (server does not filter this one).
     func stats(playerID: Int) async throws -> EloStats
-    func dna(playerID: Int) async throws -> EloDNA
-    func form(playerID: Int) async throws -> EloForm
-    func eloHistory(playerID: Int) async throws -> EloHistory
+    // Season-scoped reads: nil = the resolved current/newest season.
+    func dna(playerID: Int, season: String?) async throws -> EloDNA
+    func form(playerID: Int, season: String?) async throws -> EloForm
+    func eloHistory(playerID: Int, season: String?) async throws -> EloHistory
     func topOpponents(playerID: Int) async throws -> [EloOpponent]
     func achievements(playerID: Int) async throws -> [EloAchievement]
-    func rank(playerID: Int) async throws -> EloRank
+    func rank(playerID: Int, season: String?) async throws -> EloRank
     func currentSeason() async throws -> EloSeason
     /// Community (city) leaderboard by current ELO. `community` is a slug from `communities()`.
     func leaderboard(season: String, community: String?, country: String?, limit: Int) async throws -> [EloLeaderRow]
@@ -27,7 +29,7 @@ protocol EloShowdownService: Sendable {
     /// Head-to-head between two players (both eloshowdown internal ids).
     func headToHead(playerID: Int, opponentID: Int) async throws -> EloH2H
     /// Season-wide ELO histogram for placing a player on the curve.
-    func eloDistribution() async throws -> EloDistribution
+    func eloDistribution(season: String?) async throws -> EloDistribution
 }
 
 final class EloShowdownAPI: EloShowdownService {
@@ -80,18 +82,6 @@ final class EloShowdownAPI: EloShowdownService {
         try await get("players/\(playerID)/stats")
     }
 
-    func dna(playerID: Int) async throws -> EloDNA {
-        try await get("players/\(playerID)/dna")
-    }
-
-    func form(playerID: Int) async throws -> EloForm {
-        try await get("players/\(playerID)/form")
-    }
-
-    func eloHistory(playerID: Int) async throws -> EloHistory {
-        try await get("players/\(playerID)/elo-history")
-    }
-
     func topOpponents(playerID: Int) async throws -> [EloOpponent] {
         try await get("players/\(playerID)/top-opponents")
     }
@@ -100,12 +90,47 @@ final class EloShowdownAPI: EloShowdownService {
         try await get("players/\(playerID)/achievements")
     }
 
-    func rank(playerID: Int) async throws -> EloRank {
-        try await get("players/\(playerID)/rank")
+    func currentSeason() async throws -> EloSeason {
+        do {
+            return try await get("seasons/current")
+        } catch EloError.http(404) {
+            // Between seasons (e.g. right after a set release) the server has
+            // no current season configured — fall back to the newest one.
+            let seasons: [EloSeason] = try await get("seasons")
+            guard let latest = seasons.max(by: { ($0.start ?? .distantPast) < ($1.start ?? .distantPast) }) else {
+                throw EloError.http(404)
+            }
+            return latest
+        }
     }
 
-    func currentSeason() async throws -> EloSeason {
-        try await get("seasons/current")
+    // MARK: - Season-pinned variants
+    // The server resolves season-scoped endpoints against its "current" season,
+    // which is empty between seasons — EloCache pins the slug explicitly.
+
+    private func seasonQuery(_ season: String?) -> String {
+        guard let season, !season.isEmpty else { return "" }
+        return "?season=\(encoded(season))"
+    }
+
+    func dna(playerID: Int, season: String?) async throws -> EloDNA {
+        try await get("players/\(playerID)/dna" + seasonQuery(season))
+    }
+
+    func form(playerID: Int, season: String?) async throws -> EloForm {
+        try await get("players/\(playerID)/form" + seasonQuery(season))
+    }
+
+    func eloHistory(playerID: Int, season: String?) async throws -> EloHistory {
+        try await get("players/\(playerID)/elo-history" + seasonQuery(season))
+    }
+
+    func rank(playerID: Int, season: String?) async throws -> EloRank {
+        try await get("players/\(playerID)/rank" + seasonQuery(season))
+    }
+
+    func eloDistribution(season: String?) async throws -> EloDistribution {
+        try await get("stats/elo-distribution" + seasonQuery(season))
     }
 
     func leaderboard(season: String, community: String?, country: String?, limit: Int) async throws -> [EloLeaderRow] {
@@ -121,10 +146,6 @@ final class EloShowdownAPI: EloShowdownService {
 
     func headToHead(playerID: Int, opponentID: Int) async throws -> EloH2H {
         try await get("players/\(playerID)/h2h/\(opponentID)")
-    }
-
-    func eloDistribution() async throws -> EloDistribution {
-        try await get("stats/elo-distribution")
     }
 
     // MARK: - Transport
