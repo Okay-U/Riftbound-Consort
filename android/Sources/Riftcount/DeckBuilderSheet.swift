@@ -55,6 +55,8 @@ struct DeckBuilderSheet: View {
 
             Spacer()
 
+            // Incomplete steps may be skipped (illegal decks are allowed);
+            // only saving without a name stays blocked.
             Button {
                 advance()
             } label: {
@@ -62,7 +64,7 @@ struct DeckBuilderSheet: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(canAdvance ? Color.accentColor : Color.secondary)
             }
-            .disabled(!canAdvance)
+            .disabled(step == .finalize && !state.canSave)
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
@@ -97,7 +99,8 @@ struct DeckBuilderSheet: View {
     }
 
     private var primaryLabel: String {
-        step == .finalize ? "Save" : "Next"
+        if step == .finalize { return "Save" }
+        return canAdvance ? "Next" : "Skip"
     }
 
     private func advance() {

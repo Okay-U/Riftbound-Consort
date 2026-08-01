@@ -28,7 +28,7 @@ final class DeckBuilderState: ObservableObject {
             case .champion:    return "Pick Champion"
             case .battlefield: return "Battlefields (3)"
             case .mainDeck:    return "Main Deck (39)"
-            case .sideDeck:    return "Sideboard (0 or 8)"
+            case .sideDeck:    return "Sideboard (10)"
             case .runePool:    return "Rune Pool (12)"
             case .finalize:    return "Save Deck"
             }
@@ -38,7 +38,9 @@ final class DeckBuilderState: ObservableObject {
     // MARK: - Targets
 
     static let mainDeckTarget   = 39
-    static let sideDeckOptions: [Int] = [0, 8]
+    /// Legal sizes; empty is legal too, but the UI only ever shows the full target.
+    static let sideDeckOptions: [Int] = [0, 10]
+    static let sideDeckTarget   = 10
     static let battlefieldTarget = 3
     static let runeTotal         = 12
     static let runePerDomain     = 6
@@ -274,14 +276,10 @@ final class DeckBuilderState: ObservableObject {
     var canAdvanceFromMain: Bool        { mainCount == Self.mainDeckTarget }
     var canAdvanceFromSide: Bool        { Self.sideDeckOptions.contains(sideCount) }
     var canAdvanceFromRunes: Bool       { runeTotalCount == Self.runeTotal }
+    /// Only a name is required — incomplete (illegal) decks may be saved; the
+    /// deck detail's legality section flags what's missing.
     var canSave: Bool {
         !deckName.trimmingCharacters(in: .whitespaces).isEmpty
-            && canAdvanceFromLegend
-            && canAdvanceFromChampion
-            && canAdvanceFromBattlefield
-            && canAdvanceFromMain
-            && canAdvanceFromSide
-            && canAdvanceFromRunes
     }
 
     // MARK: - Finalize
@@ -290,16 +288,13 @@ final class DeckBuilderState: ObservableObject {
     /// domain) using rune cards looked up from `pool`. Returns the new deck.
     @discardableResult
     func finalize(into store: DecklistStore, runePool: [Card]) -> Decklist? {
-        guard canSave,
-              let legend,
-              let champion
-        else { return nil }
+        guard canSave else { return nil }
 
         let trimmedName = deckName.trimmingCharacters(in: .whitespaces)
         let new = store.create(name: trimmedName)
 
-        store.add(legend, to: new, slot: .legend)
-        store.add(champion, to: new, slot: .champion)
+        if let legend { store.add(legend, to: new, slot: .legend) }
+        if let champion { store.add(champion, to: new, slot: .champion) }
         for bf in battlefields {
             store.add(bf, to: new, slot: .battlefield)
         }

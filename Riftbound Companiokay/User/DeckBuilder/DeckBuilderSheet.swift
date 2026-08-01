@@ -35,8 +35,10 @@ struct DeckBuilderSheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
+                    // Incomplete steps may be skipped (illegal decks are allowed);
+                    // only saving without a name stays blocked.
                     Button(primaryLabel) { advance() }
-                        .disabled(!canAdvance)
+                        .disabled(step == .finalize && !state.canSave)
                 }
             }
             .onAppear {
@@ -77,7 +79,8 @@ struct DeckBuilderSheet: View {
     }
 
     private var primaryLabel: String {
-        step == .finalize ? "Save" : "Next"
+        if step == .finalize { return "Save" }
+        return canAdvance ? "Next" : "Skip"
     }
 
     private func advance() {

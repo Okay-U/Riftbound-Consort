@@ -96,7 +96,7 @@ struct BuilderFinalizeView: View {
         if !state.canAdvanceFromChampion     { out.append("Champion not picked.") }
         if !state.canAdvanceFromBattlefield  { out.append("Need 3 battlefields.") }
         if !state.canAdvanceFromMain         { out.append("Main deck must be 39 cards.") }
-        if !state.canAdvanceFromSide         { out.append("Sideboard must be 0 or 8 cards.") }
+        if !state.canAdvanceFromSide         { out.append("Sideboard must be 0 or 10 cards.") }
         return out
     }
 

@@ -58,7 +58,7 @@ struct DeckDetailView: View {
 
         switch slot {
         case .mainDeck:    if mainTotal >= 39 { return false }
-        case .sideDeck:    if sideTotal >= 8  { return false }
+        case .sideDeck:    if sideTotal >= 10  { return false }
         case .battlefield: if bfTotal   >= 3  { return false }
         case .rune:        if runeTotal >= 12 { return false }
         case .champion, .legend: return false
@@ -91,7 +91,7 @@ struct DeckDetailView: View {
                          entries: current.mainDeck,
                          slot: .mainDeck)
             multiSection(title: "Side deck",
-                         expected: "0 or 8",
+                         expected: "10",
                          entries: current.sideDeck,
                          slot: .sideDeck)
             multiSection(title: "Runes",

@@ -42,7 +42,7 @@ struct CardPoolPickerView: View {
     private var targetLabel: String {
         switch slot {
         case .mainDeck: return "\(DeckBuilderState.mainDeckTarget)"
-        case .sideDeck: return "0 or 8"
+        case .sideDeck: return "\(DeckBuilderState.sideDeckTarget)"
         }
     }
 
