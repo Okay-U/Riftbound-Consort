@@ -78,7 +78,9 @@ struct StoreDetailView: View {
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(isFavorite ? EventsTheme.green : .white)
                 }
-                .disabled(store == nil)
+                // Adding needs the store's data, but removing never does —
+                // otherwise a favorite whose page 404s can't be undone.
+                .disabled(store == nil && !isFavorite)
             }
         }
         .task { await load() }
@@ -89,6 +91,10 @@ struct StoreDetailView: View {
     private var isFavorite: Bool { StoreFavorites.contains(storeID, in: favRaw) }
 
     private func toggleFavorite() {
+        if isFavorite {
+            favRaw = StoreFavorites.removing(storeID, in: favRaw)
+            return
+        }
         guard let store else { return }
         let fav = FavoriteStore(id: storeID, name: store.name, subtitle: store.fullAddress, numericID: store.id)
         favRaw = StoreFavorites.toggling(fav, in: favRaw)

@@ -60,6 +60,11 @@ struct StoreDetailView: View {
     private var isFavorite: Bool { StoreFavorites.contains(storeID, in: favRaw) }
 
     private func toggleFavorite() {
+        if isFavorite {
+            // Removal only needs the id — a store page that 404s still unstars.
+            favRaw = StoreFavorites.removing(storeID, in: favRaw)
+            return
+        }
         guard let store else { return }
         let fav = FavoriteStore(id: storeID, name: store.name, subtitle: store.fullAddress, numericID: store.id)
         favRaw = StoreFavorites.toggling(fav, in: favRaw)

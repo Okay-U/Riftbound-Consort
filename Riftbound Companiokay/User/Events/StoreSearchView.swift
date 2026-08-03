@@ -251,6 +251,15 @@ struct StoreSearchView: View {
             .eventsCard(radius: 14)
         }
         .buttonStyle(.plain)
+        // Escape hatch for stores that no longer exist upstream: their page
+        // can't load, so the heart there is the only other way out.
+        .contextMenu {
+            Button(role: .destructive) {
+                favRaw = StoreFavorites.removing(fav.id, in: favRaw)
+            } label: {
+                Label("Remove from favorites", systemImage: "heart.slash")
+            }
+        }
     }
 
     private func hint(_ text: String) -> some View {

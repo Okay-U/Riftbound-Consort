@@ -37,6 +37,12 @@ enum StoreFavorites {
         decode(raw).contains { $0.id == id }
     }
 
+    /// Returns the new JSON without the store. Only needs the id, so a favorite
+    /// whose store page no longer loads can still be removed.
+    static func removing(_ id: String, in raw: String) -> String {
+        encode(decode(raw).filter { $0.id != id })
+    }
+
     /// Returns the new JSON with the store added (front) or removed.
     static func toggling(_ store: FavoriteStore, in raw: String) -> String {
         var list = decode(raw)
