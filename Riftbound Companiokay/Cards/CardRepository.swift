@@ -7,7 +7,7 @@ import Foundation
 
 protocol CardRepository: Sendable {
     func search(query: String, page: Int) async throws -> CardPage
-    func cards(page: Int) async throws -> CardPage
+    func cards(page: Int, size: Int) async throws -> CardPage
     func card(id: String) async throws -> Card
 }
 
@@ -31,11 +31,11 @@ final class RiftcodexCardRepository: CardRepository {
         return try await fetch(components.url!)
     }
 
-    func cards(page: Int = 1) async throws -> CardPage {
+    func cards(page: Int = 1, size: Int = 50) async throws -> CardPage {
         var components = URLComponents(url: base.appendingPathComponent("cards"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
             URLQueryItem(name: "page", value: String(page)),
-            URLQueryItem(name: "size", value: "50")
+            URLQueryItem(name: "size", value: String(size))
         ]
         return try await fetch(components.url!)
     }

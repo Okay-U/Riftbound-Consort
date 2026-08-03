@@ -85,26 +85,46 @@ final class CardStore: ObservableObject {
         load()
     }
 
+    /// riftcodex rejects `size` above 100, so the DB always needs many requests
+    /// (1451 cards = 15 pages as of Vendetta). Fetching them one after another
+    /// took ~30s with nothing on screen until the last one landed.
+    private static let pageSize = 100
+    private static let maxParallelPages = 6
+
     func load() {
         loadTask?.cancel()
         loadTask = Task {
             isLoading = true
             loadError = nil
-            var accumulated: [Card] = []
-            var page = 1
             do {
-                while true {
-                    try Task.checkCancellation()
-                    let result = try await repo.cards(page: page)
-                    accumulated.append(contentsOf: result.items)
-                    if accumulated.count >= result.total || result.items.isEmpty { break }
-                    page += 1
+                // Show page 1 immediately — the grid fills while the rest loads.
+                let first = try await repo.cards(page: 1, size: Self.pageSize)
+                publish(first.items)
+
+                let pageCount = Int(ceil(Double(first.total) / Double(Self.pageSize)))
+                guard pageCount > 1 else {
+                    isLoading = false
+                    return
                 }
-                // riftcodex has shipped literal duplicate rows (same riftbound_id,
-                // different DB id — seen with the Vendetta ingest); keep the first.
-                let unique = Self.dedupe(accumulated)
-                allCards = unique
-                legendNames = Self.computeLegendNames(from: unique)
+
+                var accumulated = first.items
+                var next = 2
+                while next <= pageCount {
+                    try Task.checkCancellation()
+                    let batch = Array(next..<min(next + Self.maxParallelPages, pageCount + 1))
+                    let pages = try await withThrowingTaskGroup(of: (Int, [Card]).self) { group in
+                        for page in batch {
+                            group.addTask { [repo] in (page, try await repo.cards(page: page, size: Self.pageSize).items) }
+                        }
+                        var byPage: [Int: [Card]] = [:]
+                        for try await (page, items) in group { byPage[page] = items }
+                        return byPage
+                    }
+                    // Keep the DB order stable regardless of completion order.
+                    for page in batch { accumulated.append(contentsOf: pages[page] ?? []) }
+                    publish(accumulated)
+                    next += batch.count
+                }
             } catch is CancellationError {
                 // ignored
             } catch {
@@ -112,6 +132,14 @@ final class CardStore: ObservableObject {
             }
             isLoading = false
         }
+    }
+
+    /// riftcodex has shipped literal duplicate rows (same riftbound_id, different
+    /// DB id — seen with the Vendetta ingest); keep the first.
+    private func publish(_ cards: [Card]) {
+        let unique = Self.dedupe(cards)
+        allCards = unique
+        legendNames = Self.computeLegendNames(from: unique)
     }
 
     // MARK: - Filtering
