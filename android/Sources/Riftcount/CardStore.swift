@@ -83,26 +83,32 @@ public final class CardStore {
     }
 
     /// riftcodex rejects `size` above 100, so the DB always needs many requests
-    /// (1451 cards = 15 pages as of Vendetta). Fetching them one after another
-    /// took ~30s with nothing on screen until the last one landed.
+    /// (1451 cards = 15 pages as of Vendetta), and its response times swing
+    /// between ~2s and ~25s per request. Pages go out five at a time — past
+    /// roughly six sockets per host the rest queue and time out waiting — and
+    /// a disk snapshot makes every launch after the first instant.
     static let pageSize = 100
-    static let maxParallelPages = 6
+    static let maxParallelPages = 5
+
+    private static var cacheURL: URL {
+        FileManager.default
+            .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("cards_cache_v1.json")
+    }
 
     func load() {
         loadTask?.cancel()
         loadTask = Task {
-            isLoading = true
+            // Last snapshot first: the tab is usable immediately and the
+            // network pass below silently replaces it when it lands.
+            if allCards.isEmpty, let cached = Self.readCache() {
+                publish(cached)
+            }
+            isLoading = allCards.isEmpty   // spinner only when nothing to show
             loadError = nil
             do {
-                // Show page 1 immediately — the grid fills while the rest loads.
                 let first = try await repo.cards(page: 1, size: Self.pageSize)
-                publish(first.items)
-
                 let pageCount = Int(ceil(Double(first.total) / Double(Self.pageSize)))
-                guard pageCount > 1 else {
-                    isLoading = false
-                    return
-                }
 
                 var accumulated = first.items
                 var next = 2
@@ -119,16 +125,36 @@ public final class CardStore {
                     }
                     // Keep the DB order stable regardless of completion order.
                     for page in batch { accumulated.append(contentsOf: pages[page] ?? []) }
-                    publish(accumulated)
                     next += batch.count
                 }
+                // Publish once: a growing grid made the card count jump around
+                // (100 → 700 → …), which reads as cards being missing.
+                publish(accumulated)
+                Self.writeCache(accumulated)
             } catch is CancellationError {
                 // ignored
             } catch {
-                loadError = error.localizedDescription
+                // With a snapshot on screen a failed refresh stays invisible;
+                // the error state is only for a truly empty tab.
+                if allCards.isEmpty { loadError = error.localizedDescription }
             }
             isLoading = false
         }
+    }
+
+    private static func readCache() -> [Card]? {
+        guard let data = try? Data(contentsOf: cacheURL) else { return nil }
+        // A corrupt/outdated snapshot just falls through to the network path.
+        return try? JSONDecoder().decode([Card].self, from: data)
+    }
+
+    private static func writeCache(_ cards: [Card]) {
+        guard let data = try? JSONEncoder().encode(cards) else { return }
+        // Documents may not exist yet in the Android sandbox.
+        try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        // A failed write only costs the next launch a refetch.
+        try? data.write(to: cacheURL, options: .atomic)
     }
 
     /// riftcodex has shipped literal duplicate rows (same riftbound_id, different

@@ -21,7 +21,9 @@ final class RiftcodexCardRepository: CardRepository, @unchecked Sendable {
 
     init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 15
+        // riftcodex answers in ~2s on a good day and ~25s on a bad one;
+        // 15s made the slow days look like an outage.
+        config.timeoutIntervalForRequest = 60
         self.session = URLSession(configuration: config)
     }
 
