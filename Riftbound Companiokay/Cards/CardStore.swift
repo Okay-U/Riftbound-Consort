@@ -57,13 +57,19 @@ final class CardStore: ObservableObject {
     private let repo = RiftcodexCardRepository()
     private var loadTask: Task<Void, Never>?
 
-    /// Drops rows that are the same physical card twice (same riftbound_id).
-    /// Distinct printings (e.g. "ven-042" vs "ven-042a") keep separate ids.
+    /// Drops rows riftcodex ships twice — same card, same printing, two database
+    /// rows (95 of them in the Vendetta ingest, verified identical on collector
+    /// number, rarity, type and stats).
+    ///
+    /// The key must include the name: `riftbound_id` identifies the *card*, not
+    /// the *printing*, so "Yasuo - Unforgiven" and "Yasuo - Unforgiven (Metal)"
+    /// share one. Keying on the id alone silently removed 147 real cards.
     private static func dedupe(_ cards: [Card]) -> [Card] {
         var seen = Set<String>()
         var out: [Card] = []
-        for card in cards where seen.insert(card.riftboundId ?? card.id).inserted {
-            out.append(card)
+        for card in cards {
+            let key = "\(card.riftboundId ?? card.id)|\(card.name)"
+            if seen.insert(key).inserted { out.append(card) }
         }
         return out
     }

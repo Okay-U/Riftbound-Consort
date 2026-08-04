@@ -41,7 +41,7 @@ final class RiftcodexCardRepository: CardRepository, @unchecked Sendable {
         var components = URLComponents(url: base.appendingPathComponent("cards"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
             URLQueryItem(name: "page", value: String(page)),
-            URLQueryItem(name: "size", value: "50")
+            URLQueryItem(name: "size", value: String(size))
         ]
         return try await fetch(components.url!)
     }
