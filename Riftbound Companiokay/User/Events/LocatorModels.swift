@@ -551,3 +551,46 @@ nonisolated struct LocatorStoreEvent: Decodable, Sendable, Identifiable {
         return "\(symbol)\(String(format: "%.2f", amount))"
     }
 }
+
+// MARK: - Deck defining card ("legend")
+
+/// The Locator website reads events from a different service than the TV feed
+/// this app uses — the hydraproxy host — and only that one carries each player's
+/// submitted legend. It needs no token.
+///
+/// Decoded narrowly on purpose: the same payload also exposes players' real
+/// names, which the TV feed never does and this app has no business showing.
+nonisolated struct LocatorDeckCardPage: Decodable, Sendable {
+    let results: [LocatorDeckCardRow]
+}
+
+nonisolated struct LocatorDeckCardRow: Decodable, Sendable {
+    let rank: Int?
+    let userEventStatus: LocatorDeckCardStatus?
+}
+
+nonisolated struct LocatorDeckCardStatus: Decodable, Sendable {
+    let bestIdentifier: String?
+    let matchesWon: Int?
+    let matchesLost: Int?
+    let matchesDrawn: Int?
+    let deckDefiningCard: LocatorDeckCard?
+}
+
+nonisolated struct LocatorDeckCard: Decodable, Sendable {
+    let name: String
+}
+
+/// One player's event as far as the metagame is concerned: what they brought,
+/// where they finished, how they did.
+nonisolated struct LocatorPlayerDeck: Sendable, Identifiable {
+    let displayName: String
+    let legend: String
+    let rank: Int?
+    let matchesWon: Int
+    let matchesLost: Int
+    let matchesDrawn: Int
+
+    var id: String { displayName }
+    var record: String { "\(matchesWon)-\(matchesLost)-\(matchesDrawn)" }
+}

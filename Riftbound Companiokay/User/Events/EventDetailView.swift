@@ -31,6 +31,9 @@ struct EventDetailView: View {
     @State private var calendarError: String?
     @State private var selectedRoundID: Int?
     @State private var standingsPending = false
+    @State private var deckCards: [String: String] = [:]
+    @State private var deckCardsRound: Int?
+    @State private var currentRoundID: Int?
     @State private var roster: [LocatorRosterEntry] = []
     @State private var rosterLimit = initialRowCap
     @State private var pairingLimit = initialRowCap
@@ -227,6 +230,7 @@ struct EventDetailView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
+        .task(id: currentRoundID) { await loadDeckCards() }
         .confirmationDialog("Register for this event?",
                             isPresented: $confirmingRegister, titleVisibility: .visible) {
             Button("Register · pay in person") { Task { await register(data.event) } }
@@ -765,6 +769,12 @@ struct EventDetailView: View {
                 }
                 Text(mine ? "you · \(player.record)" : player.record)
                     .font(.system(size: 11)).foregroundStyle(recordColor)
+                if let legend = deckCard(for: player.tvDisplayName) {
+                    Text(legend)
+                        .font(.system(size: 10))
+                        .foregroundStyle(EventsTheme.gold.opacity(0.85))
+                        .lineLimit(1)
+                }
             }
             .frame(maxWidth: .infinity, alignment: trailing ? .trailing : .leading)
         } else {
@@ -1204,10 +1214,18 @@ struct EventDetailView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(inCut ? EventsTheme.green : EventsTheme.textTertiary)
                 .frame(width: 26, alignment: .leading)
-            Text(mine ? "\(standing.tvDisplayName) · you" : standing.tvDisplayName)
-                .font(.system(size: 14, weight: mine ? .bold : .regular))
-                .foregroundStyle(mine ? EventsTheme.green : .white)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(mine ? "\(standing.tvDisplayName) · you" : standing.tvDisplayName)
+                    .font(.system(size: 14, weight: mine ? .bold : .regular))
+                    .foregroundStyle(mine ? EventsTheme.green : .white)
+                    .lineLimit(1)
+                if let legend = deckCard(for: standing.tvDisplayName) {
+                    Text(legend)
+                        .font(.system(size: 10))
+                        .foregroundStyle(EventsTheme.gold.opacity(0.85))
+                        .lineLimit(1)
+                }
+            }
             Spacer()
             Text(standing.record).font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
             Text("\(standing.totalMatchPoints ?? 0)p")
@@ -1234,6 +1252,23 @@ struct EventDetailView: View {
     }
 
     // MARK: - Helpers
+
+    /// Submitted legend for a player, once the event's decks have loaded.
+    private func deckCard(for name: String) -> String? { deckCards[name] }
+
+    /// Every player's legend for this event. Fetched separately from the rest —
+    /// it is a different, heavier service — so the page never waits on it and
+    /// the legends fill in. Event-wide, so switching rounds costs nothing.
+    @MainActor
+    private func loadDeckCards() async {
+        guard let roundID = currentRoundID, deckCardsRound != roundID else { return }
+        guard let decks = try? await service.eventDecks(roundID: roundID) else { return }
+        deckCardsRound = roundID
+
+        var cards: [String: String] = [:]
+        for deck in decks { cards[deck.displayName] = deck.legend }
+        deckCards = cards
+    }
 
     private func isMe(_ name: String, _ myName: String?) -> Bool {
         guard let myName, !myName.isEmpty else { return false }
@@ -1283,6 +1318,7 @@ struct EventDetailView: View {
             async let eventTask = service.event(id: eventID)
             async let pairingsTask = service.pairings(eventID: eventID)
             let e = try await eventTask
+            currentRoundID = e.currentRound?.id
             let m = try await pairingsTask
 
             // These depend on the event, but not on each other.

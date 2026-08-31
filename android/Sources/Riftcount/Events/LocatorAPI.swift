@@ -18,6 +18,7 @@ protocol LocatorService: Sendable {
     func pairings(eventID: Int, roundID: Int) async throws -> [LocatorMatch]
     func standings(eventID: Int) async throws -> [LocatorStanding]
     func roster(eventID: Int) async throws -> [LocatorRosterEntry]
+    func eventDecks(roundID: Int) async throws -> [LocatorPlayerDeck]
     func capacity(eventID: Int) async throws -> LocatorEventCapacity
     func myEvents(token: String, page: Int) async throws -> LocatorPage<LocatorUserEventStatus>
     func myMatch(roundID: Int, token: String) async throws -> LocatorMyMatch
@@ -39,6 +40,9 @@ protocol LocatorService: Sendable {
 
 final class RiftboundLocatorService: LocatorService, @unchecked Sendable {
     private let base = URL(string: "https://api.riftbound.uvsgames.com/api/v2/")!
+    /// Host the Locator website itself uses for pairings; the only one that
+    /// exposes submitted decks. Public — no token.
+    private let hydra = URL(string: "https://api.cloudflare.riftbound.uvsgames.com/hydraproxy/api/v2/")!
     private let session: URLSession
     private let decoder: JSONDecoder
 
@@ -79,6 +83,36 @@ final class RiftboundLocatorService: LocatorService, @unchecked Sendable {
     /// a roster while an event is still upcoming.
     func roster(eventID: Int) async throws -> [LocatorRosterEntry] {
         try await allPages("player/events/\(eventID)/tv/roster/")
+    }
+
+    /// Every player's submitted legend for an event, with their finish.
+    ///
+    /// Read from the round standings rather than the pairings: a legend belongs
+    /// to the player's registration, not to a match, so one request covers the
+    /// whole field — players who dropped included — and changing rounds needs no
+    /// refetch. 626 players came back in one 1.4 MB page in ~2s; page_size 1000
+    /// is honoured here, unlike the TV feed which caps at 500.
+    ///
+    /// The same rows carry each player's record and rank, which is the entire
+    /// input to the metagame breakdown — so that costs nothing beyond this call.
+    func eventDecks(roundID: Int) async throws -> [LocatorPlayerDeck] {
+        let page: LocatorDeckCardPage = try await get(
+            "tournament-rounds/\(roundID)/standings/paginated/?page=1&page_size=1000",
+            base: hydra)
+
+        var out: [LocatorPlayerDeck] = []
+        for row in page.results {
+            guard let status = row.userEventStatus,
+                  let name = status.bestIdentifier,
+                  let card = status.deckDefiningCard else { continue }
+            out.append(LocatorPlayerDeck(displayName: name,
+                                         legend: card.name,
+                                         rank: row.rank,
+                                         matchesWon: status.matchesWon ?? 0,
+                                         matchesLost: status.matchesLost ?? 0,
+                                         matchesDrawn: status.matchesDrawn ?? 0))
+        }
+        return out
     }
 
     /// Fetches every page instead of assuming one covers the event — a
@@ -247,8 +281,8 @@ final class RiftboundLocatorService: LocatorService, @unchecked Sendable {
         }
     }
 
-    private func get<T: Decodable>(_ path: String, token: String? = nil) async throws -> T {
-        guard let url = URL(string: path, relativeTo: base) else {
+    private func get<T: Decodable>(_ path: String, token: String? = nil, base: URL? = nil) async throws -> T {
+        guard let url = URL(string: path, relativeTo: base ?? self.base) else {
             throw LocatorError.badURL
         }
         var request = URLRequest(url: url)
