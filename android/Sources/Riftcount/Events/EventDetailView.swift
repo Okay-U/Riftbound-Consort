@@ -8,7 +8,7 @@ import SwiftUI
 struct EventDetailView: View {
     let eventID: Int
     var myAlias: String? = nil
-    var service: any LocatorService = RiftboundLocatorService()
+    var service: any LocatorService = LocatorCache.shared
 
     @Environment(AuthSession.self) var session
     @Environment(MatchModeStore.self) var matchMode
@@ -104,7 +104,7 @@ struct EventDetailView: View {
         }
         .background(EventsTheme.bg.ignoresSafeArea())
         .navigationTitle("Event")
-        .refreshable { await load() }
+        .refreshable { await service.invalidate(); await load() }
         .task { if case .idle = state { await load() } }
         .sheet(isPresented: $showReport) {
             if let reporting {

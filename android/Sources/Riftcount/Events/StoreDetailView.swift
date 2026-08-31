@@ -5,7 +5,7 @@ import SwiftUI
 /// the custom back button; the favorite heart moves inline next to the name.
 struct StoreDetailView: View {
     let storeID: String   // game-store UUID
-    var service: any LocatorService = RiftboundLocatorService()
+    var service: any LocatorService = LocatorCache.shared
 
     @AppStorage(StoreFavorites.key) var favRaw = "[]"
     @State var store: LocatorStore?
@@ -50,7 +50,7 @@ struct StoreDetailView: View {
             }
         }
         .background(EventsTheme.bg.ignoresSafeArea())
-        .refreshable { await loadEvents(reset: true) }
+        .refreshable { await service.invalidate(); await loadEvents(reset: true) }
         .navigationTitle(store?.name ?? "Store")
         .task { await load() }
     }

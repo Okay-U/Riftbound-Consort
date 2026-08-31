@@ -11,7 +11,7 @@ import SwiftUI
 
 struct StoreDetailView: View {
     let storeID: String   // game-store UUID
-    var service: any LocatorService = RiftboundLocatorService()
+    var service: any LocatorService = LocatorCache.shared
 
     @Environment(\.dismiss) private var dismiss
     @AppStorage(StoreFavorites.key) private var favRaw = "[]"
@@ -57,7 +57,7 @@ struct StoreDetailView: View {
             }
         }
         .background(EventsTheme.bg.ignoresSafeArea())
-        .refreshable { await loadEvents(reset: true) }
+        .refreshable { await service.invalidate(); await loadEvents(reset: true) }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {

@@ -6,7 +6,7 @@ import SwiftUI
 /// equivalents; section headers pass icon views.
 struct MyEventsView: View {
     @Environment(AuthSession.self) var session
-    var service: any LocatorService = RiftboundLocatorService()
+    var service: any LocatorService = LocatorCache.shared
     var embedded = false   // true when shown under the Events/Stores segmented nav
 
     @State var items: [LocatorUserEventStatus] = []
@@ -41,7 +41,7 @@ struct MyEventsView: View {
             }
         }
         .background(EventsTheme.bg)
-        .refreshable { await load() }
+        .refreshable { await service.invalidate(); await load() }
         .task { if case .idle = status { await load() } }
         .onAppear {
             // Refresh on return, throttled so back-navigation doesn't refetch

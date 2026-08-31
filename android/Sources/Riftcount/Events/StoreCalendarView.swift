@@ -7,7 +7,7 @@ import SwiftUI
 struct StoreCalendarView: View {
     @Environment(AuthSession.self) var session
     @AppStorage(StoreFavorites.key) var favRaw = "[]"
-    var service: any LocatorService = RiftboundLocatorService()
+    var service: any LocatorService = LocatorCache.shared
 
     @State var events: [CalEvent] = []
     @State var loading = true
@@ -38,7 +38,7 @@ struct StoreCalendarView: View {
             .padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 24)
         }
         .background(EventsTheme.bg.ignoresSafeArea())
-        .refreshable { await load() }
+        .refreshable { await service.invalidate(); await load() }
         .navigationTitle("Calendar")
         .overlay { if loading { ProgressView() } }
         .task { await load() }

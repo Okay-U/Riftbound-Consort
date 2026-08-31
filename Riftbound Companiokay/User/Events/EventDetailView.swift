@@ -13,7 +13,7 @@ import EventKit
 struct EventDetailView: View {
     let eventID: Int
     var myAlias: String? = nil
-    var service: any LocatorService = RiftboundLocatorService()
+    var service: any LocatorService = LocatorCache.shared
 
     @EnvironmentObject private var session: AuthSession
     @EnvironmentObject private var matchMode: MatchModeStore
@@ -112,7 +112,7 @@ struct EventDetailView: View {
         .background(EventsTheme.bg.ignoresSafeArea())
         // Must sit on the ScrollView itself — on an inner view the environment
         // action never reaches the scroll view and the gesture does nothing.
-        .refreshable { await load() }
+        .refreshable { await service.invalidate(); await load() }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {

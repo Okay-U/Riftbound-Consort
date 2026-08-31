@@ -19,6 +19,7 @@ protocol LocatorService: Sendable {
     func standings(eventID: Int) async throws -> [LocatorStanding]
     func roster(eventID: Int) async throws -> [LocatorRosterEntry]
     func eventDecks(roundID: Int) async throws -> [LocatorPlayerDeck]
+    func invalidate() async
     func capacity(eventID: Int) async throws -> LocatorEventCapacity
     func myEvents(token: String, page: Int) async throws -> LocatorPage<LocatorUserEventStatus>
     func myMatch(roundID: Int, token: String) async throws -> LocatorMyMatch
@@ -36,6 +37,12 @@ protocol LocatorService: Sendable {
                       opponentPMRID: Int,
                       opponentGamesWon: Int,
                       gamesDrawn: Int) async throws
+}
+
+extension LocatorService {
+    /// Drops cached responses. Only a caching implementation does anything;
+    /// talking straight to the server is already as fresh as it gets.
+    func invalidate() async {}
 }
 
 final class RiftboundLocatorService: LocatorService, @unchecked Sendable {

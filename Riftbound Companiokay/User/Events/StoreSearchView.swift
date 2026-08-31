@@ -13,7 +13,7 @@ import MapKit
 import CoreLocation
 
 struct StoreSearchView: View {
-    var service: any LocatorService = RiftboundLocatorService()
+    var service: any LocatorService = LocatorCache.shared
     var embedded = false   // shown inside the Stores segment (no nav bar)
 
     @AppStorage(StoreFavorites.key) private var favRaw = "[]"

@@ -11,7 +11,7 @@ import SwiftUI
 
 struct MyEventsView: View {
     @EnvironmentObject private var session: AuthSession
-    var service: any LocatorService = RiftboundLocatorService()
+    var service: any LocatorService = LocatorCache.shared
     var embedded = false   // true when shown under the Events/Stores segmented nav
 
     @State private var items: [LocatorUserEventStatus] = []
@@ -48,7 +48,7 @@ struct MyEventsView: View {
         .background(EventsTheme.bg.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
-        .refreshable { await load() }
+        .refreshable { await service.invalidate(); await load() }
         .task { if case .idle = status { await load() } }
         .onAppear {
             // Refresh on return (to reflect drops/registrations done elsewhere),

@@ -5,7 +5,7 @@ import SwiftUI
 /// The iOS map view is omitted on Android v1 (MapKit is not bridged);
 /// list-only with the same rows, favorites and calendar entry.
 struct StoreSearchView: View {
-    var service: any LocatorService = RiftboundLocatorService()
+    var service: any LocatorService = LocatorCache.shared
     var embedded = false
 
     @AppStorage(StoreFavorites.key) var favRaw = "[]"

@@ -39,7 +39,7 @@ final class MatchModeStore {
 
     private let service: any LocatorService
 
-    init(service: any LocatorService = RiftboundLocatorService()) {
+    init(service: any LocatorService = LocatorCache.shared) {
         self.service = service
         self.enabled = UserDefaults.standard.object(forKey: "matchModeEnabled") as? Bool ?? true
     }

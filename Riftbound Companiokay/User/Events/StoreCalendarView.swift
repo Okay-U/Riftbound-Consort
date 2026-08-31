@@ -13,7 +13,7 @@ struct StoreCalendarView: View {
     @EnvironmentObject private var session: AuthSession
     @AppStorage(StoreFavorites.key) private var favRaw = "[]"
     @Environment(\.dismiss) private var dismiss
-    var service: any LocatorService = RiftboundLocatorService()
+    var service: any LocatorService = LocatorCache.shared
 
     @State private var events: [CalEvent] = []
     @State private var loading = true
@@ -44,7 +44,7 @@ struct StoreCalendarView: View {
             .padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 24)
         }
         .background(EventsTheme.bg.ignoresSafeArea())
-        .refreshable { await load() }
+        .refreshable { await service.invalidate(); await load() }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {

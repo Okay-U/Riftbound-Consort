@@ -13,7 +13,7 @@ struct ReportResultSheet: View {
     let match: ResolvedMyMatch
     let isBestOfThree: Bool
     let token: String
-    var service: any LocatorService = RiftboundLocatorService()
+    var service: any LocatorService = LocatorCache.shared
     var onReported: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -27,7 +27,7 @@ struct ReportResultSheet: View {
     init(match: ResolvedMyMatch,
          isBestOfThree: Bool,
          token: String,
-         service: any LocatorService = RiftboundLocatorService(),
+         service: any LocatorService = LocatorCache.shared,
          onReported: @escaping () -> Void) {
         self.match = match
         self.isBestOfThree = isBestOfThree
