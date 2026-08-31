@@ -33,6 +33,7 @@ struct EventDetailView: View {
     @State private var standingsPending = false
     @State private var playerQuery = ""
     @State private var deckCards: [String: String] = [:]
+    @State private var deckCount = 0
     @State private var deckCardsRound: Int?
     @State private var currentRoundID: Int?
     @State private var roster: [LocatorRosterEntry] = []
@@ -227,6 +228,8 @@ struct EventDetailView: View {
             if !data.matches.isEmpty || data.event.browsableRounds.count > 1 {
                 pairingsSection(data)
             }
+
+            metaLink(data)
 
             if !data.standings.isEmpty || standingsPending {
                 VStack(alignment: .leading, spacing: 11) {
@@ -1078,6 +1081,39 @@ struct EventDetailView: View {
         .background(hit.isMe ? EventsTheme.greenSoft : Color.clear)
     }
 
+    // MARK: - Metagame
+
+    /// Entry point to the breakdown. Kept to one row on purpose: the event page
+    /// is for finding your table and your standing, and the full table pushed
+    /// both of those off the screen.
+    @ViewBuilder
+    private func metaLink(_ data: Loaded) -> some View {
+        let legends = Set(deckCards.values).count
+        if legends > 1, let roundID = currentRoundID {
+            NavigationLink(value: EventMetaRoute(roundID: roundID,
+                                                 cutSize: data.event.resolvedCutSize)) {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Metagame")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Text("\(deckCount) decks · \(legends) legends · win rates and conversion")
+                            .font(.system(size: 12))
+                            .foregroundStyle(EventsTheme.textSecondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(EventsTheme.textTertiary)
+                }
+                .padding(.vertical, 14).padding(.horizontal, 14)
+                .eventsCard(radius: 14)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     // MARK: - Who's playing (before the first round)
 
     /// Registered players, shown only while an event is still upcoming —
@@ -1470,6 +1506,7 @@ struct EventDetailView: View {
         var cards: [String: String] = [:]
         for deck in decks { cards[deck.displayName] = deck.legend }
         deckCards = cards
+        deckCount = decks.count
     }
 
     private func isMe(_ name: String, _ myName: String?) -> Bool {

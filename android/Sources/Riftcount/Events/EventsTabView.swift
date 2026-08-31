@@ -21,6 +21,9 @@ struct EventsTabView: View {
             .navigationDestination(for: EventRoute.self) { route in
                 EventDetailView(eventID: route.id, myAlias: route.alias)
             }
+            .navigationDestination(for: EventMetaRoute.self) { route in
+                EventMetaView(roundID: route.roundID, cutSize: route.cutSize)
+            }
             .navigationDestination(for: StoreSearchRoute.self) { _ in
                 StoreSearchView()
             }

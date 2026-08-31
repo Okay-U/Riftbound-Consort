@@ -222,6 +222,14 @@ nonisolated struct EventRoute: Hashable, Sendable {
     let alias: String?
 }
 
+/// Pushes an event's metagame breakdown. Carries the round whose standings the
+/// decks come from, so the screen re-reads the cached response instead of
+/// pushing the whole field through navigation.
+struct EventMetaRoute: Hashable, Sendable {
+    let roundID: Int
+    let cutSize: Int?
+}
+
 /// Pushes the store search screen.
 nonisolated struct StoreSearchRoute: Hashable, Sendable {}
 
@@ -593,4 +601,65 @@ nonisolated struct LocatorPlayerDeck: Sendable, Identifiable {
 
     var id: String { displayName }
     var record: String { "\(matchesWon)-\(matchesLost)-\(matchesDrawn)" }
+}
+
+/// How one legend did across a whole event.
+nonisolated struct LegendMeta: Sendable, Identifiable {
+    let legend: String
+    let players: Int
+    let wins: Int
+    let losses: Int
+    let draws: Int
+    /// Players on this legend who finished inside the event's top cut.
+    let converted: Int
+    /// Players on this legend who finished in the top 64.
+    let top64: Int
+    /// Best finish anyone managed with it.
+    let bestRank: Int?
+
+    var id: String { legend }
+    var games: Int { wins + losses + draws }
+    var winRate: Double { games == 0 ? 0 : Double(wins) / Double(games) }
+    var conversion: Double { players == 0 ? 0 : Double(converted) / Double(players) }
+    var record: String { "\(wins)-\(losses)-\(draws)" }
+
+    /// Groups a field by legend. Everything here comes from the standings fetch
+    /// the event page already makes for the gold legend lines, so the whole
+    /// metagame picture costs no extra requests.
+    static func breakdown(_ decks: [LocatorPlayerDeck], cut: Int?) -> [LegendMeta] {
+        var players: [String: Int] = [:]
+        var wins: [String: Int] = [:]
+        var losses: [String: Int] = [:]
+        var draws: [String: Int] = [:]
+        var converted: [String: Int] = [:]
+        var top64: [String: Int] = [:]
+        var best: [String: Int] = [:]
+
+        for deck in decks {
+            let key = deck.legend
+            players[key] = (players[key] ?? 0) + 1
+            wins[key] = (wins[key] ?? 0) + deck.matchesWon
+            losses[key] = (losses[key] ?? 0) + deck.matchesLost
+            draws[key] = (draws[key] ?? 0) + deck.matchesDrawn
+            if let rank = deck.rank {
+                if let cut, rank <= cut { converted[key] = (converted[key] ?? 0) + 1 }
+                if rank <= 64 { top64[key] = (top64[key] ?? 0) + 1 }
+                if let current = best[key] { best[key] = min(current, rank) } else { best[key] = rank }
+            }
+        }
+
+        return players.keys.map { key in
+            LegendMeta(legend: key,
+                       players: players[key] ?? 0,
+                       wins: wins[key] ?? 0,
+                       losses: losses[key] ?? 0,
+                       draws: draws[key] ?? 0,
+                       converted: converted[key] ?? 0,
+                       top64: top64[key] ?? 0,
+                       bestRank: best[key])
+        }
+        .sorted { a, b in
+            a.players == b.players ? a.legend < b.legend : a.players > b.players
+        }
+    }
 }
