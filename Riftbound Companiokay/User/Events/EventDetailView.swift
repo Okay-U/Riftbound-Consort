@@ -30,6 +30,7 @@ struct EventDetailView: View {
     @State private var calendarDraft: CalendarEventDraft?
     @State private var calendarError: String?
     @State private var selectedRoundID: Int?
+    @State private var standingsPending = false
     @State private var pairingLimit = initialRowCap
     @State private var standingsLimit = initialRowCap
     /// Pairings per round id. Completed rounds never change, so this cache
@@ -199,10 +200,23 @@ struct EventDetailView: View {
                 pairingsSection(data)
             }
 
-            if !data.standings.isEmpty {
+            if !data.standings.isEmpty || standingsPending {
                 VStack(alignment: .leading, spacing: 11) {
                     SectionHeader("list.number", "Standings")
-                    standingsCard(data)
+                    if data.standings.isEmpty {
+                        // Standings arrive after the rest of the page; a row here
+                        // beats the section popping in with no warning.
+                        HStack(spacing: 8) {
+                            ProgressView().tint(EventsTheme.green)
+                            Text("Loading standings…")
+                                .font(.system(size: 13))
+                                .foregroundStyle(EventsTheme.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity).frame(height: 56)
+                        .eventsCard(radius: 14)
+                    } else {
+                        standingsCard(data)
+                    }
                 }
             }
         }
@@ -1116,41 +1130,71 @@ struct EventDetailView: View {
 
     // MARK: - Load
 
+    private func fetchRegistrationStatus() async -> String? {
+        guard let token = session.token else { return nil }
+        return (try? await service.registrationStatus(eventID: eventID, token: token)) ?? nil
+    }
+
+    private func fetchMyMatch(for event: LocatorEvent) async -> ResolvedMyMatch? {
+        guard let round = event.currentRound, let token = session.token,
+              let match = try? await service.myMatch(roundID: round.id, token: token)
+        else { return nil }
+        return ResolvedMyMatch(match, myUserID: session.userID)
+    }
+
+    /// Sign-up counters only matter before the event starts.
+    private func fetchCapacity(for event: LocatorEvent) async -> LocatorEventCapacity? {
+        guard event.isUpcoming else { return nil }
+        return try? await service.capacity(eventID: eventID)
+    }
+
     @MainActor
     private func load() async {
         // Keep loaded content mounted during pull-to-refresh; a full swap to the
         // spinner branch tears down the scroll view and breaks the refresh gesture.
         if case .loaded = state {} else { state = .loading }
         do {
-            async let event = service.event(id: eventID)
-            async let pairings = service.pairings(eventID: eventID)
-            async let standings = service.standings(eventID: eventID)
-            let (e, m, s) = try await (event, pairings, standings)
+            // Standings are the slow one — ~4s per page server-side, and several
+            // pages at a large event. Everything else lands in well under a
+            // second, so the screen is published without them and they fill in
+            // when they arrive rather than holding the whole page blank.
+            async let standingsTask = service.standings(eventID: eventID)
+            async let statusTask = fetchRegistrationStatus()
 
-            var resolved: ResolvedMyMatch?
-            if let round = e.currentRound, let token = session.token,
-               let match = try? await service.myMatch(roundID: round.id, token: token) {
-                resolved = ResolvedMyMatch(match, myUserID: session.userID)
-            }
+            async let eventTask = service.event(id: eventID)
+            async let pairingsTask = service.pairings(eventID: eventID)
+            let e = try await eventTask
+            let m = try await pairingsTask
 
-            if let token = session.token {
-                let status = (try? await service.registrationStatus(eventID: eventID, token: token)) ?? nil
-                registered = isActiveRegistration(status)
-                if e.usesDecklists {
-                    myDeck = (try? await service.myDeckSubmission(eventID: eventID, token: token)) ?? nil
-                }
-            }
+            // These depend on the event, but not on each other.
+            async let myMatchTask = fetchMyMatch(for: e)
+            async let capacityTask = fetchCapacity(for: e)
 
-            // Sign-up counters only matter before the event starts (public call).
-            let capacity = e.isUpcoming ? (try? await service.capacity(eventID: eventID)) : nil
+            let resolved = await myMatchTask
+            let capacity = await capacityTask
+            registered = isActiveRegistration(await statusTask)
 
             let sortedMatches = m.sorted { ($0.tableNumber ?? .max) < ($1.tableNumber ?? .max) }
-            let loaded = Loaded(event: e,
-                                matches: sortedMatches,
-                                standings: s,
-                                myMatch: resolved,
-                                myName: resolved?.me.displayName ?? myAlias,
-                                capacity: capacity)
+            func compose(_ standings: [LocatorStanding]) -> Loaded {
+                Loaded(event: e,
+                       matches: sortedMatches,
+                       standings: standings,
+                       myMatch: resolved,
+                       myName: resolved?.me.displayName ?? myAlias,
+                       capacity: capacity)
+            }
+
+            // First paint: everything except standings.
+            standingsPending = true
+            state = .loaded(compose([]))
+
+            if e.usesDecklists, let token = session.token {
+                myDeck = (try? await service.myDeckSubmission(eventID: eventID, token: token)) ?? nil
+            }
+
+            let s = (try? await standingsTask) ?? []
+            standingsPending = false
+            let loaded = compose(s)
             state = .loaded(loaded)
 
             // A refresh may have completed another round; extend "Your results"
