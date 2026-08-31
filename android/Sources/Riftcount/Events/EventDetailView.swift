@@ -24,6 +24,8 @@ struct EventDetailView: View {
     @State var myDeck: LocatorDeckSubmission?
     @State var selectedRoundID: Int?
     @State var standingsPending = false
+    @State var roster: [LocatorRosterEntry] = []
+    @State var rosterLimit = initialRowCap
     @State var pairingLimit = initialRowCap
     @State var standingsLimit = initialRowCap
     /// Pairings per round id. Completed rounds never change, so this cache
@@ -105,7 +107,10 @@ struct EventDetailView: View {
         VStack(alignment: .leading, spacing: 18) {
             overviewCard(data.event)
 
-            if data.event.isUpcoming { upcomingCard(data.event, data.capacity) }
+            if data.event.isUpcoming {
+                upcomingCard(data.event, data.capacity)
+                rosterSection()
+            }
 
             if data.myMatch == nil, session.token != nil, !data.event.isFinished,
                registered || data.event.isOpenForRegistration {
@@ -875,6 +880,68 @@ struct EventDetailView: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
+    // MARK: - Who's playing (before the first round)
+
+    /// Registered players, shown only while an event is still upcoming —
+    /// standings and pairings are both empty until round one, so this is the
+    /// only answer to "who else is coming" the app can give.
+    @ViewBuilder
+    private func rosterSection() -> some View {
+        if !roster.isEmpty {
+            let active = roster.filter(\.isActive)
+            let capped = Array(active.prefix(rosterLimit))
+            let checkedIn = active.filter { $0.checkedIn == true }.count
+
+            VStack(alignment: .leading, spacing: 11) {
+                EventsSectionHeader("Who's playing (\(active.count))") {
+                    Image(systemName: "person.2.fill")
+                }
+
+                if checkedIn > 0 {
+                    Text("\(checkedIn) checked in")
+                        .font(.system(size: 12))
+                        .foregroundStyle(EventsTheme.textSecondary)
+                }
+
+                VStack(spacing: 0) {
+                    ForEach(Array(capped.enumerated()), id: \.element.id) { index, player in
+                        rosterRow(player)
+                        if index < capped.count - 1 {
+                            Rectangle().fill(EventsTheme.hairline).frame(height: 1).padding(.leading, 14)
+                        }
+                    }
+                }
+                .eventsCard(radius: 14)
+
+                if active.count > capped.count {
+                    showMoreButton(remaining: active.count - capped.count) {
+                        rosterLimit += Self.rowRevealStep
+                    }
+                }
+            }
+        }
+    }
+
+    private func rosterRow(_ player: LocatorRosterEntry) -> some View {
+        let mine = isMe(player.tvDisplayName, myAlias)
+        return HStack(spacing: 12) {
+            Text(mine ? "\(player.tvDisplayName) · you" : player.tvDisplayName)
+                .font(.system(size: 14, weight: mine ? .bold : .regular))
+                .foregroundStyle(mine ? EventsTheme.green : .white)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            if player.checkedIn == true {
+                Text("CHECKED IN")
+                    .font(.system(size: 9, weight: .heavy)).tracking(0.5)
+                    .foregroundStyle(EventsTheme.green)
+                    .padding(.horizontal, 7).padding(.vertical, 3)
+                    .background(EventsTheme.greenSoft, in: Capsule())
+            }
+        }
+        .padding(.vertical, 10).padding(.horizontal, 14)
+        .background(mine ? EventsTheme.greenSoft : Color.clear)
+    }
+
     // MARK: - Pairings section (round switcher)
 
     @ViewBuilder
@@ -1132,6 +1199,13 @@ struct EventDetailView: View {
         return try? await service.capacity(eventID: eventID)
     }
 
+    /// Who has signed up. Only worth fetching before the first round: once
+    /// pairings exist the standings carry the same players with more detail.
+    private func fetchRoster(for event: LocatorEvent) async -> [LocatorRosterEntry] {
+        guard event.isUpcoming else { return [] }
+        return (try? await service.roster(eventID: eventID)) ?? []
+    }
+
     @MainActor
     private func load() async {
         // Keep loaded content mounted during pull-to-refresh; a full swap to the
@@ -1153,9 +1227,11 @@ struct EventDetailView: View {
             // These depend on the event, but not on each other.
             async let myMatchTask = fetchMyMatch(for: e)
             async let capacityTask = fetchCapacity(for: e)
+            async let rosterTask = fetchRoster(for: e)
 
             let resolved = await myMatchTask
             let capacity = await capacityTask
+            roster = await rosterTask
             registered = isActiveRegistration(await statusTask)
 
             let sortedMatches = m.sorted { ($0.tableNumber ?? .max) < ($1.tableNumber ?? .max) }
