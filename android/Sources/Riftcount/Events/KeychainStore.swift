@@ -13,13 +13,24 @@ struct KeychainStore: Sendable {
 
     var token: String? {
         get {
-            (try? Keychain.shared.string(forKey: account)) ?? nil
+            do {
+                return try Keychain.shared.string(forKey: account)
+            } catch {
+                // Never silent: a failing keystore logs the user out on every
+                // launch, and swallowing it once cost a release to diagnose.
+                logger.error("Keychain read failed: \(error)")
+                return nil
+            }
         }
         nonmutating set {
-            if let newValue, !newValue.isEmpty {
-                try? Keychain.shared.set(newValue, forKey: account)
-            } else {
-                try? Keychain.shared.removeValue(forKey: account)
+            do {
+                if let newValue, !newValue.isEmpty {
+                    try Keychain.shared.set(newValue, forKey: account)
+                } else {
+                    try Keychain.shared.removeValue(forKey: account)
+                }
+            } catch {
+                logger.error("Keychain write failed: \(error)")
             }
         }
     }

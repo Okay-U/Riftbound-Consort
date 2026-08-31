@@ -53,8 +53,14 @@ final class AuthSession: ObservableObject {
         do {
             let user = try await service.currentUser(token: token)
             state = .signedIn(user)
-        } catch {
+        } catch AuthError.tokenExpired {
+            // Only a rejected token is worth discarding.
             keychain.token = nil
+            state = .signedOut
+        } catch {
+            // Network error at cold start (no connectivity yet, mobile data,
+            // server blip) — keep the token and stay signed out for now, so a
+            // later refresh can recover instead of forcing a fresh login.
             state = .signedOut
         }
     }
