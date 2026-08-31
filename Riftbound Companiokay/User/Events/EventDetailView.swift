@@ -31,6 +31,7 @@ struct EventDetailView: View {
     @State private var calendarError: String?
     @State private var selectedRoundID: Int?
     @State private var standingsPending = false
+    @State private var playerQuery = ""
     @State private var deckCards: [String: String] = [:]
     @State private var deckCardsRound: Int?
     @State private var currentRoundID: Int?
@@ -68,6 +69,23 @@ struct EventDetailView: View {
     /// just move the same stall to the tap.
     static let initialRowCap = 50
     static let rowRevealStep = 100
+
+    /// Search shows a screenful; past that, typing more is faster than scrolling.
+    static let searchResultCap = 25
+
+    /// A player as the search field sees them: wherever the event happens to
+    /// know about them — standings, this round's pairings, or the roster.
+    struct FoundPlayer: Identifiable {
+        let name: String
+        let rank: Int?
+        let detail: String?
+        let tableNumber: Int?
+        let checkedIn: Bool
+        let inCut: Bool
+        let isMe: Bool
+        let legend: String?
+        var id: String { name }
+    }
 
     /// One finished round in "Your results": opponent, game score, outcome.
     struct RoundResult: Identifiable {
@@ -183,6 +201,8 @@ struct EventDetailView: View {
     private func content(_ data: Loaded) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             overviewCard(data.event)
+
+            playerSearchSection(data)
 
             if data.event.isUpcoming {
                 upcomingCard(data.event, data.capacity)
@@ -891,6 +911,173 @@ struct EventDetailView: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
+    // MARK: - Find a player
+
+    /// One field over everything the event knows about a player: where they are
+    /// sitting, how they are doing, and — before round one — whether they signed
+    /// up at all. The Locator has no server-side search (every parameter it was
+    /// offered came back ignored), so this filters what is already loaded, which
+    /// is also why it can answer instantly.
+    @ViewBuilder
+    private func playerSearchSection(_ data: Loaded) -> some View {
+        // Cheap enough to gate on; the pool itself is only built while typing.
+        if data.standings.count + data.matches.count + roster.count > 4 {
+            VStack(alignment: .leading, spacing: 11) {
+                SectionHeader("magnifyingglass", "Find a player")
+
+                HStack(spacing: 12) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(EventsTheme.textSecondary)
+                    TextField("Search by name", text: $playerQuery)
+                        .foregroundStyle(.white)
+                    if !playerQuery.isEmpty {
+                        Button { playerQuery = "" } label: {
+                            Image(systemName: "xmark").foregroundStyle(EventsTheme.textTertiary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16).frame(height: 50)
+                .eventsCard(radius: EventsTheme.pillRadius)
+
+                let query = playerQuery.trimmingCharacters(in: .whitespaces).lowercased()
+                if !query.isEmpty {
+                    let hits = searchablePlayers(data).filter { $0.name.lowercased().contains(query) }
+                    if hits.isEmpty {
+                        Text("Nobody here by that name.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(EventsTheme.textSecondary)
+                            .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                            .eventsCard(radius: 14)
+                    } else {
+                        let capped = Array(hits.prefix(Self.searchResultCap))
+                        VStack(spacing: 0) {
+                            ForEach(Array(capped.enumerated()), id: \.element.id) { index, hit in
+                                foundPlayerRow(hit)
+                                if index < capped.count - 1 {
+                                    Rectangle().fill(EventsTheme.hairline).frame(height: 1).padding(.leading, 14)
+                                }
+                            }
+                        }
+                        .eventsCard(radius: 14)
+
+                        if hits.count > capped.count {
+                            Text("\(hits.count - capped.count) more — keep typing to narrow it down.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(EventsTheme.textTertiary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Everyone the event knows about, standings order first (the meaningful
+    /// one), then players only in pairings, then the roster. Built on demand:
+    /// at a 626-player event this is 626 rows of work, so it runs while the
+    /// field has text in it and not on every redraw of the page.
+    private func searchablePlayers(_ data: Loaded) -> [FoundPlayer] {
+        let cut = data.event.resolvedCutSize
+
+        var seatByName: [String: (table: Int?, opponent: String?)] = [:]
+        for match in data.matches {
+            for player in match.players {
+                let others = match.players
+                    .filter { $0.tvDisplayName != player.tvDisplayName }
+                    .map { $0.tvDisplayName }
+                let opponent = match.isBye || others.isEmpty ? "bye" : others.joined(separator: ", ")
+                seatByName[player.tvDisplayName] = (match.tableNumber, opponent)
+            }
+        }
+
+        var standingByName: [String: LocatorStanding] = [:]
+        for standing in data.standings { standingByName[standing.tvDisplayName] = standing }
+
+        var names = data.standings.map { $0.tvDisplayName }
+        var seen = Set(names)
+        for name in seatByName.keys.sorted() where !seen.contains(name) {
+            names.append(name)
+            seen.insert(name)
+        }
+        for entry in roster where entry.isActive && !seen.contains(entry.tvDisplayName) {
+            names.append(entry.tvDisplayName)
+            seen.insert(entry.tvDisplayName)
+        }
+
+        let checkedIn = Set(roster.filter { $0.checkedIn == true }.map { $0.tvDisplayName })
+
+        return names.map { name in
+            let standing = standingByName[name]
+            let seat = seatByName[name]
+            var parts: [String] = []
+            if let standing {
+                parts.append(standing.record)
+                if let points = standing.totalMatchPoints { parts.append("\(points) pts") }
+            }
+            if let opponent = seat?.opponent { parts.append("vs \(opponent)") }
+
+            return FoundPlayer(
+                name: name,
+                rank: standing?.rank,
+                detail: parts.isEmpty ? nil : parts.joined(separator: " · "),
+                tableNumber: seat?.table,
+                checkedIn: checkedIn.contains(name),
+                inCut: cut != nil && standing != nil && standing!.rank <= cut!,
+                isMe: isMe(name, myAlias),
+                legend: deckCard(for: name)
+            )
+        }
+    }
+
+    private func foundPlayerRow(_ hit: FoundPlayer) -> some View {
+        HStack(spacing: 12) {
+            if let rank = hit.rank {
+                Text("\(rank)")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(hit.inCut ? EventsTheme.green : EventsTheme.textTertiary)
+                    .frame(width: 32, alignment: .leading)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(hit.isMe ? "\(hit.name) · you" : hit.name)
+                    .font(.system(size: 14, weight: hit.isMe ? .bold : .semibold))
+                    .foregroundStyle(hit.isMe ? EventsTheme.green : .white)
+                    .lineLimit(1)
+                if let detail = hit.detail {
+                    Text(detail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(EventsTheme.textSecondary)
+                        .lineLimit(1)
+                }
+                if let legend = hit.legend {
+                    Text(legend)
+                        .font(.system(size: 11))
+                        .foregroundStyle(EventsTheme.gold.opacity(0.85))
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 8)
+            if let table = hit.tableNumber {
+                VStack(spacing: 1) {
+                    Text("TABLE")
+                        .font(.system(size: 8, weight: .heavy)).tracking(0.5)
+                        .foregroundStyle(EventsTheme.textTertiary)
+                    Text("\(table)")
+                        .font(.system(size: 17, weight: .heavy))
+                        .foregroundStyle(.white)
+                }
+                .fixedSize()
+            } else if hit.checkedIn {
+                Text("CHECKED IN")
+                    .font(.system(size: 9, weight: .heavy)).tracking(0.5)
+                    .foregroundStyle(EventsTheme.green)
+                    .padding(.horizontal, 7).padding(.vertical, 3)
+                    .background(EventsTheme.greenSoft, in: Capsule())
+            }
+        }
+        .padding(.vertical, 10).padding(.horizontal, 14)
+        .background(hit.isMe ? EventsTheme.greenSoft : Color.clear)
+    }
+
     // MARK: - Who's playing (before the first round)
 
     /// Registered players, shown only while an event is still upcoming —
@@ -996,13 +1183,28 @@ struct EventDetailView: View {
     /// inside the page ScrollView and takes the scrolling with it.
     @ViewBuilder
     private func pairingList(_ matches: [LocatorMatch], myName: String?) -> some View {
-        let capped = Array(matches.prefix(pairingLimit))
-        LazyVStack(spacing: 8) {
-            ForEach(capped) { pairingRow($0, myName: myName) }
+        // The search field doubles as the pairings filter: typing a name narrows
+        // the round you are looking at rather than only listing hits above it.
+        let query = playerQuery.trimmingCharacters(in: .whitespaces).lowercased()
+        let shown = query.isEmpty ? matches : matches.filter { match in
+            match.players.contains { $0.tvDisplayName.lowercased().contains(query) }
         }
-        if matches.count > capped.count {
-            showMoreButton(remaining: matches.count - capped.count) {
-                pairingLimit += Self.rowRevealStep
+
+        if shown.isEmpty, !query.isEmpty {
+            Text("No pairing for that name this round.")
+                .font(.system(size: 13))
+                .foregroundStyle(EventsTheme.textSecondary)
+                .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                .eventsCard(radius: 14)
+        } else {
+            let capped = Array(shown.prefix(pairingLimit))
+            LazyVStack(spacing: 8) {
+                ForEach(capped) { pairingRow($0, myName: myName) }
+            }
+            if shown.count > capped.count {
+                showMoreButton(remaining: shown.count - capped.count) {
+                    pairingLimit += Self.rowRevealStep
+                }
             }
         }
     }
