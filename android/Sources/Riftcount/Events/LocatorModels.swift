@@ -293,6 +293,26 @@ struct LocatorMatch: Decodable, Sendable, Identifiable {
     /// 3+ players in one match = a multiplayer pod (not a 1v1 pairing).
     var isPod: Bool { players.count > 2 }
 
+    /// The TV feed only ever exposes finalised matches — every sampled match,
+    /// live events included, comes back COMPLETE — so a decided pairing with no
+    /// winner is a draw rather than a result nobody entered yet.
+    var isDraw: Bool {
+        (status ?? "").uppercased() == "COMPLETE"
+            && !isBye
+            && players.count == 2
+            && !players.contains { $0.isWinner == true }
+    }
+
+    /// Games won by each side in *this* match, in table order — "2–1", not the
+    /// players' tournament records. Nil when nobody recorded a game, which is
+    /// every best-of-one draw.
+    var gameScore: String? {
+        guard players.count == 2, !isBye else { return nil }
+        let games = players.map { $0.gamesWon ?? 0 }
+        guard games.contains(where: { $0 > 0 }) else { return nil }
+        return "\(games[0])–\(games[1])"
+    }
+
     var id: String {
         "\(tableNumber ?? -1)|" + players.map(\.tvDisplayName).joined(separator: "|")
     }
@@ -329,6 +349,10 @@ struct LocatorMatchRelationship: Decodable, Sendable, Identifiable {
     let id: Int                       // player_match_relationship id — used when reporting
     let playerOrder: Int?
     let isStartingPlayer: Bool?
+    /// Games this side won in this match — the same field the report sends
+    /// back. Optional because it isn't guaranteed on every payload; a nil here
+    /// just means no reported score is shown.
+    let gamesWon: Int?
     let userEventStatus: LocatorMatchUserStatus
 
     var displayName: String { userEventStatus.bestIdentifier ?? "Player" }
@@ -365,6 +389,23 @@ struct ResolvedMyMatch: Sendable, Identifiable {
 
     var id: Int { matchID }
     var isComplete: Bool { (status ?? "").uppercased() == "COMPLETE" }
+
+    /// The score that was actually reported for this match, from your side —
+    /// "2–1", not just "you won". Nil for byes, pods, and matches where no
+    /// games were recorded (every best-of-one draw).
+    var reportedScore: String? {
+        guard !isBye, let opponent, isComplete else { return nil }
+        let mineGames = me.gamesWon ?? 0
+        let theirGames = opponent.gamesWon ?? 0
+        guard mineGames > 0 || theirGames > 0 else { return nil }
+        return "\(mineGames)–\(theirGames)"
+    }
+
+    /// Reported, but nobody won it.
+    var isDraw: Bool {
+        guard !isBye, let opponent, isComplete else { return false }
+        return (me.gamesWon ?? 0) == (opponent.gamesWon ?? 0)
+    }
     var opponent: LocatorMatchRelationship? { opponents.first }
     /// More than one opponent = a multiplayer pod (our 1v1 report can't express it).
     var isMultiplayer: Bool { opponents.count > 1 }

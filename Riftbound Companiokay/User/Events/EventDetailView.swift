@@ -498,6 +498,20 @@ struct EventDetailView: View {
 
                 if match.isComplete {
                     Divider().overlay(EventsTheme.hairline)
+                    if let score = match.reportedScore {
+                        HStack(spacing: 8) {
+                            Text(match.isDraw ? "Drew" : ((match.me.gamesWon ?? 0) > (match.opponent?.gamesWon ?? 0) ? "Won" : "Lost"))
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                            Text(score)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(EventsTheme.green)
+                            Spacer()
+                            Text("as reported")
+                                .font(.system(size: 11))
+                                .foregroundStyle(EventsTheme.textTertiary)
+                        }
+                    }
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle")
                         Text("Result reported. Ask the scorekeeper to change it.")
@@ -685,7 +699,7 @@ struct EventDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 playerSide(match.players.first, myName, trailing: false)
-                Text("vs").font(.system(size: 11)).foregroundStyle(EventsTheme.textTertiary)
+                matchCentre(match)
                 playerSide(match.players.dropFirst().first, myName, trailing: true)
             }
         }
@@ -693,9 +707,40 @@ struct EventDetailView: View {
 
         if mine {
             row.greenGradientBorder(radius: 12.5)
+        } else if match.isDraw {
+            // A drawn table used to look exactly like one nobody had reported.
+            row.eventsCard(radius: 14)
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(EventsTheme.gold.opacity(0.45), lineWidth: 1))
         } else {
             row.eventsCard(radius: 14)
         }
+    }
+
+    /// The middle of a pairing row: the games actually recorded for this match,
+    /// a draw marker, or "vs" before anything is decided. The players' own
+    /// tournament records sit beside their names — showing only those made a
+    /// 12-1 season record read like the score of this match.
+    @ViewBuilder
+    private func matchCentre(_ match: LocatorMatch) -> some View {
+        VStack(spacing: 3) {
+            if let score = match.gameScore {
+                Text(score)
+                    .font(.system(size: 14, weight: .bold)).monospacedDigit()
+                    .foregroundStyle(.white)
+            } else {
+                Text(match.isDraw ? "–" : "vs")
+                    .font(.system(size: 11))
+                    .foregroundStyle(EventsTheme.textTertiary)
+            }
+            if match.isDraw {
+                Text("DRAW")
+                    .font(.system(size: 9, weight: .heavy)).tracking(0.5)
+                    .foregroundStyle(EventsTheme.gold)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(EventsTheme.gold.opacity(0.16), in: Capsule())
+            }
+        }
+        .fixedSize()
     }
 
     @ViewBuilder
@@ -704,7 +749,9 @@ struct EventDetailView: View {
             let mine = isMe(player.tvDisplayName, myName)
             let won = player.isWinner ?? false
             let nameColor: Color = mine ? EventsTheme.green : (won ? .white : EventsTheme.textSecondary)
-            let recordColor: Color = mine ? EventsTheme.green : (won ? EventsTheme.gold : EventsTheme.textSecondary)
+            // Never gold: this is the player's tournament record, and gold beside
+            // a crown made it read as the score of this match.
+            let recordColor: Color = mine ? EventsTheme.green : EventsTheme.textSecondary
             VStack(alignment: trailing ? .trailing : .leading, spacing: 3) {
                 HStack(spacing: 4) {
                     if !trailing && won { Image(systemName: "crown.fill").font(.system(size: 10)).foregroundStyle(EventsTheme.gold) }
