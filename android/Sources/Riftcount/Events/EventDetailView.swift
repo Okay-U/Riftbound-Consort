@@ -23,6 +23,8 @@ struct EventDetailView: View {
     @State var confirmingRegister = false
     @State var myDeck: LocatorDeckSubmission?
     @State var selectedRoundID: Int?
+    @State var pairingLimit = initialRowCap
+    @State var standingsLimit = initialRowCap
     /// Pairings per round id. Completed rounds never change, so this cache
     /// survives pull-to-refresh.
     @State var roundPairings: [Int: [LocatorMatch]] = [:]
@@ -43,6 +45,16 @@ struct EventDetailView: View {
         let myName: String?
         let capacity: LocatorEventCapacity?
     }
+
+    /// Rows rendered before the "show more" control appears, and how many
+    /// each tap adds. A 626-player event is ~313 pairings and 626 standings;
+    /// building every row up front is what made big events slow to open and
+    /// rough to scroll. Compose rules out a lazy container here — it measures
+    /// to zero inside the page ScrollView and takes the scrolling with it — so
+    /// rows are revealed in bounded steps instead of all at once, which would
+    /// just move the same stall to the tap.
+    static let initialRowCap = 50
+    static let rowRevealStep = 100
 
     /// One finished round in "Your results": opponent, game score, outcome.
     struct RoundResult: Identifiable {
@@ -655,15 +667,24 @@ struct EventDetailView: View {
     @ViewBuilder
     private func standingsCard(_ data: Loaded) -> some View {
         let cut = data.event.resolvedCutSize
-        VStack(spacing: 0) {
-            ForEach(Array(data.standings.enumerated()), id: \.element.id) { index, standing in
-                standingRow(standing, myName: data.myName, cut: cut)
-                if index < data.standings.count - 1 {
-                    Rectangle().fill(EventsTheme.hairline).frame(height: 1).padding(.leading, 14)
+        let capped = Array(data.standings.prefix(standingsLimit))
+        VStack(spacing: 11) {
+            VStack(spacing: 0) {
+                ForEach(Array(capped.enumerated()), id: \.element.id) { index, standing in
+                    standingRow(standing, myName: data.myName, cut: cut)
+                    if index < capped.count - 1 {
+                        Rectangle().fill(EventsTheme.hairline).frame(height: 1).padding(.leading, 14)
+                    }
+                }
+            }
+            .eventsCard(radius: 14)
+
+            if data.standings.count > capped.count {
+                showMoreButton(remaining: data.standings.count - capped.count) {
+                    standingsLimit += Self.rowRevealStep
                 }
             }
         }
-        .eventsCard(radius: 14)
     }
 
     private func standingRow(_ standing: LocatorStanding, myName: String?, cut: Int?) -> some View {
@@ -821,15 +842,47 @@ struct EventDetailView: View {
                 }
             }
 
+            // Plain VStack, never Lazy*: on Compose a lazy container inside the
+            // page's ScrollView gets unbounded height, measures to zero and the
+            // rows vanish along with the page's scrolling. Verified on device.
             if selectedRoundID == nil || selectedRoundID == currentID {
-                VStack(spacing: 8) { ForEach(data.matches) { pairingRow($0, myName: data.myName) } }
+                pairingList(data.matches, myName: data.myName)
             } else if let matches = selectedRoundID.flatMap({ roundPairings[$0] }) {
-                VStack(spacing: 8) { ForEach(matches) { pairingRow($0, myName: data.myName) } }
+                pairingList(matches, myName: data.myName)
             } else {
                 HStack { Spacer(); ProgressView().tint(EventsTheme.green); Spacer() }
                     .frame(height: 80)
             }
         }
+    }
+
+    /// Caps how many rows are built at once and offers the rest behind a tap.
+    /// Deliberately not a lazy container — on Compose that measures to zero
+    /// inside the page ScrollView and takes the scrolling with it.
+    @ViewBuilder
+    private func pairingList(_ matches: [LocatorMatch], myName: String?) -> some View {
+        let capped = Array(matches.prefix(pairingLimit))
+        VStack(spacing: 8) {
+            ForEach(capped) { pairingRow($0, myName: myName) }
+        }
+        if matches.count > capped.count {
+            showMoreButton(remaining: matches.count - capped.count) {
+                pairingLimit += Self.rowRevealStep
+            }
+        }
+    }
+
+    private func showMoreButton(remaining: Int, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(remaining <= Self.rowRevealStep
+                 ? "Show remaining \(remaining)"
+                 : "Show \(Self.rowRevealStep) more · \(remaining) left")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(EventsTheme.green)
+                .frame(maxWidth: .infinity).frame(height: 42)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(EventsTheme.green.opacity(0.5), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private func roundChip(_ round: LocatorRound, isSelected: Bool, isCurrent: Bool, event: LocatorEvent) -> some View {

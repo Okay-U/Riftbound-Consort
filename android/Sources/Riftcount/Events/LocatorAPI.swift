@@ -17,6 +17,7 @@ protocol LocatorService: Sendable {
     func pairings(eventID: Int) async throws -> [LocatorMatch]
     func pairings(eventID: Int, roundID: Int) async throws -> [LocatorMatch]
     func standings(eventID: Int) async throws -> [LocatorStanding]
+    func roster(eventID: Int) async throws -> [LocatorRosterEntry]
     func capacity(eventID: Int) async throws -> LocatorEventCapacity
     func myEvents(token: String, page: Int) async throws -> LocatorPage<LocatorUserEventStatus>
     func myMatch(roundID: Int, token: String) async throws -> LocatorMyMatch
@@ -57,14 +58,12 @@ final class RiftboundLocatorService: LocatorService, @unchecked Sendable {
     }
 
     func pairings(eventID: Int) async throws -> [LocatorMatch] {
-        let page: LocatorPage<LocatorMatch> = try await get("player/events/\(eventID)/tv/matches/?page_size=500")
-        return page.results
+        try await allPages("player/events/\(eventID)/tv/matches/")
     }
 
     /// Pairings of one specific round (the no-round call returns only the current one).
     func pairings(eventID: Int, roundID: Int) async throws -> [LocatorMatch] {
-        let page: LocatorPage<LocatorMatch> = try await get("player/events/\(eventID)/tv/matches/?round_id=\(roundID)&page_size=500")
-        return page.results
+        try await allPages("player/events/\(eventID)/tv/matches/", query: "round_id=\(roundID)")
     }
 
     /// Public sign-up counters (registered count / capacity).
@@ -73,8 +72,60 @@ final class RiftboundLocatorService: LocatorService, @unchecked Sendable {
     }
 
     func standings(eventID: Int) async throws -> [LocatorStanding] {
-        let page: LocatorPage<LocatorStanding> = try await get("player/events/\(eventID)/tv/standings/?page_size=500")
-        return page.results
+        try await allPages("player/events/\(eventID)/tv/standings/")
+    }
+
+    /// Registered players, available before pairings exist — the only source for
+    /// a roster while an event is still upcoming.
+    func roster(eventID: Int) async throws -> [LocatorRosterEntry] {
+        try await allPages("player/events/\(eventID)/tv/roster/")
+    }
+
+    /// Fetches every page instead of assuming one covers the event — a
+    /// 626-player event silently lost every standing past the 500th when this
+    /// asked for a single page.
+    ///
+    /// 500 is the server's ceiling: `page_size=1000` returns an empty body with
+    /// no error rather than more rows, so never raise it. Standings cost ~4s per
+    /// page server-side, so page 1 tells us the page count and the rest go out
+    /// together — sequential paging made a big event take four times longer to
+    /// open than it needed to.
+    private func allPages<Item: Decodable & Sendable>(_ path: String,
+                                                     query: String? = nil,
+                                                     pageSize: Int = 500) async throws -> [Item] {
+        func url(page: Int) -> String {
+            var url = path + "?page_size=\(pageSize)&page=\(page)"
+            if let query { url += "&" + query }
+            return url
+        }
+
+        let first: LocatorPage<Item> = try await get(url(page: 1))
+        guard let next = first.nextPageNumber else { return first.results }
+
+        // total is authoritative; nextPageNumber only proves there's at least one more.
+        let pageCount: Int
+        if let total = first.total, !first.results.isEmpty {
+            pageCount = Int(ceil(Double(total) / Double(first.results.count)))
+        } else {
+            pageCount = next
+        }
+        guard pageCount > 1 else { return first.results }
+
+        let rest = try await withThrowingTaskGroup(of: (Int, [Item]).self) { group in
+            for number in 2...pageCount {
+                group.addTask {
+                    let page: LocatorPage<Item> = try await self.get(url(page: number))
+                    return (number, page.results)
+                }
+            }
+            var byPage: [Int: [Item]] = [:]
+            for try await (number, items) in group { byPage[number] = items }
+            return byPage
+        }
+
+        var out = first.results
+        for page in 2...pageCount { out.append(contentsOf: rest[page] ?? []) }
+        return out
     }
 
     func myEvents(token: String, page: Int) async throws -> LocatorPage<LocatorUserEventStatus> {

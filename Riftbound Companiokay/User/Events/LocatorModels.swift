@@ -407,6 +407,24 @@ nonisolated struct LocatorStanding: Decodable, Sendable, Identifiable {
 }
 
 /// Current user's registration status for an event.
+/// A registered player, from the roster endpoint. This is the only player list
+/// an event has before pairings are generated — standings and matches are both
+/// empty until the first round starts.
+nonisolated struct LocatorRosterEntry: Decodable, Sendable, Identifiable {
+    let tvDisplayName: String
+    let registrationStatus: String?
+    let checkedIn: Bool?
+    let profileImageUrl: String?
+
+    var id: String { tvDisplayName }
+
+    /// Dropped players stay in the roster with a non-COMPLETE status.
+    var isActive: Bool {
+        let status = (registrationStatus ?? "").uppercased()
+        return status.isEmpty || status == "COMPLETE"
+    }
+}
+
 nonisolated struct LocatorRegistrationStatus: Decodable, Sendable {
     let registrationStatus: String?
 }
