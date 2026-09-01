@@ -17,6 +17,7 @@ struct Riftbound_CompaniokayApp: App {
     @StateObject private var gameTimer = GameTimer()
     @StateObject private var decklistStore = DecklistStore()
     @StateObject private var cardStore = CardStore()
+    @StateObject private var errataStore = ErrataStore()
     @StateObject private var gameRecordStore = GameRecordStore()
     @StateObject private var authSession = AuthSession()
     @StateObject private var matchMode = MatchModeStore()
@@ -29,12 +30,14 @@ struct Riftbound_CompaniokayApp: App {
                 .environmentObject(gameTimer)
                 .environmentObject(decklistStore)
                 .environmentObject(cardStore)
+                .environmentObject(errataStore)
                 .environmentObject(gameRecordStore)
                 .environmentObject(authSession)
                 .environmentObject(matchMode)
                 .preferredColorScheme(.dark)
                 .background(trueBlack ? Color.black : Color(.systemBackground))
                 .task { await authSession.restore() }
+                .onAppear { errataStore.load() }
                 .fullScreenCover(isPresented: Binding(
                     get: { !didOnboard },
                     set: { newValue in if !newValue { didOnboard = true } }

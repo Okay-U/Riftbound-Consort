@@ -135,6 +135,7 @@ struct CardSearchView: View {
 }
 
 struct CardGalleryCell: View {
+    @EnvironmentObject var errataStore: ErrataStore
     let card: Card
 
     private var isBattlefield: Bool {
@@ -179,5 +180,9 @@ struct CardGalleryCell: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
+            // On the cell rather than the image: battlefield art is rotated.
+            .overlay(alignment: .bottomLeading) {
+                if errataStore.erratum(for: card) != nil { ErrataStamp(compact: true) }
+            }
     }
 }

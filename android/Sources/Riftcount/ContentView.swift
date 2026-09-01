@@ -8,6 +8,7 @@ struct ContentView: View {
     @AppStorage("didOnboard") var didOnboard: Bool = false
     @State var decklistStore = DecklistStore()
     @State var cardStore = CardStore()
+    @State var errataStore = ErrataStore()
     @State var gameRecordStore = GameRecordStore()
     @State var gameTimer = GameTimer()
     @State var authSession = AuthSession()
@@ -58,11 +59,13 @@ struct ContentView: View {
         .tint(Color(red: 0.36, green: 0.78, blue: 0.76))
         .environment(decklistStore)
         .environment(cardStore)
+        .environment(errataStore)
         .environment(gameRecordStore)
         .environment(gameTimer)
         .environment(authSession)
         .environment(matchMode)
         .task { await authSession.restore() }
+        .onAppear { errataStore.load() }
         .fullScreenCover(isPresented: Binding(
             get: { !didOnboard },
             set: { newValue in if !newValue { didOnboard = true } }

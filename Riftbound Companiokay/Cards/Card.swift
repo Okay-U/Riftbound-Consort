@@ -5,7 +5,11 @@
 
 import Foundation
 
-struct Card: Identifiable, Codable, Hashable, Sendable {
+// nonisolated because RiftcodexCardRepository decodes these off the main actor.
+// Under the project's default-MainActor isolation a plain model's Codable
+// conformance is MainActor-isolated and cannot be used from there.
+
+nonisolated struct Card: Identifiable, Codable, Hashable, Sendable {
     let id: String
     let name: String
     let riftboundId: String?
@@ -27,26 +31,26 @@ struct Card: Identifiable, Codable, Hashable, Sendable {
     }
 }
 
-struct CardAttributes: Codable, Hashable, Sendable {
+nonisolated struct CardAttributes: Codable, Hashable, Sendable {
     let energy: Int?
     let might: Int?
     let power: Int?
 }
 
-struct CardClassification: Codable, Hashable, Sendable {
+nonisolated struct CardClassification: Codable, Hashable, Sendable {
     let type: String?
     let supertype: String?
     let rarity: String?
     let domain: [String]?
 }
 
-struct CardText: Codable, Hashable, Sendable {
+nonisolated struct CardText: Codable, Hashable, Sendable {
     let rich: String?
     let plain: String?
     let flavour: String?
 }
 
-struct CardSet: Codable, Hashable, Sendable {
+nonisolated struct CardSet: Codable, Hashable, Sendable {
     let setId: String?
     let label: String?
 
@@ -56,7 +60,7 @@ struct CardSet: Codable, Hashable, Sendable {
     }
 }
 
-struct CardMedia: Codable, Hashable, Sendable {
+nonisolated struct CardMedia: Codable, Hashable, Sendable {
     let imageUrl: String?
     let artist: String?
     let accessibilityText: String?
@@ -73,7 +77,7 @@ struct CardMedia: Codable, Hashable, Sendable {
     }
 }
 
-struct CardMetadata: Codable, Hashable, Sendable {
+nonisolated struct CardMetadata: Codable, Hashable, Sendable {
     let cleanName: String?
     let updatedOn: String?
     let alternateArt: Bool?
@@ -90,7 +94,7 @@ struct CardMetadata: Codable, Hashable, Sendable {
 }
 
 // Pagination wrapper returned by the Riftcodex API list endpoints
-struct CardPage: Codable, Sendable {
+nonisolated struct CardPage: Codable, Sendable {
     let total: Int
     let page: Int
     let size: Int

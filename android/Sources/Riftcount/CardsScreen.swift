@@ -172,6 +172,7 @@ struct FilterGlyph: View {
 }
 
 struct CardGalleryCell: View {
+    @Environment(ErrataStore.self) var errataStore
     let card: Card
     let width: CGFloat
     let height: CGFloat
@@ -207,12 +208,17 @@ struct CardGalleryCell: View {
         }
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        // On the cell rather than the image: battlefield art is rotated.
+        .overlay(alignment: .bottomLeading) {
+            if errataStore.erratum(for: card) != nil { ErrataStamp(compact: true) }
+        }
     }
 }
 
 /// Minimal card detail for 2a: image + core facts. Full CardDetailView
 /// (runes, tags, legality) ports in 2b.
 struct CardQuickDetail: View {
+    @Environment(ErrataStore.self) var errataStore
     let card: Card
     @State var showAddToDeck = false
 
@@ -227,6 +233,9 @@ struct CardQuickDetail: View {
                     image
                         .resizable()
                         .scaledToFit()
+                        .overlay(alignment: .bottomLeading) {
+                            if errataStore.erratum(for: card) != nil { ErrataStamp() }
+                        }
                 } placeholder: {
                     Color.secondary.opacity(0.15)
                         .aspectRatio(isBattlefield ? 1.39 : 0.72, contentMode: .fit)
@@ -240,6 +249,10 @@ struct CardQuickDetail: View {
                         .font(.title2.bold())
 
                     statsRow
+
+                    if let erratum = errataStore.erratum(for: card) {
+                        ErrataCallout(erratum: erratum)
+                    }
 
                     if let text = card.text?.plain, !text.isEmpty {
                         Text(text)
@@ -381,5 +394,74 @@ struct CardSortSheet: View {
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Riot publishes card errata as articles; neither the printed card nor the
+/// card database carries the corrected text. Shown above the printed text
+/// because at a table the corrected wording is the one that applies.
+struct ErrataCallout: View {
+    let erratum: CardErratum
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text("ERRATA")
+                    .font(.system(size: 10, weight: .heavy)).tracking(0.6)
+                    .padding(.horizontal, 7).padding(.vertical, 3)
+                    .background(Capsule().fill(Color.yellow.opacity(0.22)))
+                    .foregroundStyle(Color.yellow)
+                if let set = erratum.set {
+                    Text(set).font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+            }
+
+            Text(erratum.newText)
+                .font(.body)
+
+            if let note = erratum.note, !note.isEmpty {
+                Text(note)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let url = erratum.sourceURL {
+                Link("Official errata", destination: url)
+                    .font(.footnote.weight(.semibold))
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(0.09)))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.yellow.opacity(0.35), lineWidth: 1))
+    }
+}
+
+/// Drawn by us, not part of the card art.
+///
+/// Riot bakes a BANNED stamp into the bottom-right of the image itself, so this
+/// sits bottom-left: a card can be both banned and errata'd, and on Draven the
+/// two would otherwise collide. Same treatment as Riot's stamp — outlined box,
+/// heavy letter-spaced caps, no fill over the art — in amber rather than red so
+/// the two read as different things at a glance.
+struct ErrataStamp: View {
+    var compact = false
+
+    private var fontSize: CGFloat { compact ? 8 : 17 }
+    private var hPad: CGFloat { compact ? 4 : 9 }
+    private var vPad: CGFloat { compact ? 2 : 4 }
+    private var stroke: CGFloat { compact ? 1 : 2.5 }
+    private var inset: CGFloat { compact ? 4 : 14 }
+
+    var body: some View {
+        Text("ERRATA")
+            .font(.system(size: fontSize, weight: .heavy))
+            .tracking(compact ? 0.5 : 1.5)
+            .foregroundStyle(Color.yellow)
+            .padding(.horizontal, hPad).padding(.vertical, vPad)
+            .background(RoundedRectangle(cornerRadius: compact ? 3 : 5).fill(Color.black.opacity(0.55)))
+            .overlay(RoundedRectangle(cornerRadius: compact ? 3 : 5)
+                .stroke(Color.yellow, lineWidth: stroke))
+            .padding(inset)
     }
 }
