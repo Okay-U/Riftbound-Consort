@@ -11,7 +11,9 @@ protocol CardRepository: Sendable {
     func card(id: String) async throws -> Card
 }
 
-final class RiftcodexCardRepository: CardRepository {
+// nonisolated so the network decode stays off the main actor under the
+// project's default-MainActor isolation, matching RiftboundLocatorService.
+nonisolated final class RiftcodexCardRepository: CardRepository {
     private let base = URL(string: "https://api.riftcodex.com")!
     private let session: URLSession
 

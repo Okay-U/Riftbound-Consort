@@ -96,7 +96,7 @@ public final class CardStore {
     static let pageSize = 100
     static let maxParallelPages = 5
 
-    private static var cacheURL: URL {
+    private nonisolated static var cacheURL: URL {
         FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("cards_cache_v1.json")
@@ -107,7 +107,15 @@ public final class CardStore {
         loadTask = Task {
             // Last snapshot first: the tab is usable immediately and the
             // network pass below silently replaces it when it lands.
-            if allCards.isEmpty, let cached = Self.readCache() {
+            //
+            // Detached, because this store is @MainActor and an unstructured
+            // Task started here inherits that: the snapshot is 1.7 MB of JSON,
+            // and decoding it on the main thread was the whole reason the tab
+            // felt slow to open even though the cache was working.
+            if allCards.isEmpty,
+               let cached = await Task.detached(priority: .userInitiated, operation: {
+                   Self.readCache()
+               }).value {
                 publish(cached)
             }
             isLoading = allCards.isEmpty   // spinner only when nothing to show
@@ -136,7 +144,10 @@ public final class CardStore {
                 // Publish once: a growing grid made the card count jump around
                 // (100 → 700 → …), which reads as cards being missing.
                 publish(accumulated)
-                Self.writeCache(accumulated)
+                // Encoding 1.7 MB is the same cost in the other direction, and
+                // nothing waits on it.
+                let snapshot = accumulated
+                Task.detached(priority: .utility) { Self.writeCache(snapshot) }
             } catch is CancellationError {
                 // ignored
             } catch {
@@ -148,13 +159,13 @@ public final class CardStore {
         }
     }
 
-    private static func readCache() -> [Card]? {
+    private nonisolated static func readCache() -> [Card]? {
         guard let data = try? Data(contentsOf: cacheURL) else { return nil }
         // A corrupt/outdated snapshot just falls through to the network path.
         return try? JSONDecoder().decode([Card].self, from: data)
     }
 
-    private static func writeCache(_ cards: [Card]) {
+    private nonisolated static func writeCache(_ cards: [Card]) {
         guard let data = try? JSONEncoder().encode(cards) else { return }
         // Documents may not exist yet in the Android sandbox.
         try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(),

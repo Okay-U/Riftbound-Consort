@@ -15,7 +15,9 @@ protocol CardRepository: Sendable {
     func card(id: String) async throws -> Card
 }
 
-final class RiftcodexCardRepository: CardRepository, @unchecked Sendable {
+// nonisolated so the network decode stays off the main actor, matching
+// RiftboundLocatorService.
+nonisolated final class RiftcodexCardRepository: CardRepository, @unchecked Sendable {
     private let base = URL(string: "https://api.riftcodex.com")!
     private let session: URLSession
 
