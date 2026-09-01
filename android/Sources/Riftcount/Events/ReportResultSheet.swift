@@ -21,12 +21,12 @@ struct ReportResultSheet: View {
     init(match: ResolvedMyMatch,
          isBestOfThree: Bool,
          token: String,
-         service: any LocatorService = LocatorCache.shared,
+         service: (any LocatorService)? = nil,
          onReported: @escaping () -> Void) {
         self.match = match
         self.isBestOfThree = isBestOfThree
         self.token = token
-        self.service = service
+        self.service = service ?? LocatorCache.shared
         self.onReported = onReported
         _games = State(initialValue: Array(repeating: .undecided, count: isBestOfThree ? 3 : 1))
     }

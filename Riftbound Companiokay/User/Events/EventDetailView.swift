@@ -31,6 +31,7 @@ struct EventDetailView: View {
     @State private var calendarError: String?
     @State private var selectedRoundID: Int?
     @State private var standingsPending = false
+    @State private var standingsInFlight = false
     @State private var playerQuery = ""
     @State private var deckCards: [String: String] = [:]
     @State private var deckCount = 0
@@ -225,11 +226,11 @@ struct EventDetailView: View {
 
             myResultsCard(data)
 
+            metaLink(data)
+
             if !data.matches.isEmpty || data.event.browsableRounds.count > 1 {
                 pairingsSection(data)
             }
-
-            metaLink(data)
 
             if !data.standings.isEmpty || standingsPending {
                 VStack(alignment: .leading, spacing: 11) {
@@ -1221,8 +1222,13 @@ struct EventDetailView: View {
     private func pairingList(_ matches: [LocatorMatch], myName: String?) -> some View {
         // The search field doubles as the pairings filter: typing a name narrows
         // the round you are looking at rather than only listing hits above it.
+        // Byes are not pairings. A big event can carry a dozen of them and they
+        // pushed real tables down the list; your own bye still shows on the
+        // match card, which is the only place it means anything.
+        let played = matches.filter { !$0.isBye }
+
         let query = playerQuery.trimmingCharacters(in: .whitespaces).lowercased()
-        let shown = query.isEmpty ? matches : matches.filter { match in
+        let shown = query.isEmpty ? played : played.filter { match in
             match.players.contains { $0.tvDisplayName.lowercased().contains(query) }
         }
 
@@ -1541,6 +1547,37 @@ struct EventDetailView: View {
         return (try? await service.roster(eventID: eventID)) ?? []
     }
 
+    /// Standings in a task of their own, and deliberately unstructured.
+    ///
+    /// They used to be awaited inside `load()`, which made them a child of the
+    /// view's task: opening the metagame screen before they arrived cancelled
+    /// the fetch, and a cancelled fetch was indistinguishable from "this event
+    /// has no standings" — the section published empty, hid itself, and nothing
+    /// ever tried again. Detached, the fetch finishes whether or not the screen
+    /// is still waiting for it.
+    @MainActor
+    private func loadStandings() {
+        guard !standingsInFlight else { return }
+        standingsInFlight = true
+        standingsPending = true
+
+        Task {
+            defer { standingsInFlight = false }
+            guard let fetched = try? await service.standings(eventID: eventID) else {
+                standingsPending = false   // a real failure; pull-to-refresh retries
+                return
+            }
+            standingsPending = false
+            guard case .loaded(let current) = state else { return }
+            state = .loaded(Loaded(event: current.event,
+                                   matches: current.matches,
+                                   standings: fetched,
+                                   myMatch: current.myMatch,
+                                   myName: current.myName,
+                                   capacity: current.capacity))
+        }
+    }
+
     @MainActor
     private func load() async {
         // Keep loaded content mounted during pull-to-refresh; a full swap to the
@@ -1550,8 +1587,8 @@ struct EventDetailView: View {
             // Standings are the slow one — ~4s per page server-side, and several
             // pages at a large event. Everything else lands in well under a
             // second, so the screen is published without them and they fill in
-            // when they arrive rather than holding the whole page blank.
-            async let standingsTask = service.standings(eventID: eventID)
+            // when they arrive rather than holding the whole page blank. See
+            // loadStandings() for why they get a task of their own.
             async let statusTask = fetchRegistrationStatus()
 
             async let eventTask = service.event(id: eventID)
@@ -1580,18 +1617,16 @@ struct EventDetailView: View {
                        capacity: capacity)
             }
 
-            // First paint: everything except standings.
-            standingsPending = true
+            // First paint: everything except standings, which start fetching
+            // immediately rather than queueing behind the decklist lookup.
             state = .loaded(compose([]))
+            loadStandings()
 
             if e.usesDecklists, let token = session.token {
                 myDeck = (try? await service.myDeckSubmission(eventID: eventID, token: token)) ?? nil
             }
 
-            let s = (try? await standingsTask) ?? []
-            standingsPending = false
-            let loaded = compose(s)
-            state = .loaded(loaded)
+            let loaded = compose([])
 
             // A refresh may have completed another round; extend "Your results"
             // if the user already opened it (completed rounds stay cached).

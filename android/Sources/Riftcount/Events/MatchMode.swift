@@ -39,8 +39,11 @@ final class MatchModeStore {
 
     private let service: any LocatorService
 
-    init(service: any LocatorService = LocatorCache.shared) {
-        self.service = service
+    /// Resolved in the body rather than as a default argument: default argument
+    /// expressions are evaluated outside the type's isolation, and the shared
+    /// cache is MainActor-bound like every other store here.
+    init(service: (any LocatorService)? = nil) {
+        self.service = service ?? LocatorCache.shared
         self.enabled = UserDefaults.standard.object(forKey: "matchModeEnabled") as? Bool ?? true
     }
 

@@ -22,11 +22,7 @@
 import Foundation
 
 actor LocatorCache: LocatorService {
-    /// nonisolated so non-UI callers can reach it: under the project's
-    /// default-MainActor isolation a plain `static let` is MainActor-bound, and
-    /// MatchMode builds its service from a nonisolated init. Safe — an actor is
-    /// Sendable, and every method on it is already async.
-    nonisolated static let shared = LocatorCache()
+    static let shared = LocatorCache()
 
     private let upstream = RiftboundLocatorService()
 
