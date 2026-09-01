@@ -247,7 +247,11 @@ struct EventMetaView: View {
                     Text(percent(rate))
                         .font(.system(size: 16, weight: .heavy))
                         .foregroundStyle(rateColor(rate, thin: false))
-                    Image(systemName: open ? "chevron.up" : "chevron.down")
+                    // Rotated chevron.right rather than chevron.up/down: only
+                    // chevron.right is proven to render on SkipUI's symbol map,
+                    // and an unmapped symbol shows as a warning triangle.
+                    Image(systemName: "chevron.right")
+                        .rotationEffect(.degrees(open ? -90 : 90))
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(EventsTheme.textTertiary)
                 }
