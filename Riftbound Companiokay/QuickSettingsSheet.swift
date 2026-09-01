@@ -22,6 +22,16 @@ struct QuickSettingsSheet: View {
                     }
                     .pickerStyle(.segmented)
                 }
+
+                Section {
+                    NavigationLink {
+                        RulesView()
+                    } label: {
+                        Label("Rules, FAQs & errata", systemImage: "book.closed")
+                    }
+                } footer: {
+                    Text("Riot's rulebook, tournament rules, set FAQs, patch notes and card errata.")
+                }
             }
             .navigationTitle("Quick Settings")
             .toolbar {
