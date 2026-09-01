@@ -14,7 +14,9 @@
 import SwiftUI
 
 struct EventMetaView: View {
+    let eventID: Int
     let roundID: Int
+    let roundIDs: [Int]
     let cutSize: Int?
 
     var service: any LocatorService = LocatorCache.shared
@@ -22,11 +24,21 @@ struct EventMetaView: View {
     @State var decks: [LocatorPlayerDeck] = []
     @State var meta: [LegendMeta] = []
     @State var sort: MetaSort = .played
+    @State var mode: MetaMode = .legends
+    @State var matchups: LegendMatchups?
+    @State var matchupsLoading = false
+    @State var expanded: Set<String> = []
     @State var failure: String?
     @State var loading = true
 
-    init(roundID: Int, cutSize: Int?, service: any LocatorService = LocatorCache.shared) {
+    init(eventID: Int,
+         roundID: Int,
+         roundIDs: [Int],
+         cutSize: Int?,
+         service: any LocatorService = LocatorCache.shared) {
+        self.eventID = eventID
         self.roundID = roundID
+        self.roundIDs = roundIDs
         self.cutSize = cutSize
         self.service = service
     }
@@ -37,6 +49,11 @@ struct EventMetaView: View {
     enum MetaSort: Hashable {
         case played, winRate, conversion
     }
+
+    enum MetaMode: Hashable {
+        case legends, matchups
+    }
+
 
     /// A rate sort needs a floor. One player going 1-0 is not a 100% deck, and
     /// without this the top of the list is nothing but one-offs.
@@ -69,6 +86,11 @@ struct EventMetaView: View {
         return Double(made) / Double(entry.players)
     }
 
+    /// Refires the matrix load when the decks arrive, not only when the tab is
+    /// tapped: opening Matchups while the field was still loading would
+    /// otherwise leave it empty with nothing to retry it.
+    var matchupTrigger: Int { mode == .matchups ? decks.count : -1 }
+
     var sortLabel: String {
         switch sort {
         case .played:     return "MOST PLAYED"
@@ -97,7 +119,8 @@ struct EventMetaView: View {
                         .eventsCard(radius: 14)
                 } else {
                     summary
-                    legends
+                    modeChips
+                    if mode == .legends { legends } else { matchupList }
                 }
             }
             .padding(.horizontal, 18)
@@ -106,6 +129,7 @@ struct EventMetaView: View {
         .background(EventsTheme.bg.ignoresSafeArea())
         .navigationTitle("Metagame")
         .task { await load() }
+        .task(id: matchupTrigger) { await loadMatchups() }
     }
 
     // MARK: - Summary
@@ -141,6 +165,135 @@ struct EventMetaView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 13)
+    }
+
+    var modeChips: some View {
+        HStack(spacing: 8) {
+            modeChip("Legends", .legends)
+            modeChip("Matchups", .matchups)
+        }
+    }
+
+    func modeChip(_ label: String, _ value: MetaMode) -> some View {
+        let selected = mode == value
+        return Text(label)
+            .font(.system(size: 13, weight: .bold))
+            .foregroundStyle(selected ? EventsTheme.matchFillBottom : EventsTheme.textSecondary)
+            .frame(maxWidth: .infinity).frame(height: 36)
+            .background(Capsule().fill(selected ? EventsTheme.green : Color.white.opacity(0.06)))
+            .onTapGesture { mode = value }
+    }
+
+    // MARK: - Matchups
+
+    /// Every legend as a card, its matchups behind a tap.
+    ///
+    /// A grid was the obvious shape and the wrong one: a field runs to forty
+    /// legends, so anything that fits a phone shows a corner of the data and
+    /// hides the rest. A card per legend fits the whole field, and expanding
+    /// one gives every matchup it actually played.
+    @ViewBuilder
+    var matchupList: some View {
+        if matchupsLoading {
+            HStack { Spacer(); ProgressView().tint(EventsTheme.green); Spacer() }
+                .frame(height: 120)
+        } else if let matchups, !matchups.legends.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("TAP A LEGEND FOR ITS MATCHUPS")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(EventsTheme.textSecondary)
+
+                VStack(spacing: 8) {
+                    ForEach(matchups.legends, id: \.self) { legend in
+                        matchupCard(legend, matchups)
+                    }
+                }
+
+                Text("Every match of the event, counted from both sides. Mirrors are left out. Matchups met fewer than three times are dimmed — at that sample the percentage is noise.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(EventsTheme.textTertiary)
+            }
+        } else {
+            Text("Not enough decided matches to compare legends.")
+                .font(.system(size: 13))
+                .foregroundStyle(EventsTheme.textSecondary)
+                .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                .eventsCard(radius: 14)
+        }
+    }
+
+    func matchupCard(_ legend: String, _ matchups: LegendMatchups) -> some View {
+        let rows = matchups.opponents(of: legend)
+        let played = rows.reduce(0) { $0 + $1.played }
+        let won = rows.reduce(0) { $0 + $1.wins }
+        let rate = played == 0 ? 0 : Double(won) / Double(played)
+        let open = expanded.contains(legend)
+
+        return VStack(spacing: 0) {
+            Button {
+                if open { expanded.remove(legend) } else { expanded.insert(legend) }
+            } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(legend)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Text("\(played) matches · \(rows.count) matchup\(rows.count == 1 ? "" : "s")")
+                            .font(.system(size: 11))
+                            .foregroundStyle(EventsTheme.textSecondary)
+                    }
+                    Spacer(minLength: 8)
+                    Text(percent(rate))
+                        .font(.system(size: 16, weight: .heavy))
+                        .foregroundStyle(rateColor(rate, thin: false))
+                    Image(systemName: open ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(EventsTheme.textTertiary)
+                }
+                .padding(.vertical, 13).padding(.horizontal, 14)
+            }
+            .buttonStyle(.plain)
+
+            if open {
+                Rectangle().fill(EventsTheme.hairline).frame(height: 1)
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        matchupRow(row)
+                        if index < rows.count - 1 {
+                            Rectangle().fill(EventsTheme.hairline).frame(height: 1).padding(.leading, 14)
+                        }
+                    }
+                }
+            }
+        }
+        .eventsCard(radius: 14)
+    }
+
+    func matchupRow(_ row: LegendMatchupRow) -> some View {
+        let thin = row.played < 3
+        return HStack(spacing: 10) {
+            Text(row.opponent)
+                .font(.system(size: 13))
+                .foregroundStyle(thin ? EventsTheme.textTertiary : Color.white)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Text(row.record)
+                .font(.system(size: 11))
+                .foregroundStyle(EventsTheme.textTertiary)
+            Text(percent(row.winRate))
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(rateColor(row.winRate, thin: thin))
+                .frame(width: 44, alignment: .trailing)
+        }
+        .padding(.vertical, 9).padding(.horizontal, 14)
+    }
+
+    func rateColor(_ rate: Double, thin: Bool) -> Color {
+        if thin { return EventsTheme.textSecondary }
+        if rate >= 0.55 { return EventsTheme.green }
+        if rate <= 0.45 { return Color(red: 0.90, green: 0.35, blue: 0.35) }
+        return EventsTheme.textSecondary
     }
 
     // MARK: - Legends
@@ -258,6 +411,31 @@ struct EventMetaView: View {
     }
 
     // MARK: - Load
+
+    /// Pairings for every round, joined to the legend map the standings already
+    /// gave us. Reuses the same endpoint the event page reads, so rounds already
+    /// browsed come straight from the cache; the rest go out together.
+    @MainActor
+    func loadMatchups() async {
+        guard mode == .matchups, matchups == nil, !matchupsLoading, !decks.isEmpty else { return }
+        matchupsLoading = true
+        defer { matchupsLoading = false }
+
+        let service = self.service
+        let eventID = self.eventID
+        let all = await withTaskGroup(of: [LocatorMatch].self) { group in
+            for id in roundIDs {
+                group.addTask { (try? await service.pairings(eventID: eventID, roundID: id)) ?? [] }
+            }
+            var out: [LocatorMatch] = []
+            for await matches in group { out.append(contentsOf: matches) }
+            return out
+        }
+
+        var byName: [String: String] = [:]
+        for deck in decks { byName[deck.displayName] = deck.legend }
+        matchups = LegendMatchups.build(all, legends: byName)
+    }
 
     @MainActor
     func load() async {

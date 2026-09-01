@@ -1100,7 +1100,9 @@ struct EventDetailView: View {
     func metaLink(_ data: Loaded) -> some View {
         let legends = Set(deckCards.values).count
         if legends > 1, let roundID = currentRoundID {
-            NavigationLink(value: EventMetaRoute(roundID: roundID,
+            NavigationLink(value: EventMetaRoute(eventID: eventID,
+                                                 roundID: roundID,
+                                                 roundIDs: data.event.browsableRounds.map { $0.id },
                                                  cutSize: data.event.resolvedCutSize)) {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 3) {

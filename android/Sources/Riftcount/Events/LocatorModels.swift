@@ -226,7 +226,11 @@ struct EventRoute: Hashable, Sendable {
 /// decks come from, so the screen re-reads the cached response instead of
 /// pushing the whole field through navigation.
 struct EventMetaRoute: Hashable, Sendable {
+    let eventID: Int
+    /// Round whose standings carry the field's decks.
     let roundID: Int
+    /// Every round with pairings — the matchup matrix reads all of them.
+    let roundIDs: [Int]
     let cutSize: Int?
 }
 
@@ -661,5 +665,93 @@ nonisolated struct LegendMeta: Sendable, Identifiable {
         .sorted { a, b in
             a.players == b.players ? a.legend < b.legend : a.players > b.players
         }
+    }
+}
+
+/// One legend's record against another.
+nonisolated struct LegendMatchupRow: Sendable, Identifiable {
+    let opponent: String
+    let wins: Int
+    let losses: Int
+    let draws: Int
+
+    var id: String { opponent }
+    var played: Int { wins + losses + draws }
+    var winRate: Double { played == 0 ? 0 : Double(wins) / Double(played) }
+    var record: String { "\(wins)-\(losses)-\(draws)" }
+}
+
+/// Legend-versus-legend records for one event.
+///
+/// Built from the pairings the app already reads plus the legend map from the
+/// standings — the match feed itself carries no deck data, and does not need
+/// to. Every match is counted from both sides, so either legend can be asked
+/// about its own matchups without transposing anything.
+nonisolated struct LegendMatchups: Sendable {
+    private let wins: [String: Int]
+    private let played: [String: Int]
+    private let opponentsByLegend: [String: [String]]
+
+    /// Legends that appeared in at least one counted match, most-played first.
+    let legends: [String]
+
+    private static func key(_ row: String, _ column: String) -> String {
+        row + "\u{1}" + column
+    }
+
+    /// Who this legend actually played, the most-met first. Losses come from
+    /// the reversed entry and draws are whatever neither side won.
+    ///
+    /// The mirror is left out: it is 50% by construction, so it carries no
+    /// information about the legend and only drags its overall rate toward even.
+    func opponents(of legend: String) -> [LegendMatchupRow] {
+        (opponentsByLegend[legend] ?? []).filter { $0 != legend }.map { opponent in
+            let total = played[Self.key(legend, opponent)] ?? 0
+            let won = wins[Self.key(legend, opponent)] ?? 0
+            let lost = wins[Self.key(opponent, legend)] ?? 0
+            return LegendMatchupRow(opponent: opponent,
+                                    wins: won,
+                                    losses: lost,
+                                    draws: max(0, total - won - lost))
+        }
+        .sorted { a, b in
+            a.played == b.played ? a.opponent < b.opponent : a.played > b.played
+        }
+    }
+
+    static func build(_ matches: [LocatorMatch], legends map: [String: String]) -> LegendMatchups {
+        var wins: [String: Int] = [:]
+        var played: [String: Int] = [:]
+        var appearances: [String: Int] = [:]
+        var opponents: [String: Set<String>] = [:]
+
+        for match in matches where !match.isBye && match.players.count == 2 {
+            let first = match.players[0]
+            let second = match.players[1]
+            guard let a = map[first.tvDisplayName], let b = map[second.tvDisplayName] else { continue }
+
+            played[key(a, b)] = (played[key(a, b)] ?? 0) + 1
+            played[key(b, a)] = (played[key(b, a)] ?? 0) + 1
+            appearances[a] = (appearances[a] ?? 0) + 1
+            appearances[b] = (appearances[b] ?? 0) + 1
+            opponents[a, default: []].insert(b)
+            opponents[b, default: []].insert(a)
+
+            // A draw counts as played for both and won by neither.
+            if first.isWinner == true {
+                wins[key(a, b)] = (wins[key(a, b)] ?? 0) + 1
+            } else if second.isWinner == true {
+                wins[key(b, a)] = (wins[key(b, a)] ?? 0) + 1
+            }
+        }
+
+        let ordered = appearances.keys.sorted { a, b in
+            let left = appearances[a] ?? 0, right = appearances[b] ?? 0
+            return left == right ? a < b : left > right
+        }
+        var lists: [String: [String]] = [:]
+        for (legend, set) in opponents { lists[legend] = Array(set) }
+
+        return LegendMatchups(wins: wins, played: played, opponentsByLegend: lists, legends: ordered)
     }
 }
