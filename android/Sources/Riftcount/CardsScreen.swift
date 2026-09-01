@@ -209,8 +209,9 @@ struct CardGalleryCell: View {
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         // On the cell rather than the image: battlefield art is rotated.
+        // The cell's size is already known here, so no GeometryReader needed.
         .overlay(alignment: .bottomLeading) {
-            if errataStore.erratum(for: card) != nil { ErrataStamp(compact: true) }
+            if errataStore.erratum(for: card) != nil { ErrataStamp(cardHeight: height) }
         }
     }
 }
@@ -233,8 +234,15 @@ struct CardQuickDetail: View {
                     image
                         .resizable()
                         .scaledToFit()
-                        .overlay(alignment: .bottomLeading) {
-                            if errataStore.erratum(for: card) != nil { ErrataStamp() }
+                        .overlay {
+                            GeometryReader { geo in
+                                // Guard the first frame: Compose measures it zero.
+                                if geo.size.height > 0, errataStore.erratum(for: card) != nil {
+                                    ErrataStamp(cardHeight: geo.size.height)
+                                        .frame(width: geo.size.width, height: geo.size.height,
+                                               alignment: .bottomLeading)
+                                }
+                            }
                         }
                 } placeholder: {
                     Color.secondary.opacity(0.15)
@@ -439,29 +447,34 @@ struct ErrataCallout: View {
 
 /// Drawn by us, not part of the card art.
 ///
-/// Riot bakes a BANNED stamp into the bottom-right of the image itself, so this
-/// sits bottom-left: a card can be both banned and errata'd, and on Draven the
-/// two would otherwise collide. Same treatment as Riot's stamp — outlined box,
-/// heavy letter-spaced caps, no fill over the art — in amber rather than red so
-/// the two read as different things at a glance.
+/// Riot bakes a BANNED stamp into the bottom-right of the image, so this sits
+/// bottom-left — a card can be both, and on Draven they collided. Every
+/// dimension is a fraction of the rendered card height, taken by measuring
+/// Riot's own stamp in the source art (box 6.54% of image height, inset 5.29%),
+/// so the two line up at any size instead of drifting apart on a bigger screen.
+///
+/// Amber rather than red so it does not read as a second ban, with the same
+/// soft glow underneath that Riot gives theirs.
 struct ErrataStamp: View {
-    var compact = false
+    /// Rendered height of the card image this sits on.
+    let cardHeight: CGFloat
 
-    private var fontSize: CGFloat { compact ? 8 : 17 }
-    private var hPad: CGFloat { compact ? 4 : 9 }
-    private var vPad: CGFloat { compact ? 2 : 4 }
-    private var stroke: CGFloat { compact ? 1 : 2.5 }
-    private var inset: CGFloat { compact ? 4 : 14 }
+    private var fontSize: CGFloat { cardHeight * 0.0353 }
+    private var hPad: CGFloat { cardHeight * 0.018 }
+    private var vPad: CGFloat { cardHeight * 0.008 }
+    private var stroke: CGFloat { max(1, cardHeight * 0.0035) }
+    private var corner: CGFloat { cardHeight * 0.006 }
+    private var inset: CGFloat { cardHeight * 0.0529 }
 
     var body: some View {
         Text("ERRATA")
             .font(.system(size: fontSize, weight: .heavy))
-            .tracking(compact ? 0.5 : 1.5)
+            .tracking(fontSize * 0.09)
             .foregroundStyle(Color.yellow)
             .padding(.horizontal, hPad).padding(.vertical, vPad)
-            .background(RoundedRectangle(cornerRadius: compact ? 3 : 5).fill(Color.black.opacity(0.55)))
-            .overlay(RoundedRectangle(cornerRadius: compact ? 3 : 5)
-                .stroke(Color.yellow, lineWidth: stroke))
+            .background(RoundedRectangle(cornerRadius: corner).fill(Color.black.opacity(0.5)))
+            .overlay(RoundedRectangle(cornerRadius: corner).stroke(Color.yellow, lineWidth: stroke))
+            .shadow(color: Color.yellow.opacity(0.45), radius: cardHeight * 0.013)
             .padding(inset)
     }
 }

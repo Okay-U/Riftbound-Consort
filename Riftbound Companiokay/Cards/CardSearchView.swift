@@ -181,8 +181,14 @@ struct CardGalleryCell: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
             // On the cell rather than the image: battlefield art is rotated.
-            .overlay(alignment: .bottomLeading) {
-                if errataStore.erratum(for: card) != nil { ErrataStamp(compact: true) }
+            .overlay {
+                GeometryReader { geo in
+                    if geo.size.height > 0, errataStore.erratum(for: card) != nil {
+                        ErrataStamp(cardHeight: geo.size.height)
+                            .frame(width: geo.size.width, height: geo.size.height,
+                                   alignment: .bottomLeading)
+                    }
+                }
             }
     }
 }
