@@ -87,6 +87,10 @@ final class PlayRiftboundWebModel: NSObject, ObservableObject, WKNavigationDeleg
         // Own persistent store: keeps the Riot session across launches, isolated from
         // HTTPCookieStorage.shared and every URLSession in the app.
         config.websiteDataStore = WKWebsiteDataStore(forIdentifier: PlayRiftboundPolicy.dataStoreID)
+        // iPhone default is fullscreen-only video: the site's muted background video then pops
+        // into the system player whenever the app returns from Safari. Match Safari instead.
+        config.allowsInlineMediaPlayback = true
+        config.mediaTypesRequiringUserActionForPlayback = []
         webView = WKWebView(frame: .zero, configuration: config)
         super.init()
 
@@ -148,6 +152,9 @@ final class PlayRiftboundWebModel: NSObject, ObservableObject, WKNavigationDeleg
         // Sub-frames (captcha, consent) load freely; only top-level pages are policed.
         let isTopLevel = navigationAction.targetFrame == nil || navigationAction.targetFrame?.isMainFrame == true
         guard isTopLevel else { return .allow }
+        #if DEBUG
+        log.debug("policy type=\(navigationAction.navigationType.rawValue) \(url.host ?? "-")\(url.path)")
+        #endif
         if url.scheme?.lowercased() == "about" { return .allow }   // about:blank during page setup
         if PlayRiftboundPolicy.isAllowed(url) { return .allow }
         handOff(url)
@@ -157,7 +164,26 @@ final class PlayRiftboundWebModel: NSObject, ObservableObject, WKNavigationDeleg
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         loadError = nil
         notice = nil
+        #if DEBUG
+        navStart = Date()
+        log.debug("nav start")
+        #endif
     }
+
+    #if DEBUG
+    // Debug-only timing to see which navigations are real page loads (a back that
+    // restores from the back/forward cache never reaches these) and how long they take.
+    private var navStart: Date?
+    private func elapsedMs() -> Int { Int((Date().timeIntervalSince(navStart ?? Date())) * 1000) }
+
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        log.debug("nav commit \(webView.url?.host ?? "-")\(webView.url?.path ?? "") after \(self.elapsedMs()) ms")
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        log.debug("nav finish \(webView.url?.host ?? "-")\(webView.url?.path ?? "") after \(self.elapsedMs()) ms")
+    }
+    #endif
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         report(error)

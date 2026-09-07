@@ -44,7 +44,7 @@ when signed out), `EventsTabView.swift` (no longer gates the whole tab). Android
 
 **Allowlist (top-level navigations, https only, suffix match).**
 - `playriftbound.com` (covers `events.`, `rgn.`, `xsso.`)
-- `riftbound.leagueoflegends.com` (the site's own nav sends Card Gallery, News, Rules Hub there)
+- `riftbound.leagueoflegends.com` (the site's nav sends Card Gallery, News, Rules Hub there; the server redirects each to the same path on playriftbound.com, so this is a redirect hop that also costs a WebKit process swap)
 - `authenticate.riotgames.com`, `auth.riotgames.com` (Riot sign-in; not all of riotgames.com)
 
 Deliberately not allowed, opens in the system browser: `locator.riftbound.uvsgames.com`
