@@ -2,26 +2,19 @@
 //  EventsTabView.swift
 //  Riftbound Companiokay
 //
-//  Events tab. Gates on Locator sign-in, then shows the player's own events.
+//  Events tab. EventsHomeView owns the segment strip; the Locator segments gate
+//  on sign-in themselves, the PlayRiftbound segment never does.
 //
 
 import SwiftUI
 
 struct EventsTabView: View {
-    @EnvironmentObject private var session: AuthSession
     @AppStorage("didOnboardEvents") private var didOnboardEvents = false
     @State private var showOnboarding = false
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch session.state {
-                case .signedOut:
-                    LoginView()
-                case .signedIn:
-                    EventsHomeView()
-                }
-            }
+            EventsHomeView()
             .navigationDestination(for: EventRoute.self) { route in
                 EventDetailView(eventID: route.id, myAlias: route.alias)
             }

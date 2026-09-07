@@ -1,23 +1,15 @@
 import SwiftUI
 
-/// Events tab, ported from iOS. Gates on Locator sign-in, then shows the
-/// player's own events. First visit triggers the Events tour (replayable
-/// from Settings).
+/// Events tab, ported from iOS. EventsHomeView owns the segment strip; the
+/// Locator segments gate on sign-in themselves, the PlayRiftbound segment never
+/// does. First visit triggers the Events tour (replayable from Settings).
 struct EventsTabView: View {
-    @Environment(AuthSession.self) var session
     @AppStorage("didOnboardEvents") var didOnboardEvents = false
     @State var showOnboarding = false
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch session.state {
-                case .signedOut:
-                    LoginView()
-                case .signedIn:
-                    EventsHomeView()
-                }
-            }
+            EventsHomeView()
             .navigationDestination(for: EventRoute.self) { route in
                 EventDetailView(eventID: route.id, myAlias: route.alias)
             }
