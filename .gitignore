@@ -60,3 +60,9 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# Claude Code local permissions (may contain tokens from curl allowlists)
+.claude/settings.local.json
+
+# Xcode Cloud metadata generated when opening the project
+**/xcshareddata/xcodecloud/

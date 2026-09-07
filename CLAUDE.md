@@ -6,15 +6,17 @@
 
 **Riftbound Companiokay** (display name "Riftcount: Score Tracker") is a companion app for the Riftbound trading card game — **iOS and Android from one repo** since 2026-07-03:
 
-- **iOS** (shipped on the App Store, v3.0 live; v3.1 in prep): SwiftUI app in `Riftbound Companiokay/`, built via `Riftbound Companiokay.xcodeproj`. Zero external package dependencies.
-- **Android** (v3.1.0 in prep, pre-Play-Store): [Skip](https://skip.dev) native Fuse app in `android/` (module `Riftcount`, appid `pitopia.Riftcount`). Compiled Swift + SkipUI→Compose bridging. Deps: skip, skip-fuse-ui, skip-keychain.
+- **iOS** (App Store, version 3.3): SwiftUI app in `Riftbound Companiokay/`, built via `Riftbound Companiokay.xcodeproj`. Zero external package dependencies.
+- **Android** (3.3.0, versionCode 8): [Skip](https://skip.dev) native Fuse app in `android/` (module `Riftcount`, appid `pitopia.Riftcount`). Compiled Swift + SkipUI→Compose bridging. Deps: skip, skip-fuse-ui, skip-keychain, skip-web.
+
+Plans and audits live in `docs/`: `PLAYRIFTBOUND.md` (Riot platform migration, in-app browser, approved session client, site map), `TAKEOVER_ASSESSMENT.md` (security / code / design tickets), `coach-companion.md` (design draft). Keep it to these; ask before adding a doc.
 
 **iOS-first policy: the shipped iOS app must never regress for the sake of Android.** Feature requests target BOTH platforms by default (iOS first, then Android port with full design parity) unless the user scopes to one platform. See memory `dual-platform-workflow.md`.
 
 ### Feature set (both platforms, full parity)
 
 - **Scoreboard tab**: 2p/4p tiles (conquer/hold/minus), sliding score↔XP faces, XP-stepper mode (header XP button toggles ± on the score face; auto-arms when a level-up legend — Poppy / Master Yi - Wuju Master — is on either side), per-slot colors, game timer, deck pill + opponent, Won/Lost game records, undo (50 steps), tournament match strip (match mode).
-- **Events tab**: Riftbound Locator integration (login via Keychain-stored token, my events, event detail with pairings/standings/register/drop/report result, Can-I-Draw top-cut math), store finder (search, favorites, calendar), eloshowdown player profile (ELO, rank crests, Summoner's DNA radar, match history, percentile), opponent scouting + H2H. Elo requests go through a TTL cache (`EloCache`).
+- **Events tab**: segments Events | New Events | Stores | Profile. Events, Stores and Profile are the Riftbound Locator (carde.io) integration: login via Keychain-stored token, my events, event detail with pairings/standings/register/drop/report result, Can-I-Draw top-cut math, store finder (search, favorites, calendar), eloshowdown player profile (ELO, rank crests, Summoner's DNA radar, match history, percentile), opponent scouting + H2H, `EloCache` TTL layer. **The Locator stops serving Riftbound on 2026-09-14.** "New Events" is a domain-locked in-app browser to PlayRiftbound.com (iOS `WKWebView`, Android SkipWeb), Riot ID + password sign-in on Riot's pages, session kept by the web view only. Roadmap in `docs/PLAYRIFTBOUND.md`.
 - **Dice tab**: D6/D8/D12/D20. Shake-to-roll (iOS only).
 - **Cards tab**: riftcodex card DB, search/sort/filters, card detail, add to deck.
 - **Decks tab**: 7-step builder wizard, deck detail editing, import/export as text, draw hand, draw odds (hypergeometric), deck stats, game history + review.
@@ -22,7 +24,7 @@
 - **Onboarding**: 6-page main tour, Events tour, builder tip overlay.
 - iOS-only: Live Activity (lock screen scoreboard), shake-to-roll, keep-screen-on, widgets. Android-only: Photon geocoder (replaces CLGeocoder).
 
-Detailed feature/spec history lives in memory `session_state.md`; Android port specifics + SkipUI gotcha catalog in memory `android-port.md`.
+Feature history is in git. Android port specifics + SkipUI gotcha catalog in memory `android-port.md`.
 
 ## Repo layout
 
@@ -38,7 +40,7 @@ Detailed feature/spec history lives in memory `session_state.md`; Android port s
 ## Build & run
 
 - **iOS: the user builds in Xcode themselves — do NOT run xcodebuild.**
-- **Android**: from `android/`: `skip android build` (compile gate), `skip app launch --android` (build+install+launch on booted emulator; boot via `emulator -avd SkipSpike`). Deploy to emulator, the USER verifies — no screenshot verification.
+- **Android**: from `android/`: `skip android build` (compile gate), `skip app launch --android` (build+install+launch on booted emulator; boot via `emulator -avd SkipSpike -dns-server 8.8.8.8,1.1.1.1`, without the DNS flag the emulator often cannot resolve hosts and web content stays black). Deploy to emulator, the USER verifies — no screenshot verification.
 - **Android release**: `skip export` from `android/` → `.build/skip-export/Riftcount-release.{apk,aab}`. Needs `kotlin.daemon.jvmargs` heap in `Android/gradle.properties` (already set); if `mergeReleaseJniLibFolders` reports "Duplicate resources", clear the stale incremental merge caches under `.build/Android/**/intermediates` and re-run. Signs with the debug keystore until `Android/app/keystore.properties` exists (gitignored; see memory `android-port.md`).
 
 ## Coding Conventions (iOS)
