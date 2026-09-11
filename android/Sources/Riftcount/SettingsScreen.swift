@@ -61,7 +61,7 @@ struct SettingsScreen: View {
                             Text("Buy me a coffee")
                         }
                     }
-                    if let privacyURL = URL(string: "https://lopsided-waxflower-e3a.notion.site/Riftscore-Support-and-Privacy-2b2d4130908a805f8211ce98d9d93a36") {
+                    if let privacyURL = URL(string: "https://okay-u.github.io/privacy.html") {
                         Link(destination: privacyURL) {
                             Text("Support & Privacy")
                         }
