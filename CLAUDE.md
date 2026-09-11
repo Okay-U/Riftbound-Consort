@@ -6,8 +6,8 @@
 
 **Riftbound Companiokay** (display name "Riftcount: Score Tracker") is a companion app for the Riftbound trading card game — **iOS and Android from one repo** since 2026-07-03:
 
-- **iOS** (App Store, version 3.3): SwiftUI app in `Riftbound Companiokay/`, built via `Riftbound Companiokay.xcodeproj`. Zero external package dependencies.
-- **Android** (3.3.0, versionCode 8): [Skip](https://skip.dev) native Fuse app in `android/` (module `Riftcount`, appid `pitopia.Riftcount`). Compiled Swift + SkipUI→Compose bridging. Deps: skip, skip-fuse-ui, skip-keychain, skip-web.
+- **iOS** (App Store, version 3.4): SwiftUI app in `Riftbound Companiokay/`, built via `Riftbound Companiokay.xcodeproj`. Zero external package dependencies.
+- **Android** (3.4.0, versionCode 9): [Skip](https://skip.dev) native Fuse app in `android/` (module `Riftcount`, appid `pitopia.Riftcount`). Compiled Swift + SkipUI→Compose bridging. Deps: skip, skip-fuse-ui, skip-keychain, skip-web.
 
 Plans and audits live in `docs/`: `PLAYRIFTBOUND.md` (Riot platform migration, in-app browser, approved session client, site map), `TAKEOVER_ASSESSMENT.md` (security / code / design tickets), `coach-companion.md` (design draft). Keep it to these; ask before adding a doc.
 
@@ -40,7 +40,7 @@ Feature history is in git. Android port specifics + SkipUI gotcha catalog in mem
 ## Build & run
 
 - **iOS: the user builds in Xcode themselves — do NOT run xcodebuild.**
-- **Android**: from `android/`: `skip android build` (compile gate), `skip app launch --android` (build+install+launch on booted emulator; boot via `emulator -avd SkipSpike -dns-server 8.8.8.8,1.1.1.1`, without the DNS flag the emulator often cannot resolve hosts and web content stays black). Deploy to emulator, the USER verifies — no screenshot verification.
+- **Android**: from `android/`: `skip android build` (compile gate), `skip app launch --android` (build+install+launch on booted emulator; boot via `emulator -avd SkipSpike -dns-server 8.8.8.8,1.1.1.1`; the AVD config has host GPU + 4 GB RAM since 2026-09-11, without the DNS flag the emulator often cannot resolve hosts and web content stays black; debug builds are janky regardless, judge performance on a release APK). Deploy to emulator, the USER verifies — no screenshot verification.
 - **Android release**: `skip export` from `android/` → `.build/skip-export/Riftcount-release.{apk,aab}`. Needs `kotlin.daemon.jvmargs` heap in `Android/gradle.properties` (already set); if `mergeReleaseJniLibFolders` reports "Duplicate resources", clear the stale incremental merge caches under `.build/Android/**/intermediates` and re-run. Signs with the debug keystore until `Android/app/keystore.properties` exists (gitignored; see memory `android-port.md`).
 
 ## Coding Conventions (iOS)
