@@ -13,7 +13,7 @@ let package = Package(
         .package(url: "https://source.skip.tools/skip.git", from: "1.9.4"),
         .package(url: "https://source.skip.tools/skip-fuse-ui.git", from: "1.0.0"),
         .package(url: "https://source.skip.tools/skip-keychain.git", from: "0.3.2"),
-        .package(url: "https://source.skip.tools/skip-web.git", from: "0.11.3")
+        .package(url: "https://source.skip.tools/skip-web.git", exact: "0.11.3")  // 0.12.0 crashes: NPE in androidRequestHeaders during shouldOverrideUrlLoading
     ],
     targets: [
         .target(name: "Riftcount", dependencies: [

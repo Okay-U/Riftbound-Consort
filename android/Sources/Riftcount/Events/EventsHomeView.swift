@@ -30,6 +30,9 @@ struct EventsHomeView: View {
             if showAccountDialog && isSignedIn {
                 accountPanel
             }
+            if segment != .play {
+                LocatorSunsetBanner { select(.play) }
+            }
             Group {
                 if segment == .play {
                     if let riftWeb { PlayRiftboundView(model: riftWeb) }
@@ -76,11 +79,15 @@ struct EventsHomeView: View {
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(EventsTheme.hairline, lineWidth: 1))
     }
 
+    private func select(_ seg: Segment) {
+        if seg == .play, riftWeb == nil { riftWeb = PlayRiftboundWebModel() }
+        withAnimation(.easeInOut(duration: 0.15)) { segment = seg }
+    }
+
     private func segButton(_ seg: Segment) -> some View {
         let selected = segment == seg
         return Button {
-            if seg == .play, riftWeb == nil { riftWeb = PlayRiftboundWebModel() }
-            withAnimation(.easeInOut(duration: 0.15)) { segment = seg }
+            select(seg)
         } label: {
             Text(seg.rawValue)
                 .font(.system(size: 14, weight: .semibold))
