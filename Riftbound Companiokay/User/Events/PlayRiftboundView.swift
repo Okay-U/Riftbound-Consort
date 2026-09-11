@@ -247,6 +247,7 @@ final class PlayRiftboundWebModel: NSObject, ObservableObject, WKNavigationDeleg
 
 struct PlayRiftboundView: View {
     @ObservedObject var model: PlayRiftboundWebModel
+    @AppStorage("didDismissNewEventsIntro") private var didDismissIntro = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -256,6 +257,8 @@ struct PlayRiftboundView: View {
                 noticeCard(notice)
             } else if PlayRiftboundPolicy.isRiotDomain(model.currentURL) {
                 signInHint
+            } else if LocatorSunset.isUpcoming, !didDismissIntro {
+                introCard
             }
             ZStack {
                 WebViewContainer(webView: model.webView)
@@ -351,6 +354,31 @@ struct PlayRiftboundView: View {
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
             addPasswordLink
+        }
+        .padding(.horizontal, 12).padding(.vertical, 9)
+        .eventsCard(radius: 12)
+        .padding(.horizontal, 18).padding(.bottom, 8)
+    }
+
+    /// Shown until Sept 14: what this segment is for. Same style as the sign-in hint.
+    private var introCard: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "calendar").foregroundStyle(EventsTheme.green)
+            Text("From September 14, your events, pairings and results appear here. Sign in with your Riot ID.")
+                .font(.system(size: 12))
+                .foregroundStyle(EventsTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            Button {
+                didDismissIntro = true
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(EventsTheme.textSecondary)
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
         }
         .padding(.horizontal, 12).padding(.vertical, 9)
         .eventsCard(radius: 12)

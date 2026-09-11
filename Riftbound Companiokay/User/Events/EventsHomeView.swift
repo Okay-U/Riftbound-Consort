@@ -30,6 +30,9 @@ struct EventsHomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
+            if segment != .play {
+                LocatorSunsetBanner { select(.play) }
+            }
             Group {
                 if segment == .play {
                     if let riftWeb { PlayRiftboundView(model: riftWeb) }
@@ -52,6 +55,11 @@ struct EventsHomeView: View {
         .toolbar(.hidden, for: .navigationBar)
     }
 
+    private func select(_ seg: Segment) {
+        if seg == .play, riftWeb == nil { riftWeb = PlayRiftboundWebModel() }
+        withAnimation(.easeInOut(duration: 0.15)) { segment = seg }
+    }
+
     private var topBar: some View {
         HStack(spacing: 12) {
             segmentControl
@@ -65,8 +73,7 @@ struct EventsHomeView: View {
             ForEach(Segment.allCases, id: \.self) { seg in
                 let selected = segment == seg
                 Button {
-                    if seg == .play, riftWeb == nil { riftWeb = PlayRiftboundWebModel() }
-                    withAnimation(.easeInOut(duration: 0.15)) { segment = seg }
+                    select(seg)
                 } label: {
                     Text(seg.rawValue)
                         .font(.system(size: 14, weight: .semibold))
