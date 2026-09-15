@@ -677,6 +677,12 @@ query FavoritedOrganizers {
 | `GetCompeteRbRegistrant` | query | `fd0a61aea2032ccd38e38b78500edcdc2a7b2cb44cb68606db40244e00c7e61d` |
 | `UpdateTournamentRegistrantCheckIn` | mutation | `6ed6aaed15d52b2752e011274de0a6a9b32c70de812a794254f830fb7524a8c2` |
 
+- **Client headers a plain `URLSession` needs (verified on a public query):** `Content-Type:
+  application/json` (Apollo's CSRF guard rejects GETs without a non-simple content type),
+  `Accept: application/json`, and both `apollographql-client-name` and
+  `apollographql-client-version` (gateway answers 401 "No client headers set" without them).
+  `Riftcount` / app version is accepted, so the app identifies itself honestly. Signed-in calls add
+  the site's cookies and the marker `Authorization: Cookie __Secure-access_token`.
 - Event detail is server-rendered (data in the RSC payload); the client only polls
   `GetCompeteRbRefreshPoller` until something changes.
 - Search response: Relay connection `competeTournamentSearch { edges { cursor node { ... on
