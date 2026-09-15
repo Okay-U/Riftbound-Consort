@@ -107,7 +107,12 @@ struct ScoreboardView: View {
                               token: session.token ?? "",
                               onReported: { Task { await matchMode.refresh(session: session) } })
         }
-        .task { await matchMode.refresh(session: session) }
+        .task {
+            await matchMode.refresh(session: session)
+            #if DEBUG
+            await PlayRiftboundAPI.debugProbe()   // step-1 verification of the session client
+            #endif
+        }
         .onChange(of: gameTimer.isRunning, initial: false) { _, _ in
             syncLiveActivity()
         }
