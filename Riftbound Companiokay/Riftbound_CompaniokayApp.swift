@@ -21,6 +21,8 @@ struct Riftbound_CompaniokayApp: App {
     @StateObject private var gameRecordStore = GameRecordStore()
     @StateObject private var authSession = AuthSession()
     @StateObject private var matchMode = MatchModeStore()
+    @StateObject private var riftBrowser = PlayRiftboundBrowser()
+    @StateObject private var riftMatch = PlayRiftboundMatchStore()
 
     var body: some Scene {
         WindowGroup {
@@ -34,6 +36,8 @@ struct Riftbound_CompaniokayApp: App {
                 .environmentObject(gameRecordStore)
                 .environmentObject(authSession)
                 .environmentObject(matchMode)
+                .environmentObject(riftBrowser)
+                .environmentObject(riftMatch)
                 .preferredColorScheme(.dark)
                 .background(trueBlack ? Color.black : Color(.systemBackground))
                 .task { await authSession.restore() }

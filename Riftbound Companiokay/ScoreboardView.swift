@@ -15,6 +15,8 @@ struct ScoreboardView: View {
     @EnvironmentObject var gameRecordStore: GameRecordStore
     @EnvironmentObject var matchMode: MatchModeStore
     @EnvironmentObject var session: AuthSession
+    @EnvironmentObject var riftMatch: PlayRiftboundMatchStore
+    @EnvironmentObject var riftBrowser: PlayRiftboundBrowser
     @AppStorage("trueBlack") private var trueBlack: Bool = true
     @AppStorage("activeDeckId")   private var activeDeckId: String = ""
     @AppStorage("activeOpponent") private var activeOpponent: String = ""
@@ -45,7 +47,10 @@ struct ScoreboardView: View {
                 VStack(spacing: 8) {
                     headerBar
 
-                    if showMatchStrip, let active = matchMode.active {
+                    if showRiftStrip, let strip = riftMatch.current {
+                        riftStrip(strip)
+                            .padding(.horizontal, 16)
+                    } else if showMatchStrip, let active = matchMode.active {
                         matchStrip(active)
                             .padding(.horizontal, 16)
                     }
@@ -109,9 +114,7 @@ struct ScoreboardView: View {
         }
         .task {
             await matchMode.refresh(session: session)
-            #if DEBUG
-            await PlayRiftboundAPI.debugProbe()   // step-1 verification of the session client
-            #endif
+            await riftMatch.refresh(browser: riftBrowser)
         }
         .onChange(of: gameTimer.isRunning, initial: false) { _, _ in
             syncLiveActivity()
@@ -132,6 +135,7 @@ struct ScoreboardView: View {
                 vm.adoptSharedScoresIfAvailable()
                 syncLiveActivity()
                 Task { await matchMode.refresh(session: session) }
+                Task { await riftMatch.refresh(browser: riftBrowser) }
             }
         }
         .onChange(of: liveActivityEnabled, initial: false) { _, _ in
@@ -142,6 +146,7 @@ struct ScoreboardView: View {
             // the strip isn't stale (TabView keeps this view alive, so .task won't refire).
             if tab == "score" {
                 Task { await matchMode.refresh(session: session) }
+                Task { await riftMatch.refresh(browser: riftBrowser) }
             }
         }
         .onChange(of: vm.playerCount, initial: false) { _, _ in
@@ -296,6 +301,81 @@ struct ScoreboardView: View {
 
     private var showMatchStrip: Bool {
         matchMode.enabled && matchMode.active != nil && vm.playerCount == 2
+    }
+
+    /// PlayRiftbound takes precedence over the Locator strip; same feature toggle.
+    private var showRiftStrip: Bool {
+        matchMode.enabled && riftMatch.current != nil && vm.playerCount == 2
+    }
+
+    /// Next PlayRiftbound event, or the current pairing once the tournament has rounds.
+    /// Same look as the Locator strip; "Open" jumps into New Events on the event's page.
+    @ViewBuilder
+    private func riftStrip(_ strip: PlayRiftboundStrip) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Image(systemName: "trophy.fill")
+                    if let pairing = strip.pairing {
+                        Text("Round \(pairing.roundNumber)"
+                             + (pairing.tableNumber.map { " · Table \($0)" } ?? ""))
+                    } else if let date = strip.startsAt {
+                        Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())
+                    } else {
+                        Text("PlayRiftbound")
+                    }
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(EventsTheme.green)
+
+                if let pairing = strip.pairing {
+                    Text(pairing.isBye ? "Bye this round" : "You  vs  \(pairing.opponentName ?? "TBD")")
+                } else {
+                    Text(strip.eventName + (strip.organizerName.map { " · \($0)" } ?? ""))
+                }
+            }
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(EventsTheme.textPrimary)
+            .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            if let pairing = strip.pairing, pairing.isComplete, !pairing.isBye {
+                HStack(spacing: 5) {
+                    Image(systemName: "checkmark.seal.fill")
+                    Text("Reported")
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(EventsTheme.greenSoft, in: Capsule())
+                .foregroundStyle(EventsTheme.green)
+            } else if let url = strip.webURL {
+                Button { riftBrowser.open(url) } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.up.forward")
+                        Text("Open")
+                    }
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(EventsTheme.matchFillBottom)
+                    .padding(.horizontal, 14).frame(height: 38)
+                    .background(EventsTheme.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open event on PlayRiftbound")
+            }
+
+            Button { riftMatch.dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(EventsTheme.textSecondary)
+                    .frame(width: 26, height: 26)
+                    .background(EventsTheme.cardInset, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Hide")
+        }
+        .padding(.horizontal, 14).padding(.vertical, 11)
+        .greenGradientBorder(radius: EventsTheme.pillRadius)
     }
 
     @ViewBuilder

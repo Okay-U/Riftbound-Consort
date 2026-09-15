@@ -46,4 +46,5 @@ struct EventsTabView: View {
 #Preview {
     EventsTabView()
         .environmentObject(AuthSession())
+        .environmentObject(PlayRiftboundBrowser())
 }

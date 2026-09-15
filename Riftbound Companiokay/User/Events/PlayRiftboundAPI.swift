@@ -118,6 +118,16 @@ nonisolated final class PlayRiftboundAPI: Sendable {
                         credentials: credentials)
     }
 
+    private struct TournamentVariables: Encodable, Sendable { let tournamentId: String }
+
+    /// One tournament with rounds, matches and standings, as the player sees it on the site.
+    func tournament(id: String, credentials: PlayRiftboundCredentials) async throws -> CompeteTournament? {
+        let data: CompeteTournamentsData = try await query("GetCompeteTournamentForRiftboundPlayer",
+                                                           variables: TournamentVariables(tournamentId: id),
+                                                           credentials: credentials)
+        return data.competeTournaments.first
+    }
+
     // MARK: Transport
 
     private struct Extensions: Encodable {

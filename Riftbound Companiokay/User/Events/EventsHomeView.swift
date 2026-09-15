@@ -13,10 +13,10 @@ import SwiftUI
 
 struct EventsHomeView: View {
     @EnvironmentObject private var session: AuthSession
+    // Owns the single web view app-wide: created on first New Events use, survives
+    // segment and tab switches, and receives deep links from the Scoreboard.
+    @EnvironmentObject private var browser: PlayRiftboundBrowser
     @State private var segment: Segment = .events
-    // Created on first Play selection, then owned here so the page survives segment
-    // switches and Locator sign-in / sign-out. Users who never open Play pay nothing.
-    @State private var riftWeb: PlayRiftboundWebModel?
 
     enum Segment: String, CaseIterable {
         case events = "Events", play = "New Events", stores = "Stores", profile = "Profile"
@@ -35,7 +35,7 @@ struct EventsHomeView: View {
             }
             Group {
                 if segment == .play {
-                    if let riftWeb { PlayRiftboundView(model: riftWeb) }
+                    if let model = browser.model { PlayRiftboundView(model: model) }
                 } else if !isSignedIn {
                     // One slot for all three Locator segments so typed credentials
                     // survive switching between Events / Stores / Profile.
@@ -53,11 +53,21 @@ struct EventsHomeView: View {
         .background(EventsTheme.bg.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear { consumePendingURL() }
+        .onChange(of: browser.pendingURL, initial: false) { _, _ in consumePendingURL() }
     }
 
     private func select(_ seg: Segment) {
-        if seg == .play, riftWeb == nil { riftWeb = PlayRiftboundWebModel() }
+        if seg == .play { _ = browser.ensureModel() }
         withAnimation(.easeInOut(duration: 0.15)) { segment = seg }
+    }
+
+    /// A deep link from another tab: show New Events and navigate there.
+    private func consumePendingURL() {
+        guard let url = browser.pendingURL else { return }
+        browser.pendingURL = nil
+        select(.play)
+        browser.ensureModel().load(url)
     }
 
     private var topBar: some View {

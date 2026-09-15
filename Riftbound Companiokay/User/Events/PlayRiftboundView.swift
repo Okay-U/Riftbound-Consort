@@ -121,8 +121,13 @@ final class PlayRiftboundWebModel: NSObject, ObservableObject, WKNavigationDeleg
     }
 
     func loadHome() {
+        load(PlayRiftboundPolicy.home)
+    }
+
+    /// Navigate to any allowed page (deep links from the Scoreboard, silent session refresh).
+    func load(_ url: URL) {
         loadError = nil
-        webView.load(URLRequest(url: PlayRiftboundPolicy.home))
+        webView.load(URLRequest(url: url))
     }
 
     func goBack()    { webView.goBack() }
