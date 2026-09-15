@@ -616,6 +616,35 @@ query FavoritedOrganizers {
 ```
 
 
+
+### Live findings, 2026-09-15 (events section launched)
+
+- Player pages: `/en-US/events/` (tabs "Find an event" / "My events"; state in the URL:
+  `?q=<place>&lat=..&lng=..&tab=my-events`), event detail `/en-US/events/{tournamentId}`
+  (18-digit ids). "My events" and "Register" require Riot sign-in (XSSO on the page).
+- GraphQL endpoint `https://playriftbound.com/api/gql`, **persisted queries only**: a freeform
+  `query` is rejected with `PERSISTED_QUERY_ID_REQUIRED`. Queries go as GET with
+  `operationName`, `variables` (JSON) and `extensions={"clientLibrary":{"name":"@apollo/client",
+  "version":"4.1.9"},"persistedQuery":{"version":1,"sha256Hash":"<id>"}}`. Mutations presumably
+  POST with the same extensions (to confirm).
+- Known ids (Apollo Client 4.1.9 build of 2026-09-15; change when Riot redeploys):
+  `CompeteTournamentSearch` = `acbcbba681a9c9a8063f792f7d665ba1eda81b19528b6af19e523f0c2061bec2`
+  (public, no session), `GetCompeteRbRefreshPoller` =
+  `459dbd58b231ad1767b999a1bf987836123ac86a0b5110e166de15b69723ba0d` (public; returns
+  `competeTournamentUpdatedAt`, used by the site to decide when to refetch).
+- The ids are sha256 of Apollo's transformed document. For documents without inline fragments
+  the rule "prepend `__typename` to every selection set including the root, then graphql-js
+  `print`" reproduces the id (verified on the poller); for `CompeteTournamentSearch` (has
+  `... on RbTournamentSearchResult`) no variant matched, so **ids are captured from live traffic**,
+  not derived. Capture `PlayerTournaments` from a signed-in "My events" load,
+  `GetCompeteTournamentForRiftboundPlayer` from a client-side refetch (event day), and
+  `SubmitGameResults` from the first real report. Keep them in the remote manifest (§4).
+- Event detail is server-rendered (data in the RSC payload); the client only polls
+  `GetCompeteRbRefreshPoller` until something changes.
+- Search response: Relay connection `competeTournamentSearch { edges { cursor node { ... on
+  RbTournamentSearchResult { distanceMeters organizer { id name isFavorited physicalAddress
+  {...} } tournament { id name startsAt pricing entryFee {...} ... } } } } pageInfo }`.
+
 ## 6. If Riot grants a content API key: cards gateway
 
 Policy requires the key to stay off devices, and once keyed the app may only use card assets
