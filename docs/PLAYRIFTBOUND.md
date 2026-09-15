@@ -651,13 +651,32 @@ query FavoritedOrganizers {
   site's XSSO widget, so the session client must treat an expired `__Secure-session_expiry` as
   "let the web view load a page first". Riot sign-in completes inside the app's web view (verified).
 - Served by Netlify + CloudFront, no bot challenge observed on the GraphQL path.
-- The ids are sha256 of Apollo's transformed document. For documents without inline fragments
-  the rule "prepend `__typename` to every selection set including the root, then graphql-js
-  `print`" reproduces the id (verified on the poller); for `CompeteTournamentSearch` (has
-  `... on RbTournamentSearchResult`) no variant matched, so **ids are captured from live traffic**,
-  not derived. Capture `PlayerTournaments` from a signed-in "My events" load,
-  `GetCompeteTournamentForRiftboundPlayer` from a client-side refetch (event day), and
-  `SubmitGameResults` from the first real report. Keep them in the remote manifest (§4).
+- **Operation ids come from a persisted-query manifest bundled in the site's JavaScript.** The
+  Apollo client uses `generatePersistedQueryIdsFromManifest` (name → id lookup, GET for queries,
+  POST for mutations); the manifest is `JSON.parse('{"format":"apollo-persisted-query-manifest",…')`
+  inside one `_next/static/chunks/*.js` file loaded by `/en-US/events/`. All five ids captured from
+  live traffic match it. To refresh after a Riot deploy: load the events page, list the loaded
+  chunk URLs, download them, find the one containing `apollo-persisted-query-manifest`, parse the
+  JSON string. Script: `tools/extract-playriftbound-ops.py` in the okay-u.github.io repo, output
+  `playriftbound-ops.json` (ids only) served from the site for the app's remote override.
+- Ids, esports web build `230eb7a`, extracted 2026-09-15:
+
+| Operation | Kind | id |
+|---|---|---|
+| `GetCompeteTournamentForRiftboundPlayer` | query | `e384f3569a74c3090177e04205d38c126f4c61a72853ed7fa04cbe9eba8f19ec` |
+| `SubmitGameResults` | mutation | `4f304b3a523f27d1abde2291d1b9e836e7b524f9e455d70b548680170e91c430` |
+| `PlayerTournaments` | query | `b210fdb2100186e794cb96a3cd72b294dcc7ca9ae5733ad540141ac6a390be4d` |
+| `PlayerRegisteredTournamentIds` | query | `b224261bf00cb424c12a30d914d6216f898e665fefc4550d89cf02679b629b29` |
+| `GetCompeteRbRefreshPoller` | query | `459dbd58b231ad1767b999a1bf987836123ac86a0b5110e166de15b69723ba0d` |
+| `CompeteTournamentSearch` | query | `acbcbba681a9c9a8063f792f7d665ba1eda81b19528b6af19e523f0c2061bec2` |
+| `RegisterCompetePlayer` | mutation | `7372d50ddebea493bd6aefdfce20666c7030d272252c0714fdcb2f63a92f9089` |
+| `DeregisterCompetePlayer` | mutation | `c2c3984c2c050f1f9ab54e5fb373e99e645e91cf010ee4a681b80089826b63d2` |
+| `DropCompetePlayerFromTournament` | mutation | `de49d7c455017093075e79b537558ee398b84aceab36bb0e1e648a665967d95d` |
+| `GetCompetePlayer` | query | `f4c63fee8a5d82b71bab638d61779f8b3567ebf8499e1e6105b0d9556915d6f9` |
+| `FavoritedOrganizers` | query | `8186f58c21e12fb11f76e413ba2795d62baf8d21bc422575f3ea34d894edda2f` |
+| `GetCompeteRbRegistrant` | query | `fd0a61aea2032ccd38e38b78500edcdc2a7b2cb44cb68606db40244e00c7e61d` |
+| `UpdateTournamentRegistrantCheckIn` | mutation | `6ed6aaed15d52b2752e011274de0a6a9b32c70de812a794254f830fb7524a8c2` |
+
 - Event detail is server-rendered (data in the RSC payload); the client only polls
   `GetCompeteRbRefreshPoller` until something changes.
 - Search response: Relay connection `competeTournamentSearch { edges { cursor node { ... on
