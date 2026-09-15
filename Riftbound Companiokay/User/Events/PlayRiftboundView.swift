@@ -96,6 +96,10 @@ final class PlayRiftboundWebModel: NSObject, ObservableObject, WKNavigationDeleg
 
         webView.navigationDelegate = self
         webView.uiDelegate = self
+        #if DEBUG
+        // Safari → Develop → <device> → Riftcount: inspect the page and its GraphQL requests.
+        webView.isInspectable = true
+        #endif
         webView.allowsBackForwardNavigationGestures = true
         webView.isOpaque = false
         webView.backgroundColor = .black
