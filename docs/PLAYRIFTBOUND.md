@@ -632,6 +632,25 @@ query FavoritedOrganizers {
   (public, no session), `GetCompeteRbRefreshPoller` =
   `459dbd58b231ad1767b999a1bf987836123ac86a0b5110e166de15b69723ba0d` (public; returns
   `competeTournamentUpdatedAt`, used by the site to decide when to refetch).
+- Captured from Okay's signed-in session in the app (2026-09-15, same build):
+  `PlayerTournaments` = `b210fdb2100186e794cb96a3cd72b294dcc7ca9ae5733ad540141ac6a390be4d`
+  (GET, variables `{"upcomingFirst":20,"pastFirst":20}`),
+  `RegisterCompetePlayer` = `7372d50ddebea493bd6aefdfce20666c7030d272252c0714fdcb2f63a92f9089` and
+  `DeregisterCompetePlayer` = `c2c3984c2c050f1f9ab54e5fb373e99e645e91cf010ee4a681b80089826b63d2`
+  (both POST, JSON body `{"operationName","variables":{"esportsTournamentId"},"extensions":{...}}`,
+  `Origin: https://playriftbound.com`). Still missing: `GetCompeteTournamentForRiftboundPlayer`,
+  `SubmitGameResults`.
+- Request headers the site sends (besides cookies): `Accept: application/graphql-response+json,
+  application/json;q=0.9`, `Content-Type: application/json`, the literal marker
+  `Authorization: Cookie __Secure-access_token`, `apollographql-client-name: Esports Web`,
+  `apollographql-client-version: <build>`. Which of these the gateway requires is untested.
+- Session cookies on `playriftbound.com` (names only): `__Secure-access_token` (RSO JWT, client
+  `prod-xsso-playriftbound`, scopes `openid account email offline_access`, **1 h lifetime**),
+  `__Secure-session_state`, `__Secure-session_expiry` (ISO timestamp), `__Secure-refresh_token_presence`,
+  `__Secure-id_hint` (game name, tag line, hashed email). Refresh happens on page loads through the
+  site's XSSO widget, so the session client must treat an expired `__Secure-session_expiry` as
+  "let the web view load a page first". Riot sign-in completes inside the app's web view (verified).
+- Served by Netlify + CloudFront, no bot challenge observed on the GraphQL path.
 - The ids are sha256 of Apollo's transformed document. For documents without inline fragments
   the rule "prepend `__typename` to every selection set including the root, then graphql-js
   `print`" reproduces the id (verified on the poller); for `CompeteTournamentSearch` (has
