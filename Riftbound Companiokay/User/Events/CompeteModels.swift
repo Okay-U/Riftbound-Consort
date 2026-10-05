@@ -241,8 +241,8 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 /// The signed-in player's situation in the latest round of a tournament.
 nonisolated struct CompetePairing: Sendable, Equatable {
     let roundNumber: Int
-    /// Position of the match within the round, 1-based. Riot's schema has no table field; the
-    /// site's own numbering is unverified until a live event (ponytail: swap for the real rule then).
+    /// Riot's schema has no table field. The site numbers tables by ascending match id within the
+    /// round (verified against a live event, 2026-10-05: ids …840/…844/…848 = tables 1/2/3).
     let tableNumber: Int?
     let matchID: String?
     let opponentName: String?
@@ -252,8 +252,12 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     static func resolve(in tournament: CompeteTournament, playerID: String) -> CompetePairing? {
         guard let round = tournament.rounds.last else { return nil }
         let myTeamID = (tournament.tournamentParticipants ?? []).first { $0.player?.id == playerID }?.esportsTeamId
-        if let index = round.matches.firstIndex(where: { $0.teams.contains { $0.players.contains { $0.id == playerID } } }) {
-            let match = round.matches[index]
+        // Same-length numeric strings, so a (count, lexical) sort equals a numeric sort without overflow.
+        let byTable = round.matches.sorted {
+            ($0.esportsMatchId.count, $0.esportsMatchId) < ($1.esportsMatchId.count, $1.esportsMatchId)
+        }
+        if let index = byTable.firstIndex(where: { $0.teams.contains { $0.players.contains { $0.id == playerID } } }) {
+            let match = byTable[index]
             let opponent = match.teams.first { !$0.players.contains { $0.id == playerID } }?.players.first?.displayName
             return CompetePairing(roundNumber: round.roundNumber, tableNumber: index + 1, matchID: match.esportsMatchId,
                                   opponentName: opponent, isBye: false, isComplete: match.isComplete)
