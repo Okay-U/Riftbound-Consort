@@ -128,6 +128,33 @@ nonisolated final class PlayRiftboundAPI: Sendable {
         return data.competeTournaments.first
     }
 
+    /// One game of a result report. `winnerParticipantID` nil + `draw` false = not played (omit instead).
+    nonisolated struct GameResult: Encodable, Sendable {
+        let gameId: String
+        let draw: Bool
+        let winnerParticipantId: String?
+    }
+
+    private struct SubmitInput: Encodable, Sendable {
+        let esportsTournamentId: String
+        let games: [GameResult]
+    }
+    private struct SubmitVariables: Encodable, Sendable { let input: SubmitInput }
+    private struct SubmitData: Decodable, Sendable {
+        struct Payload: Decodable, Sendable { let submittedGameIds: [String]? }
+        let submitGameResults: Payload?
+    }
+
+    /// The player's own result for games of their current match (approved operation).
+    /// Shape recovered from the gateway's validation errors, see docs/PLAYRIFTBOUND.md.
+    @discardableResult
+    func submitGameResults(tournamentID: String, games: [GameResult], credentials: PlayRiftboundCredentials) async throws -> [String] {
+        let data: SubmitData = try await mutate("SubmitGameResults",
+                                                variables: SubmitVariables(input: SubmitInput(esportsTournamentId: tournamentID, games: games)),
+                                                credentials: credentials)
+        return data.submitGameResults?.submittedGameIds ?? []
+    }
+
     // MARK: Transport
 
     private struct Extensions: Encodable {

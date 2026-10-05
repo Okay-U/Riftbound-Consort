@@ -31,6 +31,7 @@ struct ScoreboardView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var liveActivityDebounce: Task<Void, Never>?
     @State private var reportingMatch: ResolvedMyMatch?
+    @State private var riftReporting: PlayRiftboundStrip?
     @State private var confirmReset = false
     @State private var undoToastVisible = false
     @State private var undoToastGeneration = 0
@@ -111,6 +112,12 @@ struct ScoreboardView: View {
                               isBestOfThree: matchMode.active?.isBestOfThree ?? true,
                               token: session.token ?? "",
                               onReported: { Task { await matchMode.refresh(session: session) } })
+        }
+        .sheet(item: $riftReporting) { strip in
+            if let pairing = strip.pairing {
+                PlayRiftboundReportSheet(strip: strip, pairing: pairing,
+                                         onReported: { Task { await riftMatch.refresh(browser: riftBrowser, force: true) } })
+            }
         }
         .task {
             await matchMode.refresh(session: session)
@@ -349,6 +356,18 @@ struct ScoreboardView: View {
                 .padding(.horizontal, 10).padding(.vertical, 6)
                 .background(EventsTheme.greenSoft, in: Capsule())
                 .foregroundStyle(EventsTheme.green)
+            } else if let pairing = strip.pairing, pairing.isReportable {
+                Button { riftReporting = strip } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "square.and.pencil")
+                        Text("Report")
+                    }
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(EventsTheme.matchFillBottom)
+                    .padding(.horizontal, 14).frame(height: 38)
+                    .background(EventsTheme.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
             } else if let url = strip.webURL {
                 Button { riftBrowser.open(url) } label: {
                     HStack(spacing: 5) {
