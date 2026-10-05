@@ -683,6 +683,17 @@ query FavoritedOrganizers {
   `apollographql-client-version` (gateway answers 401 "No client headers set" without them).
   `Riftcount` / app version is accepted, so the app identifies itself honestly. Signed-in calls add
   the site's cookies and the marker `Authorization: Cookie __Secure-access_token`.
+- **Live event findings (test event 2026-10-05):** the site numbers tables by **ascending
+  `esportsMatchId` within the round** (array order differs). A result entered on the site arrives
+  as `teamOutcomes` on the match while `status` stays `IN_PROGRESS`. The web UI submits results via
+  a Next.js server action (POST to the page URL with a `next-action` header), never via the client
+  mutation, so the input shape was recovered from the gateway's own validation errors (anonymous,
+  nothing written; the request stops at "The player is not authenticated"):
+  `SubmitGameResultsInput { esportsTournamentId: String!, games: [GameResultInput!]! }`,
+  `GameResultInput { gameId: String!, draw: Boolean!, winnerParticipantId: String }` where
+  `gameId` = `match.games[].esportsGameId` and `winnerParticipantId` = `tournamentParticipants[].id`
+  (the participant id, not the team id). Rejected names for reference: esportsMatchId at top
+  level, winnerTeamId / winningTeamId / esportsTeamId / playerId on the game.
 - Event detail is server-rendered (data in the RSC payload); the client only polls
   `GetCompeteRbRefreshPoller` until something changes.
 - Search response: Relay connection `competeTournamentSearch { edges { cursor node { ... on
