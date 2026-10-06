@@ -700,6 +700,48 @@ query FavoritedOrganizers {
   RbTournamentSearchResult { distanceMeters organizer { id name isFavorited physicalAddress
   {...} } tournament { id name startsAt pricing entryFee {...} ... } } } } pageInfo }`.
 
+
+## 8. Native event views on PlayRiftbound data (plan, 2026-10-06)
+
+Rebuild of the old Events screens on the approved operations. Reference: Okay's screenshots of the
+site (event list, my events, upcoming event, live/past event with its four tabs). We copy the
+site's *moments* in our own design; none of Riot's assets (Poro art, icons) are used.
+
+**Tab structure.** Events tab = `Events` (native, below) | `PlayRiftbound` (the web view: sign in,
+find an event with map/filters, register/drop, store contact). The three Locator segments and
+their code are deleted in the same release.
+
+### Screens
+
+| Screen | Site element | Our source | Status |
+|---|---|---|---|
+| **My events** | Bevorstehende / Vergangene sections, cards with date badge, weekday + time, name, `program • 1v1 • format`, price pill, `n/cap` pill, heart + store + city | `PlayerTournaments` (`upcoming`, `past`; organizer name/city/isFavorited; tournament name/startsAt/pricing/entryFee/registrantCounts/config) | all available |
+| | Distance to store, "Favorisierte Shops" list | needs location + `FavoritedOrganizers` | drop distance; stores list = web |
+| **Upcoming event** | header (store, name, date, time, players n/cap), Register / Drop button | tournament query + registrants; **Register/Drop = deep link** to the event page in the web view | available |
+| | Details card: description, program chip, date, `format • 1v1 • Swiss`, `N Runden • Bo • price` | `description`, `tournamentProgram.programName`, `config.format/playerFormat/structure/roundCount/matchFormat`, `entryFee` | available |
+| | Contact card: address, website, email, phone | `OrganizerSummary` (not approved) | web deep link, or ask Riot to add the op |
+| | Registered players with "(you)" marker | `tournamentRegistrants` + our own participant id | available |
+| **Live / past event, tab "Your matches"** | Finale card: final placement + celebration | last round `endOfRoundStandings.rank` for our team (section `ranks` once Riot fills it); own illustration | available |
+| | Previous matches: per round card `Table N · Round N`, both players with seed badge `#n` and record `W-L-D` at that time, game-score boxes, winner highlighted | table = sorted match id; seed = `tournamentParticipants[].position`; record = previous round's standings (0-0-0 in round 1); games won = count of `games[].teamOutcomes` WIN per team | available |
+| **Tab "Rounds"** | Your pairing (round picker), then all pairings | `rounds[].matches` | available |
+| **Tab "Standings"** | Your standing (round picker); table rank, name, W-L-D, points, ACTIVE / DROPPED, expand → OMW% GW% OGW% | `endOfRoundStandings` (rank, matchWins/Losses/Draws, matchPoints, opponentMatchWinPercentage, gameWinPercentage, opponentGameWinPercentage), `tournamentParticipants[].status` | available |
+| **Tab "Roster"** | players with ACTIVE / DROPPED badge | `tournamentParticipants` (status) before/after start, `tournamentRegistrants` before | available |
+| Round clock (ours, not on the site) | | `rounds[].startedAt + roundDuration` | available |
+| Can-I-Draw (ours) | | `DrawCalc` on standings + `config.roundCount` | available |
+| **Find an event** | location, type/format filters, distance, sort, favorites-only, map | `CompeteTournamentSearch` is public but not in the approval; map = Google | web view |
+
+### Riot asks worth one message (all read-only, public or player-own)
+`OrganizerSummary` (store contact card), `FavoritedOrganizers` (favourite stores list),
+`CompeteTournamentSearch` (event finder). Without them those three stay in the web view.
+
+### Build order
+1. My events list (PlayerTournaments) replacing the Locator "Events" segment.
+2. Event screen: header + details + registrants; Register/Drop/contact as web deep links.
+3. Live/past tabs: your matches (with final placement), rounds, standings, roster; round clock; Can-I-Draw.
+4. Delete Locator code (`LocatorAPI`, `LocatorCache`, `LocatorModels`, `AuthService`, `AuthSession`,
+   `LoginView`, `MyEventsView`, `EventDetailView`, `EventMetaView`, stores, eloshowdown views).
+5. Android port of 1–4. 6. Release 3.5.
+
 ## 6. If Riot grants a content API key: cards gateway
 
 Policy requires the key to stay off devices, and once keyed the app may only use card assets
