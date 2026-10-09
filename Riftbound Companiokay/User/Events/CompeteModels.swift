@@ -247,6 +247,8 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
         let id: String
         let esportsTeamId: String?
         let status: String?
+        /// Seed, as the site shows it (#n).
+        let position: Int?
         let player: RegistrantPlayer?
     }
 

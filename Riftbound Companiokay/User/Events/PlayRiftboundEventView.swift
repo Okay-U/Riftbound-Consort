@@ -23,7 +23,7 @@ struct PlayRiftboundEventView: View {
     @State private var tab: Tab = .matches
     @State private var reporting: PlayRiftboundStrip?
 
-    enum Tab: String, CaseIterable { case matches = "Matches", rounds = "Rounds", info = "Info" }
+    enum Tab: String, CaseIterable { case matches = "Matches", rounds = "Rounds", standings = "Standings", roster = "Roster", info = "Info" }
 
     private let api = PlayRiftboundAPI()
     private var summary: CompeteTournamentSummary { entry.tournament }
@@ -39,8 +39,11 @@ struct PlayRiftboundEventView: View {
                         PlayRiftboundMatchesTab(tournament: tournament, playerID: playerID(in: tournament),
                                                 isPast: isPast) { pairing in reporting = strip(for: pairing) }
                     case .rounds:
-                        PlayRiftboundRoundsTab(tournament: tournament,
-                                               myTeamID: playerID(in: tournament).flatMap(tournament.teamID(playerID:)))
+                        PlayRiftboundRoundsTab(tournament: tournament, myTeamID: myTeamID(in: tournament))
+                    case .standings:
+                        PlayRiftboundStandingsTab(tournament: tournament, myTeamID: myTeamID(in: tournament))
+                    case .roster:
+                        PlayRiftboundRosterTab(tournament: tournament, myTeamID: myTeamID(in: tournament))
                     case .info:
                         actions
                         details(tournament)
@@ -84,6 +87,10 @@ struct PlayRiftboundEventView: View {
         return tournament.playerID(gameName: me.name, tagLine: me.tag)
     }
 
+    private func myTeamID(in tournament: CompeteTournament) -> String? {
+        playerID(in: tournament).flatMap(tournament.teamID(playerID:))
+    }
+
     private func strip(for pairing: CompetePairing) -> PlayRiftboundStrip {
         PlayRiftboundStrip(tournamentID: summary.id, eventName: summary.name, organizerName: entry.organizer?.name,
                            startsAt: summary.startsAt, webURL: summary.webURL, pairing: pairing)
@@ -95,7 +102,8 @@ struct PlayRiftboundEventView: View {
                 let on = tab == t
                 Button { withAnimation(.easeInOut(duration: 0.15)) { tab = t } } label: {
                     Text(t.rawValue)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.75)
                         .foregroundStyle(on ? EventsTheme.matchFillBottom : EventsTheme.textSecondary)
                         .frame(maxWidth: .infinity).frame(height: 32)
                         .background(on ? EventsTheme.green : Color.clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
