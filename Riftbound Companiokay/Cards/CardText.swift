@@ -181,7 +181,7 @@ struct CardTextView: View {
             switch run {
             case .text(let s):    return acc + Text(s)
             case .keyword(let k): return acc + Text("[\(k)]").bold()
-            case .symbol(let a):  return acc + Text(Image(a)).font(glyphFont).baselineOffset(-1)
+            case .symbol(let a):  return acc + Text(Image(a)).font(glyphFont).baselineOffset(-4)
             }
         }
     }
