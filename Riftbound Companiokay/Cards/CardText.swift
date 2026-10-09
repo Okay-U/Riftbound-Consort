@@ -159,9 +159,9 @@ struct CardTextView: View {
     /// their intrinsic size (the SVGs are 24 pt) and ignores the font, so the
     /// glyph is rasterised at this size first. Template assets keep tinting
     /// with the text colour.
-    static let glyphSize: CGFloat = 16
+    static let glyphSize: CGFloat = 18
     /// Negative moves the glyph down; the glyph's bottom otherwise sits on the baseline.
-    static let glyphBaselineOffset: CGFloat = -6
+    static let glyphBaselineOffset: CGFloat = -3
 
     private static var glyphCache: [String: UIImage] = [:]
 
