@@ -22,6 +22,24 @@ struct PlayRiftboundEventView: View {
     @State private var error: String?
     @State private var tab: Tab = .matches
     @State private var reporting: PlayRiftboundStrip?
+    @State private var pendingAction: RegistrationAction?
+    @State private var busy = false
+    @State private var actionError: String?
+
+    enum RegistrationAction: Identifiable {
+        case register, deregister, drop
+        var id: Self { self }
+        var title: String {
+            switch self { case .register: "Register"; case .deregister: "Cancel registration"; case .drop: "Drop from event" }
+        }
+        var message: String {
+            switch self {
+            case .register:   "Registers you for this event with your Riot account."
+            case .deregister: "Removes your registration. You can register again while registration is open."
+            case .drop:       "Drops you from the running event. This cannot be undone."
+            }
+        }
+    }
 
     enum Tab: String, CaseIterable { case matches = "Matches", rounds = "Rounds", standings = "Standings", roster = "Roster", info = "Info" }
 
@@ -133,7 +151,7 @@ struct PlayRiftboundEventView: View {
             }
             HStack(spacing: 8) {
                 Label(playersText, systemImage: "person.2")
-                pill("Registered", tint: EventsTheme.green)
+                if isRegistered { pill("Registered", tint: EventsTheme.green) }
             }
             .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
         }
@@ -142,9 +160,68 @@ struct PlayRiftboundEventView: View {
         .eventsCard()
     }
 
-    /// Register / drop / store contact live on the site (not approved for the session client).
     private var actions: some View {
-        webButton("Manage on PlayRiftbound", symbol: "safari", url: summary.webURL)
+        VStack(spacing: 8) {
+            if PlayRiftboundFeatures.unapproved, let action = availableAction {
+                Button { pendingAction = action } label: {
+                    Group {
+                        if busy { ProgressView().tint(action == .register ? EventsTheme.matchFillBottom : .white) }
+                        else { Label(action.title, systemImage: action == .register ? "person.badge.plus" : "person.badge.minus") }
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(action == .register ? EventsTheme.matchFillBottom : Color.red)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(action == .register ? EventsTheme.green : Color.red.opacity(0.14),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(busy)
+                .confirmationDialog(action.title, isPresented: Binding(get: { pendingAction != nil }, set: { if !$0 { pendingAction = nil } }),
+                                    titleVisibility: .visible) {
+                    Button(action.title, role: action == .register ? nil : .destructive) { Task { await perform(action) } }
+                    Button("Cancel", role: .cancel) {}
+                } message: { Text(action.message) }
+            }
+            if let actionError {
+                Text(actionError).font(.system(size: 12)).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            webButton("Open on PlayRiftbound", symbol: "safari", url: summary.webURL)
+        }
+    }
+
+    private var isRegistered: Bool {
+        if events.upcoming.contains(where: { $0.tournament.id == summary.id }) { return true }
+        guard let tournament, let me else { return false }
+        return (tournament.tournamentRegistrants ?? []).contains { ($0.status ?? "REGISTERED") == "REGISTERED" && isMe($0.player) }
+    }
+
+    private var isOver: Bool { isPast || summary.startsAt.map { $0.addingTimeInterval(12 * 3600) < Date() } == true }
+
+    private var availableAction: RegistrationAction? {
+        guard me != nil, !isOver else { return nil }
+        let started = tournament?.hasRounds == true
+        if isRegistered { return started ? .drop : .deregister }
+        return started ? nil : .register
+    }
+
+    private func perform(_ action: RegistrationAction) async {
+        busy = true; actionError = nil
+        defer { busy = false }
+        do {
+            guard let credentials = try await PlayRiftboundSession.validCredentials(refreshingVia: browser) else {
+                actionError = PlayRiftboundError.notSignedIn.errorDescription; return
+            }
+            switch action {
+            case .register:   try await api.register(tournamentID: summary.id, credentials: credentials)
+            case .deregister: try await api.deregister(tournamentID: summary.id, credentials: credentials)
+            case .drop:       try await api.drop(tournamentID: summary.id, credentials: credentials)
+            }
+            await load()
+            await events.refresh(browser: browser, force: true)
+            await riftMatch.refresh(browser: browser, force: true)
+        } catch {
+            actionError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
     }
 
     private func details(_ t: CompeteTournament) -> some View {

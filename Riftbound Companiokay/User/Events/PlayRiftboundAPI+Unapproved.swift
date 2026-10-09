@@ -45,6 +45,26 @@ extension PlayRiftboundAPI {
     static func searchStartDate(_ now: Date = Date()) -> String {
         now.addingTimeInterval(-3600).formatted(.iso8601)
     }
+
+    // MARK: Registration (the player's own)
+
+    private nonisolated struct TournamentIDVariables: Encodable, Sendable { let esportsTournamentId: String }
+    /// The payloads carry nothing the app needs; success is the absence of errors.
+    private nonisolated struct Ignored: Decodable, Sendable {}
+
+    func register(tournamentID: String, credentials: PlayRiftboundCredentials) async throws {
+        let _: Ignored = try await mutate("RegisterCompetePlayer", variables: TournamentIDVariables(esportsTournamentId: tournamentID), credentials: credentials)
+    }
+
+    /// Before the event starts.
+    func deregister(tournamentID: String, credentials: PlayRiftboundCredentials) async throws {
+        let _: Ignored = try await mutate("DeregisterCompetePlayer", variables: TournamentIDVariables(esportsTournamentId: tournamentID), credentials: credentials)
+    }
+
+    /// Once rounds are running.
+    func drop(tournamentID: String, credentials: PlayRiftboundCredentials) async throws {
+        let _: Ignored = try await mutate("DropCompetePlayerFromTournament", variables: TournamentIDVariables(esportsTournamentId: tournamentID), credentials: credentials)
+    }
 }
 
 // MARK: - Response
