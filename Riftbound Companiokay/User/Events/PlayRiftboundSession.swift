@@ -44,6 +44,20 @@ nonisolated enum PlayRiftboundSession {
     }
 
     /// nil when the player has never signed in on New Events (or signed out there).
+    /// Credentials that are good to use now: an expired session is renewed once
+    /// through an off-screen page load. Nil when the player is signed out, or
+    /// `.sessionExpired` when the renewal did not help.
+    @MainActor
+    static func validCredentials(refreshingVia browser: PlayRiftboundBrowser) async throws -> PlayRiftboundCredentials? {
+        guard let credentials = await credentials() else { return nil }
+        guard credentials.isExpired else { return credentials }
+        await browser.refreshSession()
+        guard let renewed = await Self.credentials(), !renewed.isExpired else {
+            throw PlayRiftboundError.sessionExpired
+        }
+        return renewed
+    }
+
     /// WebKit's data store is main-thread only, hence the explicit isolation.
     @MainActor
     static func credentials() async -> PlayRiftboundCredentials? {

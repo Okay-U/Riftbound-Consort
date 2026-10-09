@@ -2,11 +2,11 @@
 //  EventsHomeView.swift
 //  Riftbound Companiokay
 //
-//  Root of the Events tab: a custom segmented control switching between the
-//  Locator-backed segments ("Events", "Stores", "Profile") and "Play", the
-//  domain-locked PlayRiftbound browser. The Locator segments show the login
-//  form while signed out; "Play" never depends on the Locator session.
-//  Styled per EventsTheme (green-only accent).
+//  Root of the Events tab: a custom segmented control switching between
+//  "Events" (native list on PlayRiftbound data), "PlayRiftbound" (the
+//  domain-locked browser) and the Locator-backed segments "Old", "Stores",
+//  "Profile", which show the login form while signed out and go away with the
+//  Locator. Styled per EventsTheme (green-only accent).
 //
 
 import SwiftUI
@@ -19,7 +19,10 @@ struct EventsHomeView: View {
     @State private var segment: Segment = .events
 
     enum Segment: String, CaseIterable {
-        case events = "Events", play = "New Events", stores = "Stores", profile = "Profile"
+        case events = "Events", play = "PlayRiftbound", old = "Old", stores = "Stores", profile = "Profile"
+
+        /// Locator-backed segments: Locator login, sunset banner. Gone with the Locator.
+        var isLocator: Bool { self == .old || self == .stores || self == .profile }
     }
 
     private var isSignedIn: Bool {
@@ -30,22 +33,27 @@ struct EventsHomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
-            if segment != .play {
+            if segment.isLocator {
                 LocatorSunsetBanner { select(.play) }
             }
             Group {
-                if segment == .play {
+                if segment == .events {
+                    PlayRiftboundEventsView { url in
+                        select(.play)
+                        if let url { browser.ensureModel().load(url) }
+                    }
+                } else if segment == .play {
                     if let model = browser.model { PlayRiftboundView(model: model) }
                 } else if !isSignedIn {
                     // One slot for all three Locator segments so typed credentials
-                    // survive switching between Events / Stores / Profile.
+                    // survive switching between Old / Stores / Profile.
                     LoginView()
                 } else {
                     switch segment {
-                    case .events: MyEventsView(embedded: true)
+                    case .old: MyEventsView(embedded: true)
                     case .stores: StoresHomeView()
                     case .profile: ProfileView()
-                    case .play: EmptyView()
+                    case .events, .play: EmptyView()
                     }
                 }
             }
@@ -73,7 +81,7 @@ struct EventsHomeView: View {
     private var topBar: some View {
         HStack(spacing: 12) {
             segmentControl
-            if isSignedIn { accountMenu }
+            if isSignedIn, segment.isLocator { accountMenu }
         }
         .padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 10)
     }
@@ -87,7 +95,7 @@ struct EventsHomeView: View {
                 } label: {
                     Text(seg.rawValue)
                         .font(.system(size: 14, weight: .semibold))
-                        .lineLimit(1).minimumScaleFactor(0.8)   // "New Events" is ~69pt, a 375pt slot is ~67pt
+                        .lineLimit(1).minimumScaleFactor(0.7)   // five slots: "PlayRiftbound" needs the scale
                         .foregroundStyle(selected ? EventsTheme.matchFillBottom : EventsTheme.textSecondary)
                         .frame(maxWidth: .infinity).frame(height: 34)
                         .background(selected ? EventsTheme.green : Color.clear,

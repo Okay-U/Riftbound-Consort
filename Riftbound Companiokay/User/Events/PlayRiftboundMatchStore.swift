@@ -53,20 +53,11 @@ final class PlayRiftboundMatchStore: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false; lastRefresh = Date() }
 
-        guard var credentials = await PlayRiftboundSession.credentials() else {
-            current = nil
-            return
-        }
-        if credentials.isExpired {
-            await browser.refreshSession()
-            guard let renewed = await PlayRiftboundSession.credentials(), !renewed.isExpired else {
-                lastError = PlayRiftboundError.sessionExpired.errorDescription
+        do {
+            guard let credentials = try await PlayRiftboundSession.validCredentials(refreshingVia: browser) else {
+                current = nil
                 return
             }
-            credentials = renewed
-        }
-
-        do {
             let mine = try await api.myTournaments(credentials: credentials)
             let horizon = Date().addingTimeInterval(Self.lookahead)
             func start(_ entry: PlayerTournamentEntry) -> Date { entry.tournament.startsAt ?? .distantFuture }
