@@ -156,7 +156,7 @@ struct CardTextView: View {
 
     /// Glyphs sit a touch under the body size so they read as part of the
     /// sentence rather than as badges.
-    private static let glyphFont = Font.system(size: 12.5)
+    private static let glyphFont = Font.system(size: 8)
 
     var body: some View {
         let source = (rich?.isEmpty == false ? rich : plain) ?? ""
