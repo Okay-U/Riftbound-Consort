@@ -9,6 +9,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// Asset names for the `:rb_*:` symbol tokens Riot uses in card text.
 enum CardSymbol {
@@ -154,9 +155,28 @@ struct CardTextView: View {
     /// The card's first domain, for the `[C]` code in errata text.
     var domain: String? = nil
 
-    /// Glyphs sit a touch under the body size so they read as part of the
-    /// sentence rather than as badges.
-    private static let glyphFont = Font.system(size: 8)
+    /// Point size of an inline glyph. `Text(Image(asset))` draws asset images at
+    /// their intrinsic size (the SVGs are 24 pt) and ignores the font, so the
+    /// glyph is rasterised at this size first. Template assets keep tinting
+    /// with the text colour.
+    static let glyphSize: CGFloat = 16
+    /// Negative moves the glyph down; the glyph's bottom otherwise sits on the baseline.
+    static let glyphBaselineOffset: CGFloat = -6
+
+    private static var glyphCache: [String: UIImage] = [:]
+
+    private static func glyph(_ asset: String) -> Image {
+        if let cached = glyphCache[asset] { return Image(uiImage: cached) }
+        guard let base = UIImage(named: asset) else { return Image(asset) }
+        let size = CGSize(width: glyphSize, height: glyphSize)
+        let drawn = UIGraphicsImageRenderer(size: size).image { _ in
+            base.draw(in: CGRect(origin: .zero, size: size))
+        }
+        let mode: UIImage.RenderingMode = base.renderingMode == .alwaysTemplate ? .alwaysTemplate : .alwaysOriginal
+        let scaled = drawn.withRenderingMode(mode)
+        glyphCache[asset] = scaled
+        return Image(uiImage: scaled)
+    }
 
     var body: some View {
         let source = (rich?.isEmpty == false ? rich : plain) ?? ""
@@ -181,7 +201,7 @@ struct CardTextView: View {
             switch run {
             case .text(let s):    return acc + Text(s)
             case .keyword(let k): return acc + Text("[\(k)]").bold()
-            case .symbol(let a):  return acc + Text(Image(a)).font(glyphFont).baselineOffset(-4)
+            case .symbol(let a):  return acc + Text(glyph(a)).baselineOffset(glyphBaselineOffset)
             }
         }
     }
