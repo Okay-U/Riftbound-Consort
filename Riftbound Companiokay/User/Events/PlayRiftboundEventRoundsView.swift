@@ -45,7 +45,9 @@ struct PlayRiftboundMatchesTab: View {
             if let current {
                 currentCard(current)
             }
-            if let round = tournament.rounds.last, !isOver {
+            // Between rounds the last round is fully reported: no clock until the next one starts.
+            if let round = tournament.rounds.last, !isOver,
+               round.matches.isEmpty || !round.matches.allSatisfy(\.isComplete) {
                 roundClock(round)
             }
             let history = pairings.filter { $0.isComplete || $0.roundNumber != current?.roundNumber }.reversed()
@@ -104,23 +106,36 @@ struct PlayRiftboundMatchesTab: View {
         .greenGradientBorder()
     }
 
-    /// Riot's data carries no round length, so this is start time plus elapsed, not a countdown.
+    /// Same clock as the site: `startedAt` plus `roundDuration` minutes (60 when
+    /// Riot sends none), counting past zero once time is up.
     private func roundClock(_ round: CompeteTournament.Round) -> some View {
-        TimelineView(.periodic(from: .now, by: 60)) { context in
+        TimelineView(.periodic(from: .now, by: 1)) { context in
             HStack(spacing: 8) {
-                Image(systemName: "timer").foregroundStyle(EventsTheme.textSecondary)
+                Image(systemName: "timer")
                 if let started = round.startedAt {
-                    let minutes = max(0, Int(context.date.timeIntervalSince(started) / 60))
-                    Text("Round \(round.roundNumber) started \(started.formatted(date: .omitted, time: .shortened)) · \(minutes) min ago")
-                } else {
+                    let end = started.addingTimeInterval(TimeInterval(round.roundDuration ?? Self.defaultRoundMinutes) * 60)
+                    let remaining = Int(end.timeIntervalSince(context.date).rounded(.down))
+                    let over = remaining < 0
                     Text("Round \(round.roundNumber)")
+                    Spacer()
+                    Text(over ? "Time over · +\(Self.clock(-remaining))" : Self.clock(remaining))
+                        .font(.system(size: 15, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(over ? Color.red : .white)
+                } else {
+                    Text("Round \(round.roundNumber) · not started")
+                    Spacer()
                 }
-                Spacer()
             }
-            .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
+            .font(.system(size: 12, weight: .semibold)).foregroundStyle(EventsTheme.textSecondary)
             .padding(.horizontal, 14).padding(.vertical, 10)
             .eventsCard(radius: 12)
         }
+    }
+
+    private static let defaultRoundMinutes = 60
+
+    private static func clock(_ seconds: Int) -> String {
+        String(format: "%02d:%02d", seconds / 60, seconds % 60)
     }
 
     private func historyRow(_ pairing: CompetePairing) -> some View {

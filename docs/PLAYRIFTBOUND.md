@@ -226,6 +226,7 @@ fragment CompeteRbRound on CompeteRound {
     status
     byeTeamIds
     startedAt
+    roundDuration
     droppedTeamIds
     matches {
       ...CompeteRbMatch
@@ -694,6 +695,11 @@ query FavoritedOrganizers {
   `gameId` = `match.games[].esportsGameId` and `winnerParticipantId` = `tournamentParticipants[].id`
   (the participant id, not the team id). Rejected names for reference: esportsMatchId at top
   level, winnerTeamId / winningTeamId / esportsTeamId / playerId on the game.
+- **Manifest location (2026-10-09):** the Apollo manifest is no longer in a chunk referenced by the
+  events page; the client lazily imports it (`loadManifest: () => import(...)`) from a chunk on
+  `https://events.playriftbound.com/_next/static/chunks/…` that only other chunks reference.
+  `tools/extract-playriftbound-ops.py` crawls chunk references to find it; the daily workflow in
+  the site repo regenerates `playriftbound-ops.json`, which the app reads once per launch.
 - Event detail is server-rendered (data in the RSC payload); the client only polls
   `GetCompeteRbRefreshPoller` until something changes.
 - Search response: Relay connection `competeTournamentSearch { edges { cursor node { ... on
@@ -726,7 +732,7 @@ their code are deleted in the same release.
 | **Tab "Rounds"** | Your pairing (round picker), then all pairings | `rounds[].matches` | available |
 | **Tab "Standings"** | Your standing (round picker); table rank, name, W-L-D, points, ACTIVE / DROPPED, expand → OMW% GW% OGW% | `endOfRoundStandings` (rank, matchWins/Losses/Draws, matchPoints, opponentMatchWinPercentage, gameWinPercentage, opponentGameWinPercentage), `tournamentParticipants[].status` | available |
 | **Tab "Roster"** | players with ACTIVE / DROPPED badge | `tournamentParticipants` (status) before/after start, `tournamentRegistrants` before | available |
-| Round clock (ours, not on the site) | | `rounds[].startedAt + roundDuration` | available |
+| Round clock | site shows MM:SS from `startedAt + roundDuration` minutes (default 60), counts past zero | same | available |
 | Can-I-Draw (ours) | | `DrawCalc` on standings + `config.roundCount` | available |
 | **Find an event** | location, type/format filters, distance, sort, favorites-only, map | `CompeteTournamentSearch` is public but not in the approval; map = Google | web view |
 
