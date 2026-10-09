@@ -32,7 +32,7 @@ final class PlayRiftboundMatchStore: ObservableObject {
 
     private let api = PlayRiftboundAPI()
     private let log = Logger(subsystem: "pitopia.Riftcount", category: "PlayRiftboundMatch")
-    private var isRefreshing = false
+    @Published private(set) var isRefreshing = false
     private var lastRefresh: Date?
     private var dismissedID: String?
 

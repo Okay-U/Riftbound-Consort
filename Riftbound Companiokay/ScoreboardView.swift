@@ -123,16 +123,6 @@ struct ScoreboardView: View {
             await matchMode.refresh(session: session)
             await riftMatch.refresh(browser: riftBrowser)
         }
-        // While an event is on the strip and the Scoreboard is the open tab, poll so new
-        // pairings and reported results show up without leaving the screen.
-        .task(id: "\(currentTab)-\(riftMatch.current != nil)") {
-            guard currentTab == "score", riftMatch.current != nil else { return }
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(60))
-                guard !Task.isCancelled, scenePhase == .active else { continue }
-                await riftMatch.refresh(browser: riftBrowser)
-            }
-        }
         .onChange(of: gameTimer.isRunning, initial: false) { _, _ in
             syncLiveActivity()
         }
@@ -392,6 +382,24 @@ struct ScoreboardView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Open event on PlayRiftbound")
             }
+
+            // Manual refresh: pairings go up between rounds, no need to poll through a round.
+            Button { Task { await riftMatch.refresh(browser: riftBrowser, force: true) } } label: {
+                Group {
+                    if riftMatch.isRefreshing {
+                        ProgressView().controlSize(.small).tint(EventsTheme.textSecondary)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(EventsTheme.textSecondary)
+                    }
+                }
+                .frame(width: 26, height: 26)
+                .background(EventsTheme.cardInset, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(riftMatch.isRefreshing)
+            .accessibilityLabel("Refresh pairing")
 
             Button { riftMatch.dismiss() } label: {
                 Image(systemName: "xmark")
