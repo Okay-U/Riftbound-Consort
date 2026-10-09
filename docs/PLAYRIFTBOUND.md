@@ -748,6 +748,48 @@ their code are deleted in the same release.
    `LoginView`, `MyEventsView`, `EventDetailView`, `EventMetaView`, stores, eloshowdown views).
 5. Android port of 1–4. 6. Release 3.5.
 
+
+## 9. Tooling: REA (reverse-engineering MCP), set up 2026-10-09
+
+[REA](https://github.com/morluto/rea) (`rea-agents` 6.1.0) is registered as MCP server `rea` for
+Claude Code (`~/.claude.json`, backup `~/.claude.json.rea.backup`) with its skill in
+`~/.agents/skills/reverse-engineer-anything`. Tools appear after a Claude Code restart; the CLI works
+any time via `npx -y rea-agents@latest <command>`. Analysis is local; REA never retains cookies,
+headers or bodies (only value-free JSON shapes), which suits our "no tokens in the repo" rule.
+
+**Website workflow (what worked):**
+1. Chrome with a throwaway profile and debug port:
+   `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir=<scratch>/rea-chrome-profile <url>`.
+   Sign in there only when the signed-in flow is the question.
+2. `list-browser-targets http://127.0.0.1:9222 --format json` → target id.
+3. `inspect-web-page http://127.0.0.1:9222 <target> --observation-ms 15000 --allowed-origins https://playriftbound.com https://events.playriftbound.com --include-json-body-shapes --include-script-sources --include-accessibility-text --format json`
+   — passive; scripts live on `events.playriftbound.com`, so both origins are needed. Start the
+   observation **before** the action (reload, click Report …); earlier traffic is not captured.
+4. `capture-browser-scenario <scenario.json>` — launches its own headless Chrome, drives
+   `start_url` + actions, captures `events: ["network", "console"]` for the whole load. Best for
+   unauthenticated pages; the accessibility tree is a readable rendering of the page.
+5. `export-web-scripts <capture.json> <dir>` then `analyze-javascript-application <dir>/files` for static
+   module/endpoint graphs (little value on Next.js chunks; the persisted-query manifest route in §5 is
+   the better source for operations).
+
+**Findings from the first session (events list, past event page, signed-out my-events):**
+- Session renewal is a silent OIDC loop on every page load: `xsso.playriftbound.com` (client
+  `prod-xsso-playriftbound`, scopes `openid account email offline_access`) runs `check-session-iframe`
+  → `auth.riotgames.com/check-session-iframe` → `login?prompt=none` → `auth.riotgames.com/authorize`
+  (PKCE) → `xsso…/redirect`. Signed out it ends in `error=login_required`. This is what our off-screen
+  `refreshSession()` page load triggers; both in-app browser allowlists cover the subdomain by suffix.
+- Event detail: server-rendered RSC (`text/x-component`), one `POST` server action to the page URL on
+  load, then `GetCompeteRbRefreshPoller` polling (`{ t: { u: updatedAt } }`) roughly every two seconds.
+- Third parties loaded by the site (and so by our web view): Osano consent, Google Tag Manager,
+  Datadog RUM, Statsig (`featureassets.org`), Qualtrics intercept, Riotbar (`cdn.rgpub.io`).
+- Storage: localStorage holds Osano + Statsig keys only; a Cache Storage `rb-static-v1`. No app
+  state in web storage; everything session-related is in cookies.
+- The events page still links to `locator.riftbound.uvsgames.com` (legacy Locator), no requests to it.
+
+Next REA use: at a live event, sign in in the debug Chrome, start a 30 s `inspect-web-page` on the
+event page, click **Report** on the site, and read the server action / mutation shapes to confirm our
+`SubmitGameResults` path against what the site really sends.
+
 ## 6. If Riot grants a content API key: cards gateway
 
 Policy requires the key to stay off devices, and once keyed the app may only use card assets
