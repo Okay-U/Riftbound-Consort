@@ -123,6 +123,16 @@ struct ScoreboardView: View {
             await matchMode.refresh(session: session)
             await riftMatch.refresh(browser: riftBrowser)
         }
+        // While an event is on the strip and the Scoreboard is the open tab, poll so new
+        // pairings and reported results show up without leaving the screen.
+        .task(id: "\(currentTab)-\(riftMatch.current != nil)") {
+            guard currentTab == "score", riftMatch.current != nil else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                guard !Task.isCancelled, scenePhase == .active else { continue }
+                await riftMatch.refresh(browser: riftBrowser)
+            }
+        }
         .onChange(of: gameTimer.isRunning, initial: false) { _, _ in
             syncLiveActivity()
         }

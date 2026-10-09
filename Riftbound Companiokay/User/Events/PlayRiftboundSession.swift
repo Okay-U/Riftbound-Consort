@@ -44,13 +44,17 @@ nonisolated enum PlayRiftboundSession {
     }
 
     /// nil when the player has never signed in on New Events (or signed out there).
+    /// One off-screen warm-up load per process; afterwards an empty cookie jar means signed out.
+    @MainActor private static var warmedUp = false
+
     /// Credentials that are good to use now: an expired session is renewed once
     /// through an off-screen page load. Nil when the player is signed out, or
     /// `.sessionExpired` when the renewal did not help.
     @MainActor
     static func validCredentials(refreshingVia browser: PlayRiftboundBrowser) async throws -> PlayRiftboundCredentials? {
         var found = await credentials()
-        if found == nil {
+        if found == nil, !warmedUp {
+            warmedUp = true
             // WebKit hands out a data store's cookies only after a web view has used it in
             // this process, so a cold start looks signed out until the PlayRiftbound segment
             // was opened once. Load the site off-screen in our own web view (the one that
