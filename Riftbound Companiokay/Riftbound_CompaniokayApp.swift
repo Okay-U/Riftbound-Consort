@@ -42,6 +42,7 @@ struct Riftbound_CompaniokayApp: App {
                 .background(trueBlack ? Color.black : Color(.systemBackground))
                 .task { await authSession.restore() }
                 .onAppear { errataStore.load() }
+                .onReceive(cardStore.$allCards) { decklistStore.migrateLegacyIDs(to: $0) }
                 .fullScreenCover(isPresented: Binding(
                     get: { !didOnboard },
                     set: { newValue in if !newValue { didOnboard = true } }

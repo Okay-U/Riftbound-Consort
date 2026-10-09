@@ -10,12 +10,12 @@ struct AcknowledgmentsView: View {
         Form {
             Section("Card data") {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Riftcodex")
+                    Text("Riot Games")
                         .font(.headline)
-                    Text("Card database powered by api.riftcodex.com")
+                    Text("Card data and images from the official Riftbound card gallery. Riftcount was created under Riot Games' \"Legal Jibber Jabber\" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Link("riftcodex.com", destination: URL(string: "https://riftcodex.com")!)
+                    Link("playriftbound.com", destination: URL(string: "https://playriftbound.com/en-us/card-gallery/")!)
                         .font(.footnote)
                 }
             }

@@ -451,7 +451,8 @@ final class DeckBuilderState: ObservableObject {
                 media: nil,
                 tags: nil,
                 orientation: nil,
-                metadata: nil
+                metadata: nil,
+                unreleased: nil
             )
             for _ in 0..<entry.count {
                 store.add(stub, to: deck, slot: slot)

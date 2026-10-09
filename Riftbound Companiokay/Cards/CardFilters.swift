@@ -91,7 +91,8 @@ struct CardFilters: Equatable {
         ("Proving Grounds", "Proving Grounds"),
         ("Spiritforge",     "Spiritforge"),
         ("Unleashed",       "Unleashed"),
-        ("Vendetta",        "Vendetta")     // Set 4, releases 2026-07-31
+        ("Vendetta",        "Vendetta"),
+        ("Radiance",        "Radiance")     // Set 5, releases 2026-10-23
     ]
 
     // Token subtype → parent type (lowercase)

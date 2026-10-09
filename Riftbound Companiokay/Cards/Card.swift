@@ -5,7 +5,7 @@
 
 import Foundation
 
-// nonisolated because RiftcodexCardRepository decodes these off the main actor.
+// nonisolated because HostedCardRepository decodes these off the main actor.
 // Under the project's default-MainActor isolation a plain model's Codable
 // conformance is MainActor-isolated and cannot be used from there.
 
@@ -22,9 +22,11 @@ nonisolated struct Card: Identifiable, Codable, Hashable, Sendable {
     let tags: [String]?
     let orientation: String?
     let metadata: CardMetadata?
+    /// Previewed by Riot but not yet legal to play; the policy asks for a visible label.
+    let unreleased: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case id, name
+        case id, name, unreleased
         case riftboundId     = "riftbound_id"
         case collectorNumber = "collector_number"
         case attributes, classification, text, set, media, tags, orientation, metadata
@@ -93,7 +95,7 @@ nonisolated struct CardMetadata: Codable, Hashable, Sendable {
     }
 }
 
-// Pagination wrapper returned by the Riftcodex API list endpoints
+// Envelope of the hosted cards.json feed (riftcodex page layout, kept for the on-disk snapshot)
 nonisolated struct CardPage: Codable, Sendable {
     let total: Int
     let page: Int
