@@ -198,7 +198,7 @@ struct PlayRiftboundEventView: View {
 
     private var isRegistered: Bool {
         if events.upcoming.contains(where: { $0.tournament.id == summary.id }) { return true }
-        guard let tournament, let me else { return false }
+        guard let tournament, me != nil else { return false }
         return (tournament.tournamentRegistrants ?? []).contains { ($0.status ?? "REGISTERED") == "REGISTERED" && isMe($0.player) }
     }
 

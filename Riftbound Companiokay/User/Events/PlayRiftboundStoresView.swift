@@ -41,18 +41,7 @@ struct PlayRiftboundStoresView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                NavigationLink(value: PlayRiftboundCalendarRoute()) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "calendar")
-                        Text("Event calendar")
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 12))
-                    }
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
-                    .padding(.horizontal, 14).frame(height: 44)
-                    .eventsCard(radius: 13)
-                }
-                .buttonStyle(.plain)
+                calendarCard
                 if signedIn {
                     VStack(alignment: .leading, spacing: 10) {
                         SectionHeader("heart.fill", "Favourite stores")
@@ -83,6 +72,34 @@ struct PlayRiftboundStoresView: View {
             await loadFavourites()
             if hasLocation, hits.isEmpty { await search() }
         }
+    }
+
+    /// Prominent entry to the favourite-stores event calendar, the standout of the Stores segment.
+    private var calendarCard: some View {
+        NavigationLink(value: PlayRiftboundCalendarRoute()) {
+            HStack(spacing: 14) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(EventsTheme.matchFillBottom)
+                    .frame(width: 48, height: 48)
+                    .background(EventsTheme.green, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Store Calendar")
+                        .font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
+                    Text(favourites.isEmpty
+                         ? "All your favourite stores' events in one place"
+                         : "Every event at your \(favourites.count) favourite store\(favourites.count == 1 ? "" : "s"), by date")
+                        .font(.system(size: 12.5)).foregroundStyle(EventsTheme.textSecondary).lineLimit(2)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(EventsTheme.green)
+            }
+            .padding(15)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .greenGradientBorder(radius: 16)
+        }
+        .buttonStyle(.plain)
     }
 
     private var whereRow: some View {
