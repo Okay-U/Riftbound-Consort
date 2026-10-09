@@ -33,6 +33,21 @@ enum CardSymbol {
         }
     }
 
+    /// Riot's errata articles and alt text write symbols as bracket codes:
+    /// `[A]` any rune, `[C]` the card's own domain rune, `[E]` exhaust,
+    /// `[M]`/`[S]` might, `[3]` energy. Anything else is a keyword.
+    static func asset(forCode code: String, domain: String?) -> String? {
+        switch code {
+        case "A":      return "rb_rune_rainbow"
+        case "E":      return "rb_exhaust"
+        case "M", "S": return "rb_might"
+        case "C":      return domain.flatMap(CardFilters.runeAssetName(for:)) ?? "rb_rune_rainbow"
+        default:
+            if let n = Int(code), (0...12).contains(n) { return "rb_energy_\(n)" }
+            return nil
+        }
+    }
+
     /// Glyph for a card type label ("Unit", "Spell", …), nil for unknown types.
     static func typeAsset(for type: String) -> String? {
         switch type.lowercased() {
@@ -59,7 +74,7 @@ nonisolated struct CardTextBlock: Equatable {
 
     /// Splits the gallery HTML into blocks. Unknown tags are dropped, unknown
     /// symbols fall back to their token name so nothing disappears silently.
-    static func parse(_ html: String) -> [CardTextBlock] {
+    static func parse(_ html: String, domain: String? = nil) -> [CardTextBlock] {
         var blocks: [CardTextBlock] = []
         var current: [Run] = []
         var isBullet = false
@@ -70,7 +85,7 @@ nonisolated struct CardTextBlock: Equatable {
         }
         var rest = Substring(html)
         while let open = rest.firstIndex(of: "<") {
-            appendText(String(rest[..<open]), to: &current)
+            appendText(String(rest[..<open]), domain: domain, to: &current)
             guard let close = rest[open...].firstIndex(of: ">") else { break }
             let tag = rest[rest.index(after: open)..<close].lowercased()
             rest = rest[rest.index(after: close)...]
@@ -83,12 +98,12 @@ nonisolated struct CardTextBlock: Equatable {
             default: break
             }
         }
-        appendText(String(rest), to: &current)
+        appendText(String(rest), domain: domain, to: &current)
         flush()
         return blocks
     }
 
-    private static func appendText(_ raw: String, to runs: inout [Run]) {
+    private static func appendText(_ raw: String, domain: String?, to runs: inout [Run]) {
         guard !raw.isEmpty else { return }
         let text = raw
             .replacingOccurrences(of: "&gt;", with: ">")
@@ -110,7 +125,9 @@ nonisolated struct CardTextBlock: Equatable {
                 if let asset = CardSymbol.asset(for: token) { runs.append(.symbol(asset: asset)) }
                 else { runs.append(.text(token.replacingOccurrences(of: "_", with: " "))) }
             } else {
-                runs.append(.keyword(ns.substring(with: match.range(at: 2))))
+                let code = ns.substring(with: match.range(at: 2))
+                if let asset = CardSymbol.asset(forCode: code, domain: domain) { runs.append(.symbol(asset: asset)) }
+                else { runs.append(.keyword(code)) }
             }
             cursor = match.range.location + match.range.length
         }
@@ -134,11 +151,18 @@ nonisolated struct CardTextBlock: Equatable {
 struct CardTextView: View {
     let rich: String?
     let plain: String?
+    /// The card's first domain, for the `[C]` code in errata text.
+    var domain: String? = nil
+
+    /// Glyphs sit a touch under the body size so they read as part of the
+    /// sentence rather than as badges.
+    private static let glyphFont = Font.system(size: 14)
 
     var body: some View {
-        let blocks = rich.map(CardTextBlock.parse) ?? []
+        let source = (rich?.isEmpty == false ? rich : plain) ?? ""
+        let blocks = CardTextBlock.parse(source, domain: domain)
         if blocks.isEmpty {
-            if let plain, !plain.isEmpty { Text(plain).font(.body) }
+            EmptyView()
         } else {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
@@ -157,7 +181,7 @@ struct CardTextView: View {
             switch run {
             case .text(let s):    return acc + Text(s)
             case .keyword(let k): return acc + Text("[\(k)]").bold()
-            case .symbol(let a):  return acc + Text(Image(a))
+            case .symbol(let a):  return acc + Text(Image(a)).font(glyphFont).baselineOffset(-1)
             }
         }
     }

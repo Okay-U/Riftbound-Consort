@@ -54,11 +54,12 @@ struct CardDetailView: View {
                     statsRow
 
                     if let erratum = errataStore.erratum(for: card) {
-                        ErrataCallout(erratum: erratum)
+                        ErrataCallout(erratum: erratum, domain: card.classification?.domain?.first)
                     }
 
                     if card.text?.rich?.isEmpty == false || card.text?.plain?.isEmpty == false {
-                        CardTextView(rich: card.text?.rich, plain: card.text?.plain)
+                        CardTextView(rich: card.text?.rich, plain: card.text?.plain,
+                                     domain: card.classification?.domain?.first)
                     }
 
                     if let flavour = card.text?.flavour, !flavour.isEmpty {
@@ -216,6 +217,7 @@ struct AddToDeckSheet: View {
 /// because at a table the corrected wording is the one that applies.
 struct ErrataCallout: View {
     let erratum: CardErratum
+    var domain: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -230,8 +232,7 @@ struct ErrataCallout: View {
                 }
             }
 
-            Text(erratum.newText)
-                .font(.body)
+            CardTextView(rich: nil, plain: erratum.newText, domain: domain)
 
             if let note = erratum.note, !note.isEmpty {
                 Text(note)
