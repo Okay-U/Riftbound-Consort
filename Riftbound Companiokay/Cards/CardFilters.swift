@@ -113,7 +113,7 @@ struct CardFilters: Equatable {
 
     // Domain → asset name in Assets.xcassets. Colorless has no rune;
     // a plain white circle is rendered instead.
-    static let domainAssets: [String: String] = [
+    nonisolated static let domainAssets: [String: String] = [
         "body":  "RuneBody",
         "calm":  "RuneCalm",
         "chaos": "RuneChaos",
@@ -124,7 +124,7 @@ struct CardFilters: Equatable {
 
     // Returns the asset name for a domain rune, or nil for colorless / unknown
     // domains (callers should render a fallback circle).
-    static func runeAssetName(for domain: String) -> String? {
+    nonisolated static func runeAssetName(for domain: String) -> String? {
         domainAssets[domain.lowercased()]
     }
 }

@@ -11,7 +11,7 @@ import Foundation
 extension PlayRiftboundAPI {
     /// The site's event finder: `sport: "rb"`, a location, and the filters its UI offers.
     nonisolated struct SearchFilter: Encodable, Sendable, Equatable {
-        struct Coords: Encodable, Sendable, Equatable { let latitude: Double; let longitude: Double }
+        nonisolated struct Coords: Encodable, Sendable, Equatable { let latitude: Double; let longitude: Double }
         let coords: Coords
         /// ISO 8601; the site passes "now minus one hour" so running events stay listed.
         let startDate: String
@@ -22,11 +22,11 @@ extension PlayRiftboundAPI {
         let favoritedOrganizersOnly: Bool?
     }
 
-    enum SearchSort: String, Sendable { case date = "DATE", distance = "DISTANCE" }
+    nonisolated enum SearchSort: String, Sendable { case date = "DATE", distance = "DISTANCE" }
 
-    private struct SearchVariables: Encodable, Sendable {
-        struct Filter: Encodable, Sendable { let rb: SearchFilter }
-        struct Sort: Encodable, Sendable { let rb: String }
+    private nonisolated struct SearchVariables: Encodable, Sendable {
+        nonisolated struct Filter: Encodable, Sendable { let rb: SearchFilter }
+        nonisolated struct Sort: Encodable, Sendable { let rb: String }
         let sport = "rb"
         let first: Int
         let after: String?

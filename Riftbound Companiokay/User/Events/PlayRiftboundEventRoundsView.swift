@@ -170,7 +170,7 @@ struct PlayRiftboundMatchesTab: View {
             .background(tint.opacity(0.14), in: Capsule())
     }
 
-    static func ordinal(_ n: Int) -> String {
+    nonisolated static func ordinal(_ n: Int) -> String {
         let suffix: String
         switch n % 100 {
         case 11, 12, 13: suffix = "th"

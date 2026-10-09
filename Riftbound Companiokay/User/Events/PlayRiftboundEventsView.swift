@@ -186,5 +186,5 @@ struct PlayRiftboundEventCard: View {
         .background(EventsTheme.cardInset, in: Capsule())
     }
 
-    static func humanize(_ raw: String) -> String { PlayRiftboundFormat.humanize(raw) }
+    nonisolated static func humanize(_ raw: String) -> String { PlayRiftboundFormat.humanize(raw) }
 }

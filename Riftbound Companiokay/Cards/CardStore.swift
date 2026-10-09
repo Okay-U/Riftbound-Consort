@@ -86,8 +86,8 @@ final class CardStore: ObservableObject {
         load()
     }
 
-    private static let cacheName = "cards_cache_v2.json"
-    private static let etagKey = "cardsFeedETag"
+    private nonisolated static let cacheName = "cards_cache_v2.json"
+    private nonisolated static let etagKey = "cardsFeedETag"
 
     private nonisolated static var cacheURL: URL {
         FileManager.default

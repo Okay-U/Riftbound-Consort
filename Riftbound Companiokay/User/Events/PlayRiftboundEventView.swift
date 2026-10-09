@@ -280,7 +280,7 @@ struct PlayRiftboundEventView: View {
 }
 
 /// Display strings for PlayRiftbound's config enums.
-enum PlayRiftboundFormat {
+nonisolated enum PlayRiftboundFormat {
     /// `ONE_V_ONE` → "1v1", `BEST_OF_THREE` → "Best of three", `SWISS` → "Swiss".
     static func humanize(_ raw: String) -> String {
         switch raw.uppercased() {

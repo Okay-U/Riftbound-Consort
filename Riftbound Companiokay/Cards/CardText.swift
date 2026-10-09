@@ -12,7 +12,7 @@ import SwiftUI
 import UIKit
 
 /// Asset names for the `:rb_*:` symbol tokens Riot uses in card text.
-enum CardSymbol {
+nonisolated enum CardSymbol {
     /// Asset for a token body (the part between the colons), nil when unknown.
     static func asset(for token: String) -> String? {
         switch token {
