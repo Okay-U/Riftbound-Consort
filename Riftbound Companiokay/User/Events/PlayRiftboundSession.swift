@@ -49,7 +49,16 @@ nonisolated enum PlayRiftboundSession {
     /// `.sessionExpired` when the renewal did not help.
     @MainActor
     static func validCredentials(refreshingVia browser: PlayRiftboundBrowser) async throws -> PlayRiftboundCredentials? {
-        guard let credentials = await credentials() else { return nil }
+        var found = await credentials()
+        if found == nil {
+            // WebKit hands out a data store's cookies only after a web view has used it in
+            // this process, so a cold start looks signed out until the PlayRiftbound segment
+            // was opened once. Load the site off-screen in our own web view (the one that
+            // segment shows), then read again.
+            await browser.refreshSession()
+            found = await credentials()
+        }
+        guard let credentials = found else { return nil }
         guard credentials.isExpired else { return credentials }
         await browser.refreshSession()
         guard let renewed = await Self.credentials(), !renewed.isExpired else {

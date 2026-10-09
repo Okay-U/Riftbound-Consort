@@ -36,8 +36,9 @@ final class PlayRiftboundMatchStore: ObservableObject {
     private var lastRefresh: Date?
     private var dismissedID: String?
 
-    /// How far ahead an event counts as "next": a week is plenty for a strip.
-    private static let lookahead: TimeInterval = 7 * 24 * 60 * 60
+    /// How far ahead an event counts as "next": the strip is for the day at the table,
+    /// not a reminder, so only events starting within a few hours (or already running).
+    private static let lookahead: TimeInterval = 3 * 60 * 60
     private static let minInterval: TimeInterval = 45
 
     func dismiss() {
