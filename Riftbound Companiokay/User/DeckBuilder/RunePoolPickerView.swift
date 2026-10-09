@@ -30,7 +30,10 @@ struct RunePoolPickerView: View {
         let target = DeckBuilderState.runeTotal
         let current = state.runeTotalCount
         return HStack {
-            Image(systemName: "circle.hexagongrid.fill")
+            Image("rb_type_rune")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 18, height: 18)
                 .foregroundStyle(.secondary)
             Text("Runes")
                 .font(.subheadline.weight(.semibold))

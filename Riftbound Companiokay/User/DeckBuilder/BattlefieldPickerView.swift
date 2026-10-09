@@ -72,7 +72,10 @@ struct BattlefieldPickerView: View {
         let target = DeckBuilderState.battlefieldTarget
         let current = state.battlefields.count
         return HStack {
-            Image(systemName: "map.fill")
+            Image("rb_type_battlefield")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 18, height: 18)
                 .foregroundStyle(.secondary)
             Text("Battlefields")
                 .font(.subheadline.weight(.semibold))

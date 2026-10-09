@@ -66,7 +66,10 @@ struct ChampionPickerView: View {
     private var legendHeader: some View {
         if let legend = state.legend {
             HStack(spacing: 10) {
-                Image(systemName: "crown.fill")
+                Image("rb_champion")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 18, height: 18)
                     .foregroundStyle(.yellow)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Legend")

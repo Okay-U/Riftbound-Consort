@@ -194,18 +194,20 @@ struct DeckStatsView: View {
         Section("Card types (main deck)") {
             let t = typeCounts()
             HStack(spacing: 12) {
-                typeChip(label: "Unit", count: t.unit, system: "person.fill")
-                typeChip(label: "Spell", count: t.spell, system: "sparkles")
-                typeChip(label: "Gear", count: t.gear, system: "shield.fill")
+                typeChip(label: "Unit", count: t.unit, glyph: "rb_type_unit")
+                typeChip(label: "Spell", count: t.spell, glyph: "rb_type_spell")
+                typeChip(label: "Gear", count: t.gear, glyph: "rb_type_gear")
             }
             .frame(maxWidth: .infinity)
         }
     }
 
-    private func typeChip(label: String, count: Int, system: String) -> some View {
+    private func typeChip(label: String, count: Int, glyph: String) -> some View {
         VStack(spacing: 4) {
-            Image(systemName: system)
-                .font(.title3)
+            Image(glyph)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 22, height: 22)
                 .foregroundStyle(.secondary)
             Text("\(count)")
                 .font(.title3.monospacedDigit().weight(.semibold))

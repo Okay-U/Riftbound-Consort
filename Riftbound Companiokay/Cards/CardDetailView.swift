@@ -57,9 +57,8 @@ struct CardDetailView: View {
                         ErrataCallout(erratum: erratum)
                     }
 
-                    if let plain = card.text?.plain, !plain.isEmpty {
-                        Text(plain)
-                            .font(.body)
+                    if card.text?.rich?.isEmpty == false || card.text?.plain?.isEmpty == false {
+                        CardTextView(rich: card.text?.rich, plain: card.text?.plain)
                     }
 
                     if let flavour = card.text?.flavour, !flavour.isEmpty {
@@ -97,18 +96,23 @@ struct CardDetailView: View {
     }
 
     private var statsRow: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 10) {
             if let type = card.classification?.type {
-                statBadge(label: type)
+                statBadge(label: type, glyph: CardSymbol.typeAsset(for: type))
             }
             if let rarity = card.classification?.rarity {
                 statBadge(label: rarity)
             }
             if let energy = card.attributes?.energy {
-                statBadge(label: "⚡ \(energy)")
+                // The energy glyph carries its own number (0–12), as on the card.
+                if (0...12).contains(energy) { glyphBadge("rb_energy_\(energy)", template: false) }
+                else { statBadge(label: "\(energy)", glyph: "rb_energy_0") }
             }
             if let power = card.attributes?.power {
-                statBadge(label: "♻ \(power)")
+                statBadge(label: "\(power)", glyph: "rb_type_rune")
+            }
+            if let might = card.attributes?.might {
+                statBadge(label: "\(might)", glyph: "rb_might")
             }
             if card.unreleased == true {
                 statBadge(label: "Preview")
@@ -117,12 +121,28 @@ struct CardDetailView: View {
         .flexibleWidth()
     }
 
-    private func statBadge(label: String) -> some View {
-        Text(label)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(.secondary.opacity(0.2), in: Capsule())
+    private func statBadge(label: String, glyph: String? = nil) -> some View {
+        HStack(spacing: 4) {
+            if let glyph {
+                Image(glyph)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 14, height: 14)
+            }
+            Text(label)
+        }
+        .font(.caption.weight(.semibold))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.secondary.opacity(0.2), in: Capsule())
+    }
+
+    private func glyphBadge(_ asset: String, template: Bool) -> some View {
+        Image(asset)
+            .renderingMode(template ? .template : .original)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 22, height: 22)
     }
 }
 
