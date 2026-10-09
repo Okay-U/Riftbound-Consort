@@ -4,8 +4,7 @@
 //
 //  Native "my events" list on PlayRiftbound data: upcoming and past
 //  registrations as cards (date badge, name, format line, price, players,
-//  store). Tapping a card opens its page in the PlayRiftbound segment until the
-//  native event screen exists.
+//  store). A card pushes the native event screen.
 //
 
 import SwiftUI
@@ -13,7 +12,7 @@ import SwiftUI
 struct PlayRiftboundEventsView: View {
     @EnvironmentObject private var store: PlayRiftboundEventsStore
     @EnvironmentObject private var browser: PlayRiftboundBrowser
-    /// Switches to the PlayRiftbound segment (sign-in, event page).
+    /// Switches to the PlayRiftbound segment (sign-in, find an event).
     var openSite: (URL?) -> Void
 
     var body: some View {
@@ -54,7 +53,7 @@ struct PlayRiftboundEventsView: View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader(symbol, title)
             ForEach(entries, id: \.tournament.id) { entry in
-                Button { openSite(entry.tournament.webURL) } label: { EventCard(entry: entry) }
+                NavigationLink(value: entry) { EventCard(entry: entry) }
                     .buttonStyle(.plain)
             }
         }
@@ -159,11 +158,5 @@ private struct EventCard: View {
         .background(EventsTheme.cardInset, in: Capsule())
     }
 
-    /// `ONE_V_ONE` → "1v1", `SWISS` → "Swiss", `CONSTRUCTED` → "Constructed".
-    static func humanize(_ raw: String) -> String {
-        let upper = raw.uppercased()
-        if upper == "ONE_V_ONE" || upper == "1V1" { return "1v1" }
-        if upper == "TWO_V_TWO" || upper == "2V2" { return "2v2" }
-        return raw.replacingOccurrences(of: "_", with: " ").lowercased().capitalized
-    }
+    static func humanize(_ raw: String) -> String { PlayRiftboundFormat.humanize(raw) }
 }

@@ -57,7 +57,7 @@ nonisolated struct PlayerTournamentsData: Decodable, Sendable {
 }
 
 /// One `RbPlayerTournamentResult`: the tournament plus the store running it.
-nonisolated struct PlayerTournamentEntry: Decodable, Sendable {
+nonisolated struct PlayerTournamentEntry: Decodable, Sendable, Hashable {
     let organizer: CompeteOrganizer?
     let tournament: CompeteTournamentSummary
 }
@@ -119,8 +119,11 @@ nonisolated struct CompeteTournamentsData: Decodable, Sendable {
 nonisolated struct CompeteTournament: Decodable, Sendable {
     let id: String
     let name: String
+    let description: String?
+    let tournamentProgram: Program?
     let startsAt: Date?
     let endsAt: Date?
+    let registrationEndAt: Date?
     let registrationPolicy: String?
     let pricing: String?
     let entryFee: CompeteTournamentSummary.EntryFee?
@@ -129,6 +132,11 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
     let stages: [Stage]
     let tournamentRegistrants: [Registrant]?
     let tournamentParticipants: [Participant]?
+
+    nonisolated struct Program: Decodable, Sendable {
+        let id: String?
+        let programName: String?
+    }
 
     nonisolated struct Config: Decodable, Sendable {
         let tournamentType: String?

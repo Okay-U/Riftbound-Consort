@@ -24,8 +24,8 @@ nonisolated enum PlayRiftboundError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notSignedIn: return "Sign in on New Events first."
-        case .sessionExpired: return "Your PlayRiftbound session expired. Open New Events to refresh it."
+        case .notSignedIn: return "Sign in on PlayRiftbound first."
+        case .sessionExpired: return "Your PlayRiftbound session expired. Open the PlayRiftbound segment to refresh it."
         case .unknownOperation(let name): return "Unknown operation \(name)."
         case .staleOperationIDs: return "PlayRiftbound changed. Update the app or try again later."
         case .http(let code): return "PlayRiftbound answered with status \(code)."

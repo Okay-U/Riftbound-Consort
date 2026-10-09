@@ -15,6 +15,9 @@ struct EventsTabView: View {
     var body: some View {
         NavigationStack {
             EventsHomeView()
+            .navigationDestination(for: PlayerTournamentEntry.self) { entry in
+                PlayRiftboundEventView(entry: entry)
+            }
             .navigationDestination(for: EventRoute.self) { route in
                 EventDetailView(eventID: route.id, myAlias: route.alias)
             }
