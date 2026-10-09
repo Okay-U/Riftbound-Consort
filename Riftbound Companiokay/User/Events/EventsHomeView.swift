@@ -4,8 +4,8 @@
 //
 //  Root of the Events tab: a custom segmented control switching between
 //  "Events" (native list on PlayRiftbound data), "PlayRiftbound" (the
-//  domain-locked browser) and the Locator-backed segments "Old", "Stores",
-//  "Profile", which show the login form while signed out and go away with the
+//  domain-locked browser), "Stores" (PlayRiftbound stores) and the Locator-backed
+//  "Old", which shows the login form while signed out and goes away with the
 //  Locator. Styled per EventsTheme (green-only accent).
 //
 
@@ -19,11 +19,11 @@ struct EventsHomeView: View {
     @State private var segment: Segment = .events
 
     enum Segment: String, CaseIterable {
-        case events = "Events", play = "PlayRiftbound", old = "Old", stores = "Stores", profile = "Profile"
+        case events = "Events", stores = "Stores", play = "PlayRiftbound", old = "Old"
 
         /// Locator-backed segments: Locator login, sunset banner. Gone with the Locator.
         var isLocator: Bool {
-            self == .old || self == .profile || (self == .stores && !PlayRiftboundFeatures.unapproved)
+            self == .old || (self == .stores && !PlayRiftboundFeatures.unapproved)
         }
     }
 
@@ -56,7 +56,6 @@ struct EventsHomeView: View {
                     switch segment {
                     case .old: MyEventsView(embedded: true)
                     case .stores: StoresHomeView()
-                    case .profile: ProfileView()
                     case .events, .play: EmptyView()
                     }
                 }
@@ -99,7 +98,7 @@ struct EventsHomeView: View {
                 } label: {
                     Text(seg.rawValue)
                         .font(.system(size: 14, weight: .semibold))
-                        .lineLimit(1).minimumScaleFactor(0.7)   // five slots: "PlayRiftbound" needs the scale
+                        .lineLimit(1).minimumScaleFactor(0.8)   // "PlayRiftbound" needs the scale on small phones
                         .foregroundStyle(selected ? EventsTheme.matchFillBottom : EventsTheme.textSecondary)
                         .frame(maxWidth: .infinity).frame(height: 34)
                         .background(selected ? EventsTheme.green : Color.clear,

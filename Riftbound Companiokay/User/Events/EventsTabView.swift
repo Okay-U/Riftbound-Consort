@@ -24,6 +24,9 @@ struct EventsTabView: View {
             .navigationDestination(for: CompeteOrganizer.self) { organizer in
                 PlayRiftboundStoreView(organizer: organizer)
             }
+            .navigationDestination(for: PlayRiftboundCalendarRoute.self) { _ in
+                PlayRiftboundCalendarView()
+            }
             .navigationDestination(for: EventRoute.self) { route in
                 EventDetailView(eventID: route.id, myAlias: route.alias)
             }

@@ -41,6 +41,18 @@ struct PlayRiftboundStoresView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                NavigationLink(value: PlayRiftboundCalendarRoute()) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "calendar")
+                        Text("Event calendar")
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.system(size: 12))
+                    }
+                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
+                    .padding(.horizontal, 14).frame(height: 44)
+                    .eventsCard(radius: 13)
+                }
+                .buttonStyle(.plain)
                 if signedIn {
                     VStack(alignment: .leading, spacing: 10) {
                         SectionHeader("heart.fill", "Favourite stores")
