@@ -157,6 +157,13 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
     nonisolated struct Section: Decodable, Sendable {
         let esportsSectionId: String?
         let rounds: [Round]
+        /// Final placement, filled once the section is over.
+        let ranks: [Rank]?
+    }
+
+    nonisolated struct Rank: Decodable, Sendable {
+        let position: Int
+        let esportsTeamId: String
     }
 
     nonisolated struct Round: Decodable, Sendable {
@@ -214,6 +221,12 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
         let matchWins: Int?
         let matchLosses: Int?
         let matchDraws: Int?
+        let matchWinPercentage: Double?
+        let opponentMatchWinPercentage: Double?
+        let gameWinPercentage: Double?
+        let opponentGameWinPercentage: Double?
+
+        var record: String { "\(matchWins ?? 0)-\(matchLosses ?? 0)-\(matchDraws ?? 0)" }
     }
 
     nonisolated struct Registrant: Decodable, Sendable {
@@ -241,20 +254,52 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
         (tournamentParticipants ?? []).first { $0.esportsTeamId == teamID }
     }
 
+    func teamID(playerID: String) -> String? {
+        (tournamentParticipants ?? []).first { $0.player?.id == playerID }?.esportsTeamId
+    }
+
+    /// Display name of a team, from the participant list or any match it played.
+    func teamName(_ teamID: String) -> String {
+        if let name = participant(teamID: teamID)?.player?.displayName { return name }
+        for round in rounds {
+            for match in round.matches {
+                if let team = match.teams.first(where: { $0.esportsTeamId == teamID }),
+                   let name = team.players.first?.displayName { return name }
+            }
+        }
+        return "Player"
+    }
+
+    /// Final placement from the section ranks, else the rank after the last round.
+    func finalRank(teamID: String) -> Int? {
+        if let rank = stages.flatMap(\.sections).compactMap(\.ranks).joined().first(where: { $0.esportsTeamId == teamID }) {
+            return rank.position
+        }
+        return rounds.last?.endOfRoundStandings?.first { $0.esportsTeamId == teamID }?.rank
+    }
+
+    func standing(teamID: String, after round: Round) -> Standing? {
+        round.endOfRoundStandings?.first { $0.esportsTeamId == teamID }
+    }
+
+    var hasRounds: Bool { !rounds.isEmpty }
+
     var webURL: URL? { URL(string: "https://playriftbound.com/en-US/events/\(id)") }
 
     /// All rounds in play order.
     var rounds: [Round] { stages.flatMap(\.sections).flatMap(\.rounds).sorted { $0.roundNumber < $1.roundNumber } }
 
-    /// Compete player id for a Riot ID, taken from the registrant list.
+    /// Compete player id for a Riot ID, from the registrant list or, once the
+    /// event runs, the participant list.
     func playerID(gameName: String, tagLine: String?) -> String? {
-        let match = (tournamentRegistrants ?? []).first { r in
-            guard let p = r.player else { return false }
+        func matches(_ p: RegistrantPlayer?) -> Bool {
+            guard let p else { return false }
             let nameMatches = p.displayName.caseInsensitiveCompare(gameName) == .orderedSame
             let tagMatches = tagLine == nil || p.tagLine == nil || p.tagLine!.caseInsensitiveCompare(tagLine!) == .orderedSame
             return nameMatches && tagMatches
         }
-        return match?.player?.id
+        return (tournamentRegistrants ?? []).first { matches($0.player) }?.player?.id
+            ?? (tournamentParticipants ?? []).first { matches($0.player) }?.player?.id
     }
 }
 
@@ -273,6 +318,17 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     let myParticipantID: String?
     let opponentParticipantID: String?
     let bestOf: Int
+    let myTeamID: String?
+    let opponentTeamID: String?
+    /// Games won so far, from the per-game outcomes.
+    let myGameWins: Int
+    let opponentGameWins: Int
+    let result: Result?
+
+    enum Result: Sendable, Equatable { case win, loss, draw }
+
+    /// "2–1", or nothing before a game is in.
+    var scoreText: String? { myGameWins + opponentGameWins > 0 ? "\(myGameWins)–\(opponentGameWins)" : nil }
 
     var isReportable: Bool {
         !isBye && !isComplete && matchID != nil && !gameIDs.isEmpty
@@ -281,7 +337,11 @@ nonisolated struct CompetePairing: Sendable, Equatable {
 
     static func resolve(in tournament: CompeteTournament, playerID: String) -> CompetePairing? {
         guard let round = tournament.rounds.last else { return nil }
-        let myTeamID = (tournament.tournamentParticipants ?? []).first { $0.player?.id == playerID }?.esportsTeamId
+        return resolve(in: tournament, playerID: playerID, round: round)
+    }
+
+    static func resolve(in tournament: CompeteTournament, playerID: String, round: CompeteTournament.Round) -> CompetePairing? {
+        let myTeamID = tournament.teamID(playerID: playerID)
         // Same-length numeric strings, so a (count, lexical) sort equals a numeric sort without overflow.
         let byTable = round.matches.sorted {
             ($0.esportsMatchId.count, $0.esportsMatchId) < ($1.esportsMatchId.count, $1.esportsMatchId)
@@ -290,18 +350,32 @@ nonisolated struct CompetePairing: Sendable, Equatable {
             let match = byTable[index]
             let myTeam = match.teams.first { $0.players.contains { $0.id == playerID } }
             let oppTeam = match.teams.first { !$0.players.contains { $0.id == playerID } }
-            let games = (match.games ?? []).sorted { ($0.number ?? 0) < ($1.number ?? 0) }.map(\.esportsGameId)
+            let sortedGames = (match.games ?? []).sorted { ($0.number ?? 0) < ($1.number ?? 0) }
+            func wins(_ teamID: String?) -> Int {
+                guard let teamID else { return 0 }
+                return sortedGames.filter { game in
+                    (game.teamOutcomes ?? []).contains { $0.esportsTeamId == teamID && $0.outcome.uppercased().contains("WIN") }
+                }.count
+            }
+            let mine = myTeam?.esportsTeamId, theirs = oppTeam?.esportsTeamId
+            let result: Result? = (match.teamOutcomes ?? []).first { $0.esportsTeamId == mine }.flatMap {
+                let o = $0.outcome.uppercased()
+                return o.contains("WIN") ? .win : o.contains("LOS") ? .loss : o.contains("DRAW") || o.contains("TIE") ? .draw : nil
+            }
             return CompetePairing(roundNumber: round.roundNumber, tableNumber: index + 1, matchID: match.esportsMatchId,
                                   opponentName: oppTeam?.players.first?.displayName, isBye: false, isComplete: match.isComplete,
-                                  gameIDs: games,
-                                  myParticipantID: myTeam.flatMap { tournament.participant(teamID: $0.esportsTeamId)?.id },
-                                  opponentParticipantID: oppTeam.flatMap { tournament.participant(teamID: $0.esportsTeamId)?.id },
-                                  bestOf: match.config?.count ?? max(games.count, 1))
+                                  gameIDs: sortedGames.map(\.esportsGameId),
+                                  myParticipantID: mine.flatMap { tournament.participant(teamID: $0)?.id },
+                                  opponentParticipantID: theirs.flatMap { tournament.participant(teamID: $0)?.id },
+                                  bestOf: match.config?.count ?? max(sortedGames.count, 1),
+                                  myTeamID: mine, opponentTeamID: theirs,
+                                  myGameWins: wins(mine), opponentGameWins: wins(theirs), result: result)
         }
         if let myTeamID, (round.byeTeamIds ?? []).contains(myTeamID) {
             return CompetePairing(roundNumber: round.roundNumber, tableNumber: nil, matchID: nil,
                                   opponentName: nil, isBye: true, isComplete: true,
-                                  gameIDs: [], myParticipantID: nil, opponentParticipantID: nil, bestOf: 1)
+                                  gameIDs: [], myParticipantID: nil, opponentParticipantID: nil, bestOf: 1,
+                                  myTeamID: myTeamID, opponentTeamID: nil, myGameWins: 0, opponentGameWins: 0, result: .win)
         }
         return nil
     }

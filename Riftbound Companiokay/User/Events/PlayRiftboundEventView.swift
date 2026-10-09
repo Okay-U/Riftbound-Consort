@@ -14,10 +14,16 @@ struct PlayRiftboundEventView: View {
     let entry: PlayerTournamentEntry
 
     @EnvironmentObject private var browser: PlayRiftboundBrowser
+    @EnvironmentObject private var events: PlayRiftboundEventsStore
+    @EnvironmentObject private var riftMatch: PlayRiftboundMatchStore
     @Environment(\.dismiss) private var dismiss
     @State private var tournament: CompeteTournament?
     @State private var me: (name: String, tag: String?)?
     @State private var error: String?
+    @State private var tab: Tab = .matches
+    @State private var reporting: PlayRiftboundStrip?
+
+    enum Tab: String, CaseIterable { case matches = "Matches", rounds = "Rounds", info = "Info" }
 
     private let api = PlayRiftboundAPI()
     private var summary: CompeteTournamentSummary { entry.tournament }
@@ -26,8 +32,22 @@ struct PlayRiftboundEventView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 header
-                actions
-                if let tournament {
+                if let tournament, tournament.hasRounds {
+                    tabStrip
+                    switch tab {
+                    case .matches:
+                        PlayRiftboundMatchesTab(tournament: tournament, playerID: playerID(in: tournament),
+                                                isPast: isPast) { pairing in reporting = strip(for: pairing) }
+                    case .rounds:
+                        PlayRiftboundRoundsTab(tournament: tournament,
+                                               myTeamID: playerID(in: tournament).flatMap(tournament.teamID(playerID:)))
+                    case .info:
+                        actions
+                        details(tournament)
+                        players(tournament)
+                    }
+                } else if let tournament {
+                    actions
                     details(tournament)
                     players(tournament)
                 } else if let error {
@@ -45,6 +65,47 @@ struct PlayRiftboundEventView: View {
         .toolbarBackground(EventsTheme.bg, for: .navigationBar)
         .refreshable { await load() }
         .task { await load() }
+        .sheet(item: $reporting) { strip in
+            if let pairing = strip.pairing {
+                PlayRiftboundReportSheet(strip: strip, pairing: pairing) {
+                    Task {
+                        await load()
+                        await riftMatch.refresh(browser: browser, force: true)
+                    }
+                }
+            }
+        }
+    }
+
+    private var isPast: Bool { events.past.contains { $0.tournament.id == summary.id } }
+
+    private func playerID(in tournament: CompeteTournament) -> String? {
+        guard let me else { return nil }
+        return tournament.playerID(gameName: me.name, tagLine: me.tag)
+    }
+
+    private func strip(for pairing: CompetePairing) -> PlayRiftboundStrip {
+        PlayRiftboundStrip(tournamentID: summary.id, eventName: summary.name, organizerName: entry.organizer?.name,
+                           startsAt: summary.startsAt, webURL: summary.webURL, pairing: pairing)
+    }
+
+    private var tabStrip: some View {
+        HStack(spacing: 4) {
+            ForEach(Tab.allCases, id: \.self) { t in
+                let on = tab == t
+                Button { withAnimation(.easeInOut(duration: 0.15)) { tab = t } } label: {
+                    Text(t.rawValue)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(on ? EventsTheme.matchFillBottom : EventsTheme.textSecondary)
+                        .frame(maxWidth: .infinity).frame(height: 32)
+                        .background(on ? EventsTheme.green : Color.clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(EventsTheme.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(EventsTheme.hairline, lineWidth: 1))
     }
 
     // MARK: - Sections
