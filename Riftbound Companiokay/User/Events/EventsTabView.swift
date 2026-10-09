@@ -21,6 +21,9 @@ struct EventsTabView: View {
             .navigationDestination(for: PlayRiftboundSearchRoute.self) { _ in
                 PlayRiftboundSearchView()
             }
+            .navigationDestination(for: CompeteOrganizer.self) { organizer in
+                PlayRiftboundStoreView(organizer: organizer)
+            }
             .navigationDestination(for: EventRoute.self) { route in
                 EventDetailView(eventID: route.id, myAlias: route.alias)
             }

@@ -67,6 +67,77 @@ extension PlayRiftboundAPI {
     }
 }
 
+// MARK: - Stores
+
+extension PlayRiftboundAPI {
+    private nonisolated struct OrganizerIDVariables: Encodable, Sendable { let organizerId: String }
+    private nonisolated struct IDVariables: Encodable, Sendable { let id: String }
+    private nonisolated struct NoVariables: Encodable, Sendable {}
+    private nonisolated struct Nothing: Decodable, Sendable {}
+
+    /// The player's favourite stores (name and address only).
+    func favoritedOrganizers(credentials: PlayRiftboundCredentials) async throws -> [CompeteOrganizer] {
+        let data: FavoritedOrganizersData = try await query("FavoritedOrganizers", variables: NoVariables(), credentials: credentials)
+        return data.favoritedOrganizers
+    }
+
+    func setFavorite(organizerID: String, on: Bool, credentials: PlayRiftboundCredentials) async throws {
+        let _: Nothing = try await mutate(on ? "FavoriteOrganizer" : "UnfavoriteOrganizer",
+                                          variables: OrganizerIDVariables(organizerId: organizerID), credentials: credentials)
+    }
+
+    /// Contact card and coordinates of a store. Public.
+    func organizerSummary(id: String, credentials: PlayRiftboundCredentials?) async throws -> CompeteOrganizerSummary? {
+        let data: OrganizerSummaryData = try await query("OrganizerSummary", variables: IDVariables(id: id), credentials: credentials)
+        return data.organizerSummary
+    }
+
+    /// A store's upcoming events: the search centred on the store, kept to that organizer.
+    func storeEvents(organizerID: String, latitude: Double, longitude: Double,
+                     credentials: PlayRiftboundCredentials?) async throws -> [CompeteSearchResult] {
+        let filter = SearchFilter(coords: .init(latitude: latitude, longitude: longitude),
+                                  startDate: Self.searchStartDate(), distanceMeters: 2000,
+                                  types: nil, formats: nil, playerFormats: nil, favoritedOrganizersOnly: nil)
+        var results: [CompeteSearchResult] = []
+        var after: String? = nil
+        for _ in 0..<5 {
+            let page = try await searchTournaments(filter: filter, sort: .date, after: after, first: 50, credentials: credentials)
+            results += page.competeTournamentSearch.nodes.filter { $0.organizer?.id == organizerID }
+            guard page.competeTournamentSearch.pageInfo?.hasNextPage == true,
+                  let cursor = page.competeTournamentSearch.pageInfo?.endCursor else { break }
+            after = cursor
+        }
+        return results
+    }
+}
+
+nonisolated struct FavoritedOrganizersData: Decodable, Sendable {
+    let favoritedOrganizers: [CompeteOrganizer]
+}
+
+nonisolated struct OrganizerSummaryData: Decodable, Sendable {
+    let organizerSummary: CompeteOrganizerSummary?
+}
+
+nonisolated struct CompeteOrganizerSummary: Decodable, Sendable {
+    let id: String
+    let name: String
+    let email: String?
+    let website: String?
+    let phone: Phone?
+    let physicalAddress: CompeteOrganizer.Address?
+    let type: String?
+
+    nonisolated struct Phone: Decodable, Sendable {
+        let countryDialingCode: String?
+        let number: String?
+        var display: String? {
+            guard let number, !number.isEmpty else { return nil }
+            return [countryDialingCode.map { $0.hasPrefix("+") ? $0 : "+" + $0 }, number].compactMap { $0 }.joined(separator: " ")
+        }
+    }
+}
+
 // MARK: - Response
 
 nonisolated struct CompeteSearchData: Decodable, Sendable {

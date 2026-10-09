@@ -138,10 +138,17 @@ struct PlayRiftboundEventView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let organizer = entry.organizer?.name {
-                Text(organizer.uppercased())
+            if let organizer = entry.organizer {
+                NavigationLink(value: organizer) {
+                    HStack(spacing: 4) {
+                        Text(organizer.name.uppercased())
+                        if PlayRiftboundFeatures.unapproved { Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)) }
+                    }
                     .font(.system(size: 11, weight: .bold)).tracking(0.5)
                     .foregroundStyle(EventsTheme.green)
+                }
+                .buttonStyle(.plain)
+                .disabled(!PlayRiftboundFeatures.unapproved)
             }
             Text(summary.name)
                 .font(.system(size: 22, weight: .bold)).foregroundStyle(.white)

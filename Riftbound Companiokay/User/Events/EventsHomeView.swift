@@ -22,7 +22,9 @@ struct EventsHomeView: View {
         case events = "Events", play = "PlayRiftbound", old = "Old", stores = "Stores", profile = "Profile"
 
         /// Locator-backed segments: Locator login, sunset banner. Gone with the Locator.
-        var isLocator: Bool { self == .old || self == .stores || self == .profile }
+        var isLocator: Bool {
+            self == .old || self == .profile || (self == .stores && !PlayRiftboundFeatures.unapproved)
+        }
     }
 
     private var isSignedIn: Bool {
@@ -44,6 +46,8 @@ struct EventsHomeView: View {
                     }
                 } else if segment == .play {
                     if let model = browser.model { PlayRiftboundView(model: model) }
+                } else if segment == .stores, PlayRiftboundFeatures.unapproved {
+                    PlayRiftboundStoresView()
                 } else if !isSignedIn {
                     // One slot for all three Locator segments so typed credentials
                     // survive switching between Old / Stores / Profile.

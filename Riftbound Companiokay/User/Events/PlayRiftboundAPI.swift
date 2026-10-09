@@ -50,6 +50,15 @@ actor PlayRiftboundOperationIDs {
         "GetCompeteTournamentForRiftboundPlayer": "6d80a2343140f28ea7028af489b315d7d95824c1b116df6c137a76076f9c843b",   // adds roundDuration (2026-10)
         "GetCompeteRbRefreshPoller": "459dbd58b231ad1767b999a1bf987836123ac86a0b5110e166de15b69723ba0d",
         "SubmitGameResults": "4f304b3a523f27d1abde2291d1b9e836e7b524f9e455d70b548680170e91c430",
+        // Outside the written approval (PlayRiftboundFeatures.unapproved):
+        "CompeteTournamentSearch": "acbcbba681a9c9a8063f792f7d665ba1eda81b19528b6af19e523f0c2061bec2",
+        "RegisterCompetePlayer": "7372d50ddebea493bd6aefdfce20666c7030d272252c0714fdcb2f63a92f9089",
+        "DeregisterCompetePlayer": "c2c3984c2c050f1f9ab54e5fb373e99e645e91cf010ee4a681b80089826b63d2",
+        "DropCompetePlayerFromTournament": "de49d7c455017093075e79b537558ee398b84aceab36bb0e1e648a665967d95d",
+        "FavoritedOrganizers": "8186f58c21e12fb11f76e413ba2795d62baf8d21bc422575f3ea34d894edda2f",
+        "FavoriteOrganizer": "80740df75cd7148fae22aa75c6070f37a8f16467c992c1eb8fc4711926d0816d",
+        "UnfavoriteOrganizer": "8e20642289398a5a26a552089dd25ea5c8d81f3e197d4f0f3bd9d33f845b7fdf",
+        "OrganizerSummary": "9142e18241bb86a3b4c2692d899b31aaf61d11065ca8a259191aa9cc0a06ed57",
     ]
 
     private var ids = builtIn
