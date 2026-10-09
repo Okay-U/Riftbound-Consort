@@ -207,6 +207,25 @@ nonisolated final class PlayRiftboundAPI: Sendable {
 
     private func send<T: Decodable & Sendable>(_ request: URLRequest, operation: String,
                                                credentials: PlayRiftboundCredentials?) async throws -> T {
+        let started = Date()
+        let method = request.httpMethod ?? "GET"
+        // Mutation variables (ids only) go into the on-device log; GET query strings carry nothing a failure needs.
+        let sent = request.httpBody.flatMap { String(data: $0, encoding: .utf8) }
+        do {
+            let value: T = try await perform(request, operation: operation, credentials: credentials)
+            await PlayRiftboundDiagnostics.shared.record(operation: operation, method: method, outcome: "ok", detail: sent, started: started)
+            return value
+        } catch {
+            let outcome = (error as? PlayRiftboundError).map { "\($0)" } ?? error.localizedDescription
+            await PlayRiftboundDiagnostics.shared.record(operation: operation, method: method, outcome: String(outcome.prefix(120)),
+                                                          detail: [sent, (error as? LocalizedError)?.errorDescription].compactMap { $0 }.joined(separator: "\n"),
+                                                          started: started)
+            throw error
+        }
+    }
+
+    private func perform<T: Decodable & Sendable>(_ request: URLRequest, operation: String,
+                                                  credentials: PlayRiftboundCredentials?) async throws -> T {
         var request = request
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
