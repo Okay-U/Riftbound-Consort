@@ -39,21 +39,40 @@ struct PlayRiftboundEventsView: View {
         case .loaded:
             if store.hasEvents {
                 VStack(alignment: .leading, spacing: 22) {
+                    if PlayRiftboundFeatures.unapproved { findButton }
                     if !store.upcoming.isEmpty { section("calendar", "Upcoming", store.upcoming) }
                     if !store.past.isEmpty { section("clock.arrow.circlepath", "Past", store.past) }
                 }
             } else {
-                notice("trophy", "No events yet", "Events you register for on PlayRiftbound show up here.",
-                       button: "Find an event") { openSite(PlayRiftboundPolicy.home) }
+                VStack(spacing: 16) {
+                    if PlayRiftboundFeatures.unapproved { findButton }
+                    notice("trophy", "No events yet", "Events you register for on PlayRiftbound show up here.",
+                           button: "Find an event") { openSite(PlayRiftboundPolicy.home) }
+                }
             }
         }
+    }
+
+    private var findButton: some View {
+        NavigationLink(value: PlayRiftboundSearchRoute()) {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                Text("Find events near you")
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 12))
+            }
+            .font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
+            .padding(.horizontal, 14).frame(height: 44)
+            .eventsCard(radius: 13)
+        }
+        .buttonStyle(.plain)
     }
 
     private func section(_ symbol: String, _ title: String, _ entries: [PlayerTournamentEntry]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader(symbol, title)
             ForEach(entries, id: \.tournament.id) { entry in
-                NavigationLink(value: entry) { EventCard(entry: entry) }
+                NavigationLink(value: entry) { PlayRiftboundEventCard(entry: entry) }
                     .buttonStyle(.plain)
             }
         }
@@ -74,8 +93,11 @@ struct PlayRiftboundEventsView: View {
 
 // MARK: - Card
 
-private struct EventCard: View {
+struct PlayRiftboundEventCard: View {
     let entry: PlayerTournamentEntry
+    var distanceMeters: Double? = nil
+    /// From the search: the player is registered for this one.
+    var registered: Bool = false
 
     private var tournament: CompeteTournamentSummary { entry.tournament }
 
@@ -91,6 +113,10 @@ private struct EventCard: View {
                 HStack(spacing: 6) {
                     pill(priceText)
                     pill(playersText, symbol: "person.2")
+                    if registered {
+                        Text("Registered").font(.system(size: 11, weight: .semibold)).foregroundStyle(EventsTheme.green)
+                            .padding(.horizontal, 8).padding(.vertical, 4).background(EventsTheme.greenSoft, in: Capsule())
+                    }
                 }
                 if let store = storeLine {
                     Label(store, systemImage: entry.organizer?.isFavorited == true ? "heart.fill" : "mappin")
@@ -144,7 +170,9 @@ private struct EventCard: View {
 
     private var storeLine: String? {
         guard let organizer = entry.organizer else { return nil }
-        return [organizer.name, organizer.physicalAddress?.city].compactMap { $0 }.joined(separator: " • ")
+        var parts = [organizer.name, organizer.physicalAddress?.city].compactMap { $0 }
+        if let distanceMeters { parts.append(String(format: "%.0f km", distanceMeters / 1000)) }
+        return parts.joined(separator: " • ")
     }
 
     private func pill(_ text: String, symbol: String? = nil) -> some View {

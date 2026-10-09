@@ -18,6 +18,9 @@ struct EventsTabView: View {
             .navigationDestination(for: PlayerTournamentEntry.self) { entry in
                 PlayRiftboundEventView(entry: entry)
             }
+            .navigationDestination(for: PlayRiftboundSearchRoute.self) { _ in
+                PlayRiftboundSearchView()
+            }
             .navigationDestination(for: EventRoute.self) { route in
                 EventDetailView(eventID: route.id, myAlias: route.alias)
             }

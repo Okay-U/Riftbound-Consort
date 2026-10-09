@@ -71,6 +71,9 @@ nonisolated struct CompeteOrganizer: Decodable, Sendable, Hashable {
     nonisolated struct Address: Decodable, Sendable, Hashable {
         let city: String?
         let adminArea1: String?
+        let formattedAddress: String?
+        let latitude: Double?
+        let longitude: Double?
     }
 }
 
