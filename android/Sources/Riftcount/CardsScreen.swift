@@ -317,6 +317,9 @@ struct CardQuickDetail: View {
             if let power = card.attributes?.power {
                 statBadge(label: "♻ \(power)")
             }
+            if card.unreleased == true {
+                statBadge(label: "Preview")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

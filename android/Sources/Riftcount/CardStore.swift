@@ -51,13 +51,11 @@ public final class CardStore {
         return baseline + extras.sorted()
     }
 
-    private let repo = RiftcodexCardRepository()
+    private let repo = HostedCardRepository()
     private var loadTask: Task<Void, Never>?
 
-    /// Drops rows riftcodex ships twice — same card, same printing, two database
-    /// rows (95 of them in the Vendetta ingest, verified identical on collector
-    /// number, rarity, type and stats).
-    ///
+    /// Keeps the first row per printing. The feed is built de-duplicated, but a
+    /// source hiccup must never double every card in the grid.
     /// The key must include the name: `riftbound_id` identifies the *card*, not
     /// the *printing*, so "Yasuo - Unforgiven" and "Yasuo - Unforgiven (Metal)"
     /// share one. Keying on the id alone silently removed 147 real cards.
@@ -88,18 +86,19 @@ public final class CardStore {
         load()
     }
 
-    /// riftcodex rejects `size` above 100, so the DB always needs many requests
-    /// (1451 cards = 15 pages as of Vendetta), and its response times swing
-    /// between ~2s and ~25s per request. Pages go out five at a time — past
-    /// roughly six sockets per host the rest queue and time out waiting — and
-    /// a disk snapshot makes every launch after the first instant.
-    static let pageSize = 100
-    static let maxParallelPages = 5
+    nonisolated static let cacheName = "cards_cache_v2.json"
+    nonisolated static let etagKey = "cardsFeedETag"
 
     private nonisolated static var cacheURL: URL {
         FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("cards_cache_v1.json")
+            .appendingPathComponent(cacheName)
+    }
+
+    /// The riftcodex-era snapshot. Decks saved before 3.5 reference its database
+    /// ids; `DecklistStore.migrateLegacyIDs` maps them onto the hosted feed.
+    nonisolated static var legacyCacheURL: URL {
+        cacheURL.deletingLastPathComponent().appendingPathComponent("cards_cache_v1.json")
     }
 
     func load() {
@@ -121,32 +120,15 @@ public final class CardStore {
             isLoading = allCards.isEmpty   // spinner only when nothing to show
             loadError = nil
             do {
-                let first = try await repo.cards(page: 1, size: Self.pageSize)
-                let pageCount = Int(ceil(Double(first.total) / Double(Self.pageSize)))
-
-                var accumulated = first.items
-                var next = 2
-                while next <= pageCount {
-                    try Task.checkCancellation()
-                    let batch = Array(next..<min(next + Self.maxParallelPages, pageCount + 1))
-                    let pages = try await withThrowingTaskGroup(of: (Int, [Card]).self) { group in
-                        for page in batch {
-                            group.addTask { [repo] in (page, try await repo.cards(page: page, size: Self.pageSize).items) }
-                        }
-                        var byPage: [Int: [Card]] = [:]
-                        for try await (page, items) in group { byPage[page] = items }
-                        return byPage
-                    }
-                    // Keep the DB order stable regardless of completion order.
-                    for page in batch { accumulated.append(contentsOf: pages[page] ?? []) }
-                    next += batch.count
+                // The ETag only means something while the snapshot it belongs to exists.
+                let etag = allCards.isEmpty ? nil : UserDefaults.standard.string(forKey: Self.etagKey)
+                guard let fetched = try await repo.allCards(ifChangedSince: etag) else {
+                    isLoading = false
+                    return
                 }
-                // Publish once: a growing grid made the card count jump around
-                // (100 → 700 → …), which reads as cards being missing.
-                publish(accumulated)
-                // Encoding 1.7 MB is the same cost in the other direction, and
-                // nothing waits on it.
-                let snapshot = accumulated
+                publish(fetched.page.items)
+                UserDefaults.standard.set(fetched.etag, forKey: Self.etagKey)
+                let snapshot = fetched.page.items
                 Task.detached(priority: .utility) { Self.writeCache(snapshot) }
             } catch is CancellationError {
                 // ignored
@@ -174,8 +156,6 @@ public final class CardStore {
         try? data.write(to: cacheURL, options: .atomic)
     }
 
-    /// riftcodex has shipped literal duplicate rows (same riftbound_id, different
-    /// DB id — seen with the Vendetta ingest); keep the first.
     private func publish(_ cards: [Card]) {
         let unique = Self.dedupe(cards)
         allCards = unique

@@ -18,9 +18,11 @@ struct Card: Identifiable, Codable, Hashable, Sendable {
     let tags: [String]?
     let orientation: String?
     let metadata: CardMetadata?
+    /// Previewed by Riot but not yet legal to play; the policy asks for a visible label.
+    let unreleased: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case id, name
+        case id, name, unreleased
         case riftboundId     = "riftbound_id"
         case collectorNumber = "collector_number"
         case attributes, classification, text, set, media, tags, orientation, metadata

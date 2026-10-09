@@ -2,6 +2,10 @@
 //  CardRepository.swift
 //  Riftbound Companiokay
 //
+//  The card database is one hosted JSON file, rebuilt daily from Riot's
+//  official card gallery by tools/build-cards.py in the okay-u.github.io repo.
+//  New sets and spoilers appear as soon as Riot lists them, no app update.
+//
 
 import Foundation
 #if canImport(FoundationNetworking)
@@ -10,70 +14,40 @@ import FoundationNetworking
 #endif
 
 protocol CardRepository: Sendable {
-    func search(query: String, page: Int) async throws -> CardPage
-    func cards(page: Int, size: Int) async throws -> CardPage
-    func card(id: String) async throws -> Card
+    /// The whole database, or nil when the server says it has not changed
+    /// since `etag` (HTTP 304).
+    func allCards(ifChangedSince etag: String?) async throws -> (page: CardPage, etag: String?)?
 }
 
-// nonisolated so the network decode stays off the main actor, matching
-// RiftboundLocatorService.
-nonisolated final class RiftcodexCardRepository: CardRepository, @unchecked Sendable {
-    private let base = URL(string: "https://api.riftcodex.com")!
+// nonisolated so the 1.7 MB decode stays off the main actor.
+nonisolated final class HostedCardRepository: CardRepository, @unchecked Sendable {
+    static let feed = URL(string: "https://okay-u.github.io/cards.json")!
     private let session: URLSession
 
     init() {
-        let config = URLSessionConfiguration.default
-        // riftcodex answers in ~2s on a good day and ~25s on a bad one;
-        // 15s made the slow days look like an outage.
+        let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 60
         self.session = URLSession(configuration: config)
     }
 
-    func search(query: String, page: Int = 1) async throws -> CardPage {
-        var components = URLComponents(url: base.appendingPathComponent("cards/search"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
-            URLQueryItem(name: "query", value: query),
-            URLQueryItem(name: "page",  value: String(page)),
-            URLQueryItem(name: "size",  value: "100")
-        ]
-        return try await fetch(components.url!)
-    }
-
-    func cards(page: Int = 1, size: Int = 50) async throws -> CardPage {
-        var components = URLComponents(url: base.appendingPathComponent("cards"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
-            URLQueryItem(name: "page", value: String(page)),
-            URLQueryItem(name: "size", value: String(size))
-        ]
-        return try await fetch(components.url!)
-    }
-
-    func card(id: String) async throws -> Card {
-        let url = base.appendingPathComponent("cards/\(id)")
-        let (data, response) = try await session.data(from: url)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw CardRepositoryError.badResponse
-        }
-        return try JSONDecoder().decode(Card.self, from: data)
-    }
-
-    private func fetch(_ url: URL) async throws -> CardPage {
-        let (data, response) = try await session.data(from: url)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw CardRepositoryError.badResponse
-        }
-        return try JSONDecoder().decode(CardPage.self, from: data)
+    func allCards(ifChangedSince etag: String?) async throws -> (page: CardPage, etag: String?)? {
+        var request = URLRequest(url: Self.feed)
+        if let etag { request.setValue(etag, forHTTPHeaderField: "If-None-Match") }
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw CardRepositoryError.badResponse }
+        if http.statusCode == 304 { return nil }
+        guard http.statusCode == 200 else { throw CardRepositoryError.badResponse }
+        let page = try JSONDecoder().decode(CardPage.self, from: data)
+        return (page, http.value(forHTTPHeaderField: "ETag"))
     }
 }
 
 enum CardRepositoryError: LocalizedError {
     case badResponse
-    case notFound
 
     var errorDescription: String? {
         switch self {
         case .badResponse: return "Could not reach the card database. Check your connection."
-        case .notFound:    return "Card not found."
         }
     }
 }

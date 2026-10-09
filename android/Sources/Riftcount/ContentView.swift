@@ -66,6 +66,7 @@ struct ContentView: View {
         .environment(matchMode)
         .task { await authSession.restore() }
         .onAppear { errataStore.load() }
+        .onChange(of: cardStore.allCards.count) { _, _ in decklistStore.migrateLegacyIDs(to: cardStore.allCards) }
         .fullScreenCover(isPresented: Binding(
             get: { !didOnboard },
             set: { newValue in if !newValue { didOnboard = true } }

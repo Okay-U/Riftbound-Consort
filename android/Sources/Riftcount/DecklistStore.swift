@@ -139,6 +139,54 @@ public final class DecklistStore {
         lists.firstIndex(where: { $0.id == list.id })
     }
 
+    // MARK: - Legacy ids
+
+    /// Decks saved before 3.5 hold riftcodex database ids. Maps them onto the
+    /// hosted feed through the shared `riftbound_id`, falling back to the card
+    /// name for printings the feed does not carry (promo reprints). Runs once:
+    /// the riftcodex snapshot is deleted afterwards.
+    func migrateLegacyIDs(to cards: [Card]) {
+        let legacyURL = CardStore.legacyCacheURL
+        guard !cards.isEmpty,
+              let data = try? Data(contentsOf: legacyURL),
+              let legacy = try? JSONDecoder().decode([Card].self, from: data) else { return }
+
+        var byRiftboundID: [String: String] = [:]
+        var byName: [String: String] = [:]
+        for card in cards {
+            if let rid = card.riftboundId, byRiftboundID[rid] == nil { byRiftboundID[rid] = card.id }
+            let name = card.name.lowercased()
+            if byName[name] == nil { byName[name] = card.id }
+        }
+        var map: [String: String] = [:]
+        for old in legacy {
+            let base = old.name.replacingOccurrences(of: #"\s*\([^)]*\)$"#, with: "", options: .regularExpression)
+            let viaID = old.riftboundId.flatMap { byRiftboundID[$0] }
+            if let new = viaID ?? byName[old.name.lowercased()] ?? byName[base.lowercased()] {
+                map[old.id] = new
+            }
+        }
+
+        lists = lists.map { list in
+            var l = list
+            l.champion     = list.champion.map { remap($0, map) }
+            l.legend       = list.legend.map { remap($0, map) }
+            l.battlefields = list.battlefields.map { remap($0, map) }
+            l.mainDeck     = list.mainDeck.map { remap($0, map) }
+            l.sideDeck     = list.sideDeck.map { remap($0, map) }
+            l.runes        = list.runes.map { remap($0, map) }
+            return l
+        }
+        save()
+        try? FileManager.default.removeItem(at: legacyURL)
+        logger.info("Mapped \(map.count) of \(legacy.count) legacy card ids onto the hosted feed")
+    }
+
+    private func remap(_ entry: DecklistEntry, _ map: [String: String]) -> DecklistEntry {
+        guard let new = map[entry.cardId] else { return entry }
+        return DecklistEntry(cardId: new, cardName: entry.cardName, count: entry.count)
+    }
+
     // MARK: - Persistence
 
     private func save() {

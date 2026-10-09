@@ -8,13 +8,13 @@ struct AcknowledgmentsScreen: View {
         Form {
             Section("Card data") {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Riftcodex")
+                    Text("Riot Games")
                         .font(.headline)
-                    Text("Card database powered by api.riftcodex.com")
+                    Text("Card data and images from the official Riftbound card gallery. Riftcount was created under Riot Games' \"Legal Jibber Jabber\" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    if let url = URL(string: "https://riftcodex.com") {
-                        Link("riftcodex.com", destination: url)
+                    if let url = URL(string: "https://playriftbound.com/en-us/card-gallery/") {
+                        Link("playriftbound.com", destination: url)
                             .font(.footnote)
                     }
                 }
