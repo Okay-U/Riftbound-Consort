@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riftbound AMBER Ledger</title>
+<style>
+:root {
+  --bg: #f4f2ee; --panel: #ffffff; --ink: #1d1b18; --muted: #6b665e; --line: #e2ddd4; --code: #f7f5f1;
+  --under: #b4532a; --on: #3d7a4f; --above: #2f6db3; --far: #7a3fb0; --none: #8b857b;
+  --chip: #efebe4; --accent: #b8862f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1115; --panel: #171a21; --ink: #ece8e1; --muted: #9a958c; --line: #2a2f3a; --code: #12151b;
+    --under: #e07a4f; --on: #6cc287; --above: #6aa7ef; --far: #b98af0; --none: #777;
+    --chip: #222733; --accent: #d9ad57;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1115; --panel: #171a21; --ink: #ece8e1; --muted: #9a958c; --line: #2a2f3a; --code: #12151b;
+  --under: #e07a4f; --on: #6cc287; --above: #6aa7ef; --far: #b98af0; --none: #777;
+  --chip: #222733; --accent: #d9ad57;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+header, main, .controls { max-width: 1480px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 28px; }
+h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { color: var(--muted); margin: 0 0 18px; max-width: 900px; }
+.sub a { color: var(--accent); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 12px; }
+details.how { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
+details.how summary { cursor: pointer; font-weight: 600; }
+.bd { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin: 6px 0 4px; }
+.bd table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+.bd th, .bd td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); }
+.bd th { color: var(--muted); font-weight: 600; }
+.how .note { color: var(--muted); font-size: 12px; }
+details.how p, details.how li { color: var(--ink); max-width: 980px; }
+.hist { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
+.hist svg { width: 100%; height: 120px; display: block; }
+.controls { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controls input, .controls select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font: inherit; }
+.controls input[type=search] { flex: 1 1 220px; min-width: 0; }
+.count { color: var(--muted); font-size: 12px; margin-left: auto; }
+main { padding-top: 14px; padding-bottom: 60px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; align-items: start; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.art { position: relative; aspect-ratio: 744 / 1039; background: var(--code); }
+.art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.badge { position: absolute; right: 8px; top: 8px; border-radius: 10px; padding: 4px 9px 5px; color: #fff; font-weight: 700; font-size: 20px; font-variant-numeric: tabular-nums; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.badge small { display: block; font-size: 9px; font-weight: 600; letter-spacing: .08em; opacity: .9; text-transform: uppercase; }
+.b-under { background: var(--under); } .b-on { background: var(--on); } .b-above { background: var(--above); } .b-far { background: var(--far); } .b-none { background: var(--none); }
+.body { padding: 10px 12px 12px; }
+.name { font-weight: 650; font-size: 15px; margin: 0; }
+.meta { color: var(--muted); font-size: 12px; margin: 2px 0 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.chip { background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 11px; color: var(--muted); }
+.chip.src-blind { color: var(--accent); }
+.chip.st-partial, .chip.st-deferred { color: var(--under); }
+.calc { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 8px 9px; font: 11.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.calc div { margin: 1px 0; }
+.calc .k { color: var(--muted); }
+.calc .res { font-weight: 700; }
+.calc .note { color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11.5px; }
+.calc ul { margin: 2px 0 2px 0; padding-left: 14px; }
+.empty { color: var(--muted); padding: 40px 0; text-align: center; }
+footer { color: var(--muted); font-size: 12px; max-width: 1480px; margin: 0 auto; padding: 0 16px 40px; }
+footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Riftbound AMBER Ledger</h1>
+  <p class="sub">Every costed Riftbound card scored against the designers' recovered cost ledger. AMBER is value divided by printed cost, with 1.00 as par. It measures the numeric budget a card got, not how strong it plays. Method and prices from <a href="https://doi.org/10.5281/zenodo.22950820">Chen &amp; Lee (2026)</a>, frozen model v6 (CC BY 4.0).</p>
+  <div class="stats" id="stats"></div>
+  <div class="hist"><svg id="hist" viewBox="0 0 600 120" preserveAspectRatio="none" role="img" aria-label="Distribution of AMBER scores"></svg></div>
+  <details class="how">
+    <summary>What the ledger says about the designers</summary>
+    <ul>
+      <li><b>One ledger for everything.</b> Median AMBER is 1.00 in every set, domain and rarity. Riot prices from a fixed exchange table, not card by card.</li>
+      <li><b>Fixed exchange rates.</b> One rune icon is two energy. A point of damage or might is one energy. A card draw is two. An unconditional kill is eight. A point is 11.5.</li>
+      <li><b>Speed is free.</b> Action, Reaction and Hidden add no cost. Riftbound uses them as domain identity, not as a priced upgrade.</li>
+      <li><b>Half for maybe.</b> Repeatable triggers, Deathknell and on-play combat tricks are charged at about half. One-off "if&hellip; then" bonuses are mostly charged nothing.</li>
+      <li><b>Cheap cards run hot.</b> Cost moves in whole energy, so small extras on 1&ndash;3 C cards are rounded away as gifts. Expensive cards sit slightly below par.</li>
+    </ul>
+    <div id="breakdown"></div>
+  </details>
+  <details class="how">
+    <summary>How the score is calculated</summary>
+    <ul>
+      <li><b>Cost.</b> C = energy + 2 &times; power. One rune icon is worth two energy in the designers' ledger.</li>
+      <li><b>Base value V0.</b> Might plus every priced effect, with conditions unmet and repeatable triggers fired zero times. Damage and might cost 1 C per point, a card draw 2 C, an unconditional kill 8 C, a point 11.5 C. Action, Reaction and Hidden are free.</li>
+      <li><b>Discounts.</b> Assault and Shield cost 0.5 per point. Combat tricks on a unit's play effect count half. On a 2&ndash;3 C unit the play effect counts 30%. Deathknell counts half. One-off "if&hellip; then" bonuses count zero.</li>
+      <li><b>AMBER = (V0 + k &times; &Delta;) / C.</b> &Delta; is the value of one firing of a unit's repeatable trigger. k is 0.5, the designers' "half an activation", and 0.25 when the trigger needs a further condition. Spells and gear have k = 0.</li>
+      <li><b>Gear.</b> Reusable gear is valued over the designers' expected number of uses: three if it enters ready, two if it enters exhausted or needs a trigger, one if Temporary. That count is a judgement call the paper does not test, so gear scores are rougher than unit and spell scores. Seals score 3.00 for this reason.</li>
+      <li><b>Bands.</b> Under curve &lt; 0.86, on curve 0.86&ndash;1.17, above curve &gt; 1.17, far above &ge; 1.50. The band is the paper's empirical normal range.</li>
+      <li><b>Status.</b> Full means every effect is priced. Partial is a lower bound because an effect has no price yet. Deferred cards are not scored because a rule excludes them, for example counters, effects on all units or damage equal to might.</li>
+      <li><b>Sources.</b> "Authors" cards use the authors' published per-card value, with their note translated. "Blind" cards (Radiance and cards the authors set aside) were priced by us with the same frozen rules from rules text only, with costs hidden.</li>
+    </ul>
+  </details>
+</header>
+<div class="controls">
+  <input type="search" id="q" placeholder="Search name, text or id" aria-label="Search">
+  <select id="fset" aria-label="Set"><option value="">All sets</option></select>
+  <select id="ftype" aria-label="Type"><option value="">All types</option><option>Unit</option><option>Spell</option><option>Gear</option></select>
+  <select id="fdom" aria-label="Domain"><option value="">All domains</option></select>
+  <select id="fstatus" aria-label="Status"><option value="">Any status</option><option value="full">Full</option><option value="partial">Partial</option><option value="deferred">Deferred</option></select>
+  <select id="fband" aria-label="Band"><option value="">Any band</option><option value="far">Far above (&ge;1.50)</option><option value="above">Above curve</option><option value="on">On curve</option><option value="under">Under curve</option><option value="none">Not scored</option></select>
+  <select id="fsrc" aria-label="Source"><option value="">Any source</option><option value="authors">Authors' ledger</option><option value="blind">Blind pricing</option></select>
+  <select id="sort" aria-label="Sort">
+    <option value="amber-desc">AMBER high to low</option><option value="amber-asc">AMBER low to high</option>
+    <option value="set">Set and number</option><option value="cost">Cost</option><option value="name">Name</option>
+  </select>
+  <span class="count" id="count"></span>
+</div>
+<main><div class="grid" id="grid"></div><div class="empty" id="empty" hidden>No cards match.</div></main>
+<footer>
+  Card art and text &copy; Riot Games, from the official card gallery, used under the Riftbound Digital Tools Policy. Not affiliated with Riot Games.
+  Pricing model &copy; J. Chen and J. C. Lee, <a href="https://doi.org/10.5281/zenodo.22950820">preprint v3</a> and <a href="https://doi.org/10.5281/zenodo.22950713">frozen model v6</a>, CC BY 4.0. Calculation notes translated from Chinese.
+  The conditional-trigger list (17 units) is rebuilt from the paper's definition because the authors' list is unpublished.
+</footer>
+<script>
+const DATA = /*__DATA__*/null;
+const SETS = {OGN: 'Origins', OGS: 'Proving Grounds', SFD: 'Spiritforged', UNL: 'Unleashed', VEN: 'Vendetta', RAD: 'Radiance'};
+const SET_ORDER = [...new Set(['OGN', 'OGS', 'SFD', 'UNL', 'VEN', 'RAD', ...DATA.cards.map((c) => c.set)])];
+const BAND_NAME = {under: 'Under curve', on: 'On curve', above: 'Above curve', far: 'Far above', none: 'Not scored'};
+const $ = (id) => document.getElementById(id);
+const f2 = (x) => (x === null || x === undefined) ? '–' : Number(x).toFixed(2);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[ch]));
+
+function costLine(c) {
+  const parts = [`${c.E} E`];
+  if (c.P) parts.push(`2 × ${c.P} P`);
+  return `C = ${parts.join(' + ')} = ${c.C} C`;
+}
+
+function sourceLines(c) {
+  if (c.source === 'authors') {
+    const label = `<div class="k">Authors' ledger${c.status_detail ? ' · ' + esc(c.status_detail) : ''}</div>`;
+    const steps = (c.calc || '').split(/\s*[｜|]\s*/).filter(Boolean)
+      .map((s) => `<div${/^(change|\(v\d)/i.test(s) && !/^\(v\d\)\s*\d/.test(s) ? ' class="note"' : ''}>${esc(s)}</div>`).join('');
+    return label + (steps || '<div class="note">No note in the authors\' table.</div>');
+  }
+  const items = (c.components || []).map((p) => {
+    const factor = p.factor !== 1 ? ` × ${p.factor.toFixed(2)} (C ≤ 3 rule) = ${f2(p.booked)}` : '';
+    return `<li>${esc(p.label)}: ${f2(p.value)}${factor}${p.rule ? ` <span class="k">[${esc(p.rule)}]</span>` : ''}</li>`;
+  }).join('');
+  let out = `<div class="k">Blind v6 pricing (ours)</div><ul>${items || '<li>No priced component</li>'}</ul>`;
+  if (c.calc) out += `<div class="note">${esc(c.calc)}</div>`;
+  if (c.cond_bonus) out += `<div class="note">One-off bonus, booked 0: ${esc(c.cond_bonus.text)} (${f2(c.cond_bonus.value)} if met)</div>`;
+  if (c.analogs && c.analogs.length) out += `<div class="note">Analogs: ${esc(c.analogs.join(', '))}</div>`;
+  return out;
+}
+
+function scoreLines(c) {
+  const out = [];
+  if (c.V0 !== null && c.V0 !== undefined) {
+    const denom = c.eta !== null && Math.abs(c.eta - c.V0 / c.C) > 0.006 ? `(C − 2 equip)` : 'C';
+    out.push(`<div>V0 = ${f2(c.V0)} → nominal η = V0 / ${denom} = ${f2(c.eta)}</div>`);
+  }
+  if (c.delta) {
+    const why = c.cond_trigger ? 'conditional trigger, quarter activation' : 'repeatable trigger, half activation';
+    out.push(`<div>Trigger: + k × Δ / C = ${c.k} × ${f2(c.delta)} / ${c.C} = ${f2(c.k * c.delta / c.C)} <span class="k">(${why})</span></div>`);
+    if (c.trigger_text) out.push(`<div class="note">Trigger: ${esc(c.trigger_text)}</div>`);
+  }
+  if (c.status === 'deferred') {
+    out.push(`<div class="res">Not scored: deferred${c.reason ? ' (' + esc(c.reason) + ')' : ''}</div>`);
+  } else if (c.amber !== null) {
+    const prefix = c.status === 'partial' ? '≥ ' : '';
+    const plain = c.eta === null || Math.abs(c.eta - c.V0 / c.C) <= 0.006 ? `${f2(c.V0)} / ${c.C}` : 'η';
+    const formula = c.delta ? `(${f2(c.V0)} + ${c.k} × ${f2(c.delta)}) / ${c.C}` : plain;
+    out.push(`<div class="res">AMBER = ${formula} = ${prefix}${f2(c.amber)}</div>`);
+    if (c.status === 'partial') out.push(`<div class="note">Lower bound: ${esc(c.reason || 'an effect has no price yet')}</div>`);
+  }
+  if (c.V_full !== null && c.V_full !== undefined && c.V_full !== c.V0) {
+    out.push(`<div class="note">Full-trigger reference (all conditions met): V = ${f2(c.V_full)}${c.eta_full ? `, η = ${f2(c.eta_full)}` : ''}</div>`);
+  }
+  if (c.flow && c.flow[0] !== null) {
+    const [k, first, flowPlay, flowCost, both] = c.flow;
+    out.push(`<div class="note">Flow: keyword k ${f2(k)}; first play ${f2(first)} / ${c.C}; Flow play ${f2(flowPlay)} / ${f2(flowCost)}; both plays ${f2(both)} / ${f2(c.C + flowCost)}</div>`);
+  }
+  return out.join('');
+}
+
+function tile(c) {
+  const img = c.image ? `${c.image}&w=360&fm=webp` : '';
+  const score = c.amber === null ? '–' : (c.status === 'partial' ? '≥' : '') + f2(c.amber);
+  const dom = (c.domain || []).join(' / ') || 'Colorless';
+  const might = c.might !== null && c.might !== undefined ? ` · ${esc(c.might)} might` : '';
+  return `<article class="card" data-id="${esc(c.id)}">
+    <div class="art">${img ? `<img loading="lazy" decoding="async" src="${esc(img)}" alt="${esc(c.name)}">` : ''}
+      <div class="badge b-${c.band}"><small>AMBER</small>${score}</div></div>
+    <div class="body">
+      <p class="name">${esc(c.name)}</p>
+      <p class="meta">${esc(c.id)} · ${esc(c.type)} · ${esc(dom)}${might}</p>
+      <div class="chips"><span class="chip">${esc(BAND_NAME[c.band])}</span><span class="chip st-${c.status}">${c.status}</span>
+        <span class="chip src-${c.source}">${c.source === 'blind' ? 'blind pricing' : 'authors'}</span>${c.preview ? '<span class="chip">preview</span>' : ''}</div>
+      <div class="calc"><div>${costLine(c)}</div>${sourceLines(c)}${scoreLines(c)}</div>
+    </div></article>`;
+}
+
+function renderStats() {
+  const s = DATA.stats, a = s.authors, r = s.radiance;
+  const box = (v, l) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`;
+  let html = box(s.total, 'costed cards evaluated')
+    + box(`${s.counts.full} / ${s.counts.partial} / ${s.counts.deferred}`, 'full / partial / deferred')
+    + box(`${f2(a.median)} (${f2(a.q1)}–${f2(a.q3)})`, `median AMBER (IQR), ${a.n} fully priced units and spells, authors`)
+    + box(`${a.above} / ${a.far}`, 'authors cards above 1.17 / at 1.50 or more');
+  if (s.missing.length) html += box(s.missing.length, `new cards not priced yet: ${esc(s.missing.join(', '))}`);
+  if (r) html += box(`${f2(r.rmse)} C`, `Radiance blind residual RMSE, ${r.n} cards (paper's bar: ≤ 1.84)`)
+    + box(f2(r.median_eta), "Radiance median nominal η (paper's bar: 0.90–1.10)");
+  $('stats').innerHTML = html;
+}
+
+function renderHist() {
+  const xs = DATA.cards.filter((c) => c.amber !== null && c.status === 'full').map((c) => Math.min(c.amber, 2.49));
+  const bins = new Array(25).fill(0);
+  xs.forEach((x) => bins[Math.max(0, Math.floor(x * 10))]++);
+  const max = Math.max(...bins), w = 600 / bins.length;
+  const color = (i) => i / 10 < 0.86 ? 'var(--under)' : i / 10 < 1.17 ? 'var(--on)' : i / 10 < 1.5 ? 'var(--above)' : 'var(--far)';
+  let svg = bins.map((n, i) => {
+    const h = n / max * 100;
+    return `<rect x="${i * w + 1}" y="${104 - h}" width="${w - 2}" height="${h}" fill="${color(i)}"><title>${(i / 10).toFixed(1)}–${((i + 1) / 10).toFixed(1)}: ${n} cards</title></rect>`;
+  }).join('');
+  [0, 0.5, 1, 1.5, 2].forEach((t) => { svg += `<text x="${t * 10 * w}" y="118" font-size="10" fill="var(--muted)">${t.toFixed(1)}</text>`; });
+  $('hist').innerHTML = svg;
+}
+
+function renderBreakdown() {
+  const full = DATA.cards.filter((c) => c.status === 'full' && c.amber !== null);
+  const median = (xs) => { const s = [...xs].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  const table = (title, keyOf, order) => {
+    const groups = {};
+    full.forEach((c) => { const k = keyOf(c); (groups[k] = groups[k] || []).push(c.amber); });
+    const rows = order.filter((k) => groups[k]).map((k) => {
+      const xs = groups[k], above = xs.filter((x) => x > 1.17).length, under = xs.filter((x) => x < 0.86).length;
+      return `<tr><td>${esc(k)}</td><td>${xs.length}</td><td>${f2(median(xs))}</td><td>${f2(xs.reduce((a, b) => a + b, 0) / xs.length)}</td><td>${Math.round(above / xs.length * 100)}%</td><td>${Math.round(under / xs.length * 100)}%</td></tr>`;
+    }).join('');
+    return `<table><thead><tr><th>${title}</th><th>n</th><th>median</th><th>mean</th><th>&gt;1.17</th><th>&lt;0.86</th></tr></thead><tbody>${rows}</tbody></table>`;
+  };
+  const costKey = (c) => c.C >= 8 ? '8+ C' : `${c.C} C`;
+  $('breakdown').innerHTML = `<div class="bd">${table('Cost', costKey, ['1 C', '2 C', '3 C', '4 C', '5 C', '6 C', '7 C', '8+ C'])}`
+    + `${table('Set', (c) => SETS[c.set] || c.set, SET_ORDER.map((s) => SETS[s]))}</div>`
+    + `<p class="note">Fully priced cards only, all types. Radiance and set-aside cards use our blind pricing.</p>`;
+}
+
+function fillSelect(id, values, label) {
+  $(id).insertAdjacentHTML('beforeend', values.map((v) => `<option value="${esc(v)}">${esc(label ? label(v) : v)}</option>`).join(''));
+}
+
+const tiles = new Map();
+function apply() {
+  const q = $('q').value.trim().toLowerCase();
+  const fs = {set: $('fset').value, type: $('ftype').value, dom: $('fdom').value, status: $('fstatus').value, band: $('fband').value, src: $('fsrc').value};
+  const sort = $('sort').value;
+  const list = DATA.cards.filter((c) => (!fs.set || c.set === fs.set) && (!fs.type || c.type === fs.type)
+    && (!fs.dom || (c.domain || []).includes(fs.dom)) && (!fs.status || c.status === fs.status)
+    && (!fs.band || c.band === fs.band) && (!fs.src || c.source === fs.src)
+    && (!q || `${c.name} ${c.id} ${c.text}`.toLowerCase().includes(q)));
+  const val = (c) => c.amber === null ? -1 : c.amber;
+  const order = {
+    'amber-desc': (a, b) => val(b) - val(a), 'amber-asc': (a, b) => (val(a) < 0) - (val(b) < 0) || val(a) - val(b),
+    set: (a, b) => SET_ORDER.indexOf(a.set) - SET_ORDER.indexOf(b.set) || a.id.localeCompare(b.id),
+    cost: (a, b) => a.C - b.C || val(b) - val(a), name: (a, b) => a.name.localeCompare(b.name),
+  }[sort];
+  list.sort(order);
+  const grid = $('grid');
+  grid.replaceChildren(...list.map((c) => tiles.get(c.id)));
+  $('count').textContent = `${list.length} of ${DATA.cards.length} cards`;
+  $('empty').hidden = list.length > 0;
+}
+
+function init() {
+  const holder = document.createElement('div');
+  DATA.cards.forEach((c) => { holder.innerHTML = tile(c); tiles.set(c.id, holder.firstElementChild); });
+  fillSelect('fset', SET_ORDER.filter((s) => DATA.cards.some((c) => c.set === s)), (s) => SETS[s] || s);
+  fillSelect('fdom', [...new Set(DATA.cards.flatMap((c) => c.domain || []))].sort());
+  renderStats();
+  renderHist();
+  renderBreakdown();
+  ['q', 'fset', 'ftype', 'fdom', 'fstatus', 'fband', 'fsrc', 'sort'].forEach((id) => $(id).addEventListener('input', apply));
+  apply();
+}
+init();
+</script>
+</body>
+</html>
