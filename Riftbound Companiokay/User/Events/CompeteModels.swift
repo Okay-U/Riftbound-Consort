@@ -165,15 +165,16 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
     }
 
     nonisolated struct Rank: Decodable, Sendable {
-        let position: Int
-        let esportsTeamId: String
+        let position: Int?
+        let esportsTeamId: String?
     }
 
     nonisolated struct Round: Decodable, Sendable {
         let roundNumber: Int
         let status: String?
         let startedAt: Date?
-        let roundDuration: Int?
+        /// Minutes. Decoded leniently: Riot has sent numbers as strings elsewhere.
+        @LenientInt var roundDuration: Int?
         let byeTeamIds: [String]?
         let droppedTeamIds: [String]?
         let matches: [Match]
@@ -203,7 +204,7 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 
     nonisolated struct Player: Decodable, Sendable {
         let id: String
-        let displayName: String
+        let displayName: String?
     }
 
     nonisolated struct Game: Decodable, Sendable {
@@ -213,21 +214,23 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
     }
 
     nonisolated struct Outcome: Decodable, Sendable {
-        let esportsTeamId: String
-        let outcome: String
+        let esportsTeamId: String?
+        /// WIN / LOSS / DRAW …; nil while a game is still open.
+        let outcome: String?
+        var isWin: Bool { outcome?.uppercased().contains("WIN") == true }
     }
 
     nonisolated struct Standing: Decodable, Sendable {
         let esportsTeamId: String
-        let rank: Int?
-        let matchPoints: Int?
-        let matchWins: Int?
-        let matchLosses: Int?
-        let matchDraws: Int?
-        let matchWinPercentage: Double?
-        let opponentMatchWinPercentage: Double?
-        let gameWinPercentage: Double?
-        let opponentGameWinPercentage: Double?
+        @LenientInt var rank: Int?
+        @LenientInt var matchPoints: Int?
+        @LenientInt var matchWins: Int?
+        @LenientInt var matchLosses: Int?
+        @LenientInt var matchDraws: Int?
+        @LenientDouble var matchWinPercentage: Double?
+        @LenientDouble var opponentMatchWinPercentage: Double?
+        @LenientDouble var gameWinPercentage: Double?
+        @LenientDouble var opponentGameWinPercentage: Double?
 
         var record: String { "\(matchWins ?? 0)-\(matchLosses ?? 0)-\(matchDraws ?? 0)" }
     }
@@ -241,7 +244,7 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 
     nonisolated struct RegistrantPlayer: Decodable, Sendable {
         let id: String
-        let displayName: String
+        let displayName: String?
         let tagLine: String?
     }
 
@@ -251,7 +254,7 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
         let esportsTeamId: String?
         let status: String?
         /// Seed, as the site shows it (#n).
-        let position: Int?
+        @LenientInt var position: Int?
         let player: RegistrantPlayer?
     }
 
@@ -277,8 +280,9 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 
     /// Final placement from the section ranks, else the rank after the last round.
     func finalRank(teamID: String) -> Int? {
-        if let rank = stages.flatMap(\.sections).compactMap(\.ranks).joined().first(where: { $0.esportsTeamId == teamID }) {
-            return rank.position
+        if let rank = stages.flatMap(\.sections).compactMap(\.ranks).joined().first(where: { $0.esportsTeamId == teamID }),
+           let position = rank.position {
+            return position
         }
         return rounds.last?.endOfRoundStandings?.first { $0.esportsTeamId == teamID }?.rank
     }
@@ -298,8 +302,8 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
     /// event runs, the participant list.
     func playerID(gameName: String, tagLine: String?) -> String? {
         func matches(_ p: RegistrantPlayer?) -> Bool {
-            guard let p else { return false }
-            let nameMatches = p.displayName.caseInsensitiveCompare(gameName) == .orderedSame
+            guard let p, let displayName = p.displayName else { return false }
+            let nameMatches = displayName.caseInsensitiveCompare(gameName) == .orderedSame
             let tagMatches = tagLine == nil || p.tagLine == nil || p.tagLine!.caseInsensitiveCompare(tagLine!) == .orderedSame
             return nameMatches && tagMatches
         }
@@ -359,16 +363,17 @@ nonisolated struct CompetePairing: Sendable, Equatable {
             func wins(_ teamID: String?) -> Int {
                 guard let teamID else { return 0 }
                 return sortedGames.filter { game in
-                    (game.teamOutcomes ?? []).contains { $0.esportsTeamId == teamID && $0.outcome.uppercased().contains("WIN") }
+                    (game.teamOutcomes ?? []).contains { $0.esportsTeamId == teamID && $0.isWin }
                 }.count
             }
             let mine = myTeam?.esportsTeamId, theirs = oppTeam?.esportsTeamId
             let result: Result? = (match.teamOutcomes ?? []).first { $0.esportsTeamId == mine }.flatMap {
-                let o = $0.outcome.uppercased()
+                guard let o = $0.outcome?.uppercased() else { return nil }
                 return o.contains("WIN") ? .win : o.contains("LOS") ? .loss : o.contains("DRAW") || o.contains("TIE") ? .draw : nil
             }
             return CompetePairing(roundNumber: round.roundNumber, tableNumber: index + 1, matchID: match.esportsMatchId,
-                                  opponentName: oppTeam?.players.first?.displayName, isBye: false, isComplete: match.isComplete,
+                                  opponentName: oppTeam?.players.first?.displayName ?? oppTeam.map { tournament.teamName($0.esportsTeamId) },
+                                  isBye: false, isComplete: match.isComplete,
                                   gameIDs: sortedGames.map(\.esportsGameId),
                                   myParticipantID: mine.flatMap { tournament.participant(teamID: $0)?.id },
                                   opponentParticipantID: theirs.flatMap { tournament.participant(teamID: $0)?.id },
@@ -383,5 +388,47 @@ nonisolated struct CompetePairing: Sendable, Equatable {
                                   myTeamID: myTeamID, opponentTeamID: nil, myGameWins: 0, opponentGameWins: 0, result: .win)
         }
         return nil
+    }
+}
+
+
+// MARK: - Lenient decoding
+
+/// Riot's gateway has returned numbers as strings and nulls where the schema says a value;
+/// these wrappers accept number, numeric string or null instead of failing the whole payload.
+@propertyWrapper
+nonisolated struct LenientInt: Decodable, Sendable {
+    var wrappedValue: Int?
+    init(wrappedValue: Int?) { self.wrappedValue = wrappedValue }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { wrappedValue = nil }
+        else if let v = try? c.decode(Int.self) { wrappedValue = v }
+        else if let v = try? c.decode(Double.self) { wrappedValue = Int(v) }
+        else if let s = try? c.decode(String.self) { wrappedValue = Int(s) ?? Double(s).map(Int.init) }
+        else { wrappedValue = nil }
+    }
+}
+
+@propertyWrapper
+nonisolated struct LenientDouble: Decodable, Sendable {
+    var wrappedValue: Double?
+    init(wrappedValue: Double?) { self.wrappedValue = wrappedValue }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { wrappedValue = nil }
+        else if let v = try? c.decode(Double.self) { wrappedValue = v }
+        else if let s = try? c.decode(String.self) { wrappedValue = Double(s.replacingOccurrences(of: "%", with: "")) }
+        else { wrappedValue = nil }
+    }
+}
+
+extension KeyedDecodingContainer {
+    // A missing key decodes the wrapper as nil instead of throwing.
+    func decode(_ type: LenientInt.Type, forKey key: Key) throws -> LenientInt {
+        try decodeIfPresent(LenientInt.self, forKey: key) ?? LenientInt(wrappedValue: nil)
+    }
+    func decode(_ type: LenientDouble.Type, forKey key: Key) throws -> LenientDouble {
+        try decodeIfPresent(LenientDouble.self, forKey: key) ?? LenientDouble(wrappedValue: nil)
     }
 }

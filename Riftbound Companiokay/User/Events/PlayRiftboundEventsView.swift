@@ -40,6 +40,7 @@ struct PlayRiftboundEventsView: View {
             if store.hasEvents {
                 VStack(alignment: .leading, spacing: 22) {
                     if PlayRiftboundFeatures.unapproved { findButton }
+                    if let live = liveEntry { liveHero(live) }
                     if !store.upcoming.isEmpty { section("calendar", "Upcoming", store.upcoming) }
                     if !store.past.isEmpty { section("clock.arrow.circlepath", "Past", store.past) }
                 }
@@ -51,6 +52,38 @@ struct PlayRiftboundEventsView: View {
                 }
             }
         }
+    }
+
+    /// An event that started within the last eight hours (or starts within the hour).
+    private var liveEntry: PlayerTournamentEntry? {
+        let now = Date()
+        return store.upcoming.first { entry in
+            guard let start = entry.tournament.startsAt else { return false }
+            return start <= now.addingTimeInterval(3600) && start >= now.addingTimeInterval(-8 * 3600)
+        }
+    }
+
+    private func liveHero(_ entry: PlayerTournamentEntry) -> some View {
+        NavigationLink(value: entry) {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 6) {
+                        Circle().fill(EventsTheme.green).frame(width: 7, height: 7)
+                        Text("LIVE NOW").font(.system(size: 11, weight: .bold)).tracking(0.6).foregroundStyle(EventsTheme.green)
+                    }
+                    Text(entry.tournament.name).font(.system(size: 17, weight: .bold)).foregroundStyle(.white).lineLimit(2)
+                    Text([entry.organizer?.name, entry.tournament.startsAt?.formatted(date: .omitted, time: .shortened)].compactMap { $0 }.joined(separator: " • "))
+                        .font(.system(size: 12.5)).foregroundStyle(EventsTheme.textSecondary)
+                    Text("Your pairing, standings and Report are inside.")
+                        .font(.system(size: 12)).foregroundStyle(EventsTheme.textTertiary)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(EventsTheme.green)
+            }
+            .padding(15).frame(maxWidth: .infinity, alignment: .leading)
+            .greenGradientBorder(radius: 16)
+        }
+        .buttonStyle(.plain)
     }
 
     private var findButton: some View {

@@ -232,7 +232,7 @@ struct PlayRiftboundRoundsTab: View {
         let names = teams.map { tournament.teamName($0.esportsTeamId) }
         let mine = teams.contains { $0.esportsTeamId == myTeamID }
         func gameWins(_ teamID: String) -> Int {
-            (match.games ?? []).filter { g in (g.teamOutcomes ?? []).contains { $0.esportsTeamId == teamID && $0.outcome.uppercased().contains("WIN") } }.count
+            (match.games ?? []).filter { g in (g.teamOutcomes ?? []).contains { $0.esportsTeamId == teamID && $0.isWin } }.count
         }
         let score = teams.count == 2 && (match.games ?? []).contains { !($0.teamOutcomes ?? []).isEmpty }
             ? "\(gameWins(teams[0].esportsTeamId))–\(gameWins(teams[1].esportsTeamId))" : nil
@@ -242,7 +242,7 @@ struct PlayRiftboundRoundsTab: View {
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(Array(names.enumerated()), id: \.offset) { i, name in
-                    let winner = (match.teamOutcomes ?? []).contains { $0.esportsTeamId == teams[i].esportsTeamId && $0.outcome.uppercased().contains("WIN") }
+                    let winner = (match.teamOutcomes ?? []).contains { $0.esportsTeamId == teams[i].esportsTeamId && $0.isWin }
                     Text(name)
                         .font(.system(size: 14, weight: winner ? .semibold : .regular))
                         .foregroundStyle(winner ? EventsTheme.green : .white)

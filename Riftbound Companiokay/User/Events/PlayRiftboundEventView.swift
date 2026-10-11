@@ -341,7 +341,7 @@ struct PlayRiftboundEventView: View {
 
     private func isMe(_ player: CompeteTournament.RegistrantPlayer?) -> Bool {
         guard let player, let me else { return false }
-        guard player.displayName.caseInsensitiveCompare(me.name) == .orderedSame else { return false }
+        guard let displayName = player.displayName, displayName.caseInsensitiveCompare(me.name) == .orderedSame else { return false }
         if let tag = me.tag, let theirs = player.tagLine { return theirs.caseInsensitiveCompare(tag) == .orderedSame }
         return true
     }

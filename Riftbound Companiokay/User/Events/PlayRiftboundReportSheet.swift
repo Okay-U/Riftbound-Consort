@@ -15,6 +15,7 @@ struct PlayRiftboundReportSheet: View {
     var onReported: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var browser: PlayRiftboundBrowser
     @State private var games: [GameOutcome]
     @State private var submitting = false
     @State private var errorMessage: String?
@@ -139,12 +140,19 @@ struct PlayRiftboundReportSheet: View {
             case .draw: return .init(gameId: gameID, draw: true, winnerParticipantId: nil)
             }
         }
-        guard let credentials = await PlayRiftboundSession.credentials(), !credentials.isExpired else {
-            errorMessage = PlayRiftboundError.sessionExpired.errorDescription
-            return
-        }
         do {
-            try await api.submitGameResults(tournamentID: strip.tournamentID, games: results, credentials: credentials)
+            guard let credentials = try await PlayRiftboundSession.validCredentials(refreshingVia: browser) else {
+                errorMessage = PlayRiftboundError.notSignedIn.errorDescription
+                return
+            }
+            do {
+                try await api.submitGameResults(tournamentID: strip.tournamentID, games: results, credentials: credentials)
+            } catch PlayRiftboundError.sessionExpired {
+                // The site renews its token on a page load; do that once and retry.
+                await browser.refreshSession()
+                guard let renewed = await PlayRiftboundSession.credentials(), !renewed.isExpired else { throw PlayRiftboundError.sessionExpired }
+                try await api.submitGameResults(tournamentID: strip.tournamentID, games: results, credentials: renewed)
+            }
             onReported()
             dismiss()
         } catch {

@@ -246,7 +246,9 @@ nonisolated final class PlayRiftboundAPI: Sendable {
             envelope = try Self.decoder.decode(GraphQLEnvelope<T>.self, from: data)
         } catch {
             guard (200..<300).contains(http.statusCode) else { throw PlayRiftboundError.http(http.statusCode) }
-            log.error("\(operation, privacy: .public): undecodable response: \(error.localizedDescription, privacy: .public)")
+            log.error("\(operation, privacy: .public): undecodable response: \(String(describing: error), privacy: .public)")
+            await PlayRiftboundDiagnostics.shared.record(operation: operation, method: request.httpMethod ?? "GET", outcome: "decode",
+                                                          detail: String(describing: error), started: Date())
             throw PlayRiftboundError.badResponse
         }
         if let errors = envelope.errors, !errors.isEmpty {
@@ -255,7 +257,10 @@ nonisolated final class PlayRiftboundAPI: Sendable {
                 await ids.invalidate()
                 throw PlayRiftboundError.staleOperationIDs
             }
-            if codes.contains("UNAUTHENTICATED") { throw PlayRiftboundError.sessionExpired }
+            if codes.contains("UNAUTHENTICATED")
+                || errors.contains(where: { $0.message.localizedCaseInsensitiveContains("jwt") && $0.message.localizedCaseInsensitiveContains("expired") }) {
+                throw PlayRiftboundError.sessionExpired
+            }
             throw PlayRiftboundError.graphQL(errors.map(\.message))
         }
         guard let payload = envelope.data else { throw PlayRiftboundError.badResponse }

@@ -71,6 +71,18 @@ nonisolated enum PlayRiftboundSession {
         return renewed
     }
 
+    /// `exp` claim of a JWT, without verifying it (we only need to know when to renew).
+    nonisolated static func jwtExpiry(_ token: String) -> Date? {
+        let parts = token.split(separator: ".")
+        guard parts.count >= 2 else { return nil }
+        var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while payload.count % 4 != 0 { payload += "=" }
+        guard let data = Data(base64Encoded: payload),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let exp = json["exp"] as? Double else { return nil }
+        return Date(timeIntervalSince1970: exp)
+    }
+
     /// WebKit's data store is main-thread only, hence the explicit isolation.
     @MainActor
     static func credentials() async -> PlayRiftboundCredentials? {
@@ -80,9 +92,13 @@ nonisolated enum PlayRiftboundSession {
         guard site.contains(where: { $0.name == accessCookie }) else { return nil }
 
         let header = site.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
-        let expiry = site.first { $0.name == expiryCookie }
+        let sessionExpiry = site.first { $0.name == expiryCookie }
             .flatMap { $0.value.removingPercentEncoding }
             .flatMap { ISO8601DateFormatter().date(from: $0) }
+        // The access token is a JWT that expires after an hour; the session cookie lasts
+        // longer, so the token's own `exp` (minus a minute of slack) is what counts.
+        let tokenExpiry = site.first { $0.name == accessCookie }.flatMap { jwtExpiry($0.value) }?.addingTimeInterval(-60)
+        let expiry = [sessionExpiry, tokenExpiry].compactMap { $0 }.min()
         let (gameName, tagLine) = site.first { $0.name == identityCookie }.map { identity(from: $0.value) } ?? (nil, nil)
         return PlayRiftboundCredentials(cookieHeader: header, expiry: expiry, gameName: gameName, tagLine: tagLine)
     }
