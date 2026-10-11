@@ -174,11 +174,27 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
         let status: String?
         let startedAt: Date?
         /// Minutes. Decoded leniently: Riot has sent numbers as strings elsewhere.
-        @LenientInt var roundDuration: Int?
+        let roundDuration: Int?
         let byeTeamIds: [String]?
         let droppedTeamIds: [String]?
         let matches: [Match]
         let endOfRoundStandings: [Standing]?
+
+        private enum Keys: String, CodingKey {
+            case roundNumber, status, startedAt, roundDuration, byeTeamIds, droppedTeamIds, matches, endOfRoundStandings
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            roundNumber = Lenient.int(c, .roundNumber) ?? 0
+            status = try c.decodeIfPresent(String.self, forKey: .status)
+            startedAt = try c.decodeIfPresent(Date.self, forKey: .startedAt)
+            roundDuration = Lenient.int(c, .roundDuration)
+            byeTeamIds = try c.decodeIfPresent([String].self, forKey: .byeTeamIds)
+            droppedTeamIds = try c.decodeIfPresent([String].self, forKey: .droppedTeamIds)
+            matches = try c.decodeIfPresent([Match].self, forKey: .matches) ?? []
+            endOfRoundStandings = try c.decodeIfPresent([Standing].self, forKey: .endOfRoundStandings)
+        }
     }
 
     nonisolated struct Match: Decodable, Sendable {
@@ -222,17 +238,36 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 
     nonisolated struct Standing: Decodable, Sendable {
         let esportsTeamId: String
-        @LenientInt var rank: Int?
-        @LenientInt var matchPoints: Int?
-        @LenientInt var matchWins: Int?
-        @LenientInt var matchLosses: Int?
-        @LenientInt var matchDraws: Int?
-        @LenientDouble var matchWinPercentage: Double?
-        @LenientDouble var opponentMatchWinPercentage: Double?
-        @LenientDouble var gameWinPercentage: Double?
-        @LenientDouble var opponentGameWinPercentage: Double?
+        let rank: Int?
+        let matchPoints: Int?
+        let matchWins: Int?
+        let matchLosses: Int?
+        let matchDraws: Int?
+        let matchWinPercentage: Double?
+        let opponentMatchWinPercentage: Double?
+        let gameWinPercentage: Double?
+        let opponentGameWinPercentage: Double?
 
         var record: String { "\(matchWins ?? 0)-\(matchLosses ?? 0)-\(matchDraws ?? 0)" }
+
+        private enum Keys: String, CodingKey {
+            case esportsTeamId, rank, matchPoints, matchWins, matchLosses, matchDraws
+            case matchWinPercentage, opponentMatchWinPercentage, gameWinPercentage, opponentGameWinPercentage
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            esportsTeamId = try c.decodeIfPresent(String.self, forKey: .esportsTeamId) ?? ""
+            rank = Lenient.int(c, .rank)
+            matchPoints = Lenient.int(c, .matchPoints)
+            matchWins = Lenient.int(c, .matchWins)
+            matchLosses = Lenient.int(c, .matchLosses)
+            matchDraws = Lenient.int(c, .matchDraws)
+            matchWinPercentage = Lenient.double(c, .matchWinPercentage)
+            opponentMatchWinPercentage = Lenient.double(c, .opponentMatchWinPercentage)
+            gameWinPercentage = Lenient.double(c, .gameWinPercentage)
+            opponentGameWinPercentage = Lenient.double(c, .opponentGameWinPercentage)
+        }
     }
 
     nonisolated struct Registrant: Decodable, Sendable {
@@ -254,8 +289,19 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
         let esportsTeamId: String?
         let status: String?
         /// Seed, as the site shows it (#n).
-        @LenientInt var position: Int?
+        let position: Int?
         let player: RegistrantPlayer?
+
+        private enum Keys: String, CodingKey { case id, esportsTeamId, status, position, player }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            id = try c.decode(String.self, forKey: .id)
+            esportsTeamId = try c.decodeIfPresent(String.self, forKey: .esportsTeamId)
+            status = try c.decodeIfPresent(String.self, forKey: .status)
+            position = Lenient.int(c, .position)
+            player = try c.decodeIfPresent(RegistrantPlayer.self, forKey: .player)
+        }
     }
 
     func participant(teamID: String) -> Participant? {
@@ -395,40 +441,19 @@ nonisolated struct CompetePairing: Sendable, Equatable {
 // MARK: - Lenient decoding
 
 /// Riot's gateway has returned numbers as strings and nulls where the schema says a value;
-/// these wrappers accept number, numeric string or null instead of failing the whole payload.
-@propertyWrapper
-nonisolated struct LenientInt: Decodable, Sendable {
-    var wrappedValue: Int?
-    init(wrappedValue: Int?) { self.wrappedValue = wrappedValue }
-    init(from decoder: Decoder) throws {
-        let c = try decoder.singleValueContainer()
-        if c.decodeNil() { wrappedValue = nil }
-        else if let v = try? c.decode(Int.self) { wrappedValue = v }
-        else if let v = try? c.decode(Double.self) { wrappedValue = Int(v) }
-        else if let s = try? c.decode(String.self) { wrappedValue = Int(s) ?? Double(s).map(Int.init) }
-        else { wrappedValue = nil }
+/// these readers accept number, numeric string, null or a missing key instead of failing the
+/// whole payload.
+nonisolated enum Lenient {
+    static func int<K: CodingKey>(_ c: KeyedDecodingContainer<K>, _ key: K) -> Int? {
+        if let v = try? c.decodeIfPresent(Int.self, forKey: key) { return v }
+        if let v = try? c.decodeIfPresent(Double.self, forKey: key) { return Int(v) }
+        if let s = try? c.decodeIfPresent(String.self, forKey: key) { return Int(s) ?? Double(s).map { Int($0) } }
+        return nil
     }
-}
 
-@propertyWrapper
-nonisolated struct LenientDouble: Decodable, Sendable {
-    var wrappedValue: Double?
-    init(wrappedValue: Double?) { self.wrappedValue = wrappedValue }
-    init(from decoder: Decoder) throws {
-        let c = try decoder.singleValueContainer()
-        if c.decodeNil() { wrappedValue = nil }
-        else if let v = try? c.decode(Double.self) { wrappedValue = v }
-        else if let s = try? c.decode(String.self) { wrappedValue = Double(s.replacingOccurrences(of: "%", with: "")) }
-        else { wrappedValue = nil }
-    }
-}
-
-extension KeyedDecodingContainer {
-    // A missing key decodes the wrapper as nil instead of throwing.
-    func decode(_ type: LenientInt.Type, forKey key: Key) throws -> LenientInt {
-        try decodeIfPresent(LenientInt.self, forKey: key) ?? LenientInt(wrappedValue: nil)
-    }
-    func decode(_ type: LenientDouble.Type, forKey key: Key) throws -> LenientDouble {
-        try decodeIfPresent(LenientDouble.self, forKey: key) ?? LenientDouble(wrappedValue: nil)
+    static func double<K: CodingKey>(_ c: KeyedDecodingContainer<K>, _ key: K) -> Double? {
+        if let v = try? c.decodeIfPresent(Double.self, forKey: key) { return v }
+        if let s = try? c.decodeIfPresent(String.self, forKey: key) { return Double(s.replacingOccurrences(of: "%", with: "")) }
+        return nil
     }
 }
