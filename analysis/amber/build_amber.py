@@ -72,7 +72,9 @@ GEAR_TEXT = re.compile(r'\[Deploy\]|When I become exhausted|When you play this,|
 def preview_type(t: str | None, might: Any, text: str) -> str:
     """Riot's preview data mislabels some Radiance types (e.g. a spell tagged Unit); read the type off the card."""
     equipment = '[Equip]' in text or text.startswith('Equip ')
-    if might is not None and not (t == 'Gear' and equipment):
+    if equipment:
+        return 'Gear'  # equipment carries a might bonus that the preview data files as might
+    if might is not None:
         return 'Unit'
     if t == 'Gear':
         return t
@@ -187,7 +189,9 @@ def blind_record(card: Card, pr: dict[str, Any]) -> Card:
                reason=re.sub(r'^(deferred|partial)(/excluded)?\s*:\s*', '', pr.get('reason', '')), trigger_text=trig.get('text', '') if trig else '', cond_trigger=cond,
                cond_bonus=cb, V_full=None, eta_full=None, bins=None, flow=None, analogs=pr.get('analogs', []))
     v0 = round(v0, 4)
-    return finish(rec, v0, delta, k, v0 / card['C'] if card['C'] else None)
+    # Quick-Draw equipment: the design ratio takes the equip cost out of the play cost (pricing rules v6, Gear)
+    denom = card['C'] - float(pr.get('quick_draw_equip') or 0)
+    return finish(rec, v0, delta, k, v0 / denom if denom > 0 else None)
 
 
 def summarize(recs: list[Card], source: str) -> dict[str, Any] | None:

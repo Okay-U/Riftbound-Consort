@@ -947,6 +947,58 @@
   "calc": "3 might 3.00 + enter ready 2.00 (x0.30 if C<=3) + ready Mech token 3.40 + 2.00 = 5.40 -> 10.40"
  },
  {
+  "id": "RAD-010",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "ready a unit",
+    "value": 2.0,
+    "rule": "ready a unit 2; readying not discounted on a non-showdown spell",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": {
+   "text": "after you play a card with Energy cost 7+, replay this from trash for 1 Energy + 2 Fury (5 C on the cost side), then banish: second 'ready a unit'",
+   "value": 2.0
+  },
+  "flow_cost": null,
+  "analogs": [
+   "UNL-186 Death from Below",
+   "VEN-012 Perfect Execution",
+   "RAD-120 Meticulous Restorationist"
+  ],
+  "calc": "ready a unit 2.00 = 2.00; no fast keyword but ready is not discounted; conditional self-replay from trash (Death from Below convention: second effect 2.00 in full trigger, its 5 C payment on the cost side), not Flow so no k"
+ },
+ {
+  "id": "RAD-011",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "4 might",
+    "value": 4.0,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": {
+   "text": "I enter ready if you showed off a Mech (x0.30 if C<=3)",
+   "value": 2.0
+  },
+  "flow_cost": null,
+  "analogs": [
+   "UNL-122 Crescent Guardian",
+   "UNL-194 Shadow",
+   "RAD-005 Lingering Animus"
+  ],
+  "calc": "4 might = 4.00; Show Off reveal 0; conditional enter ready 2.00 full trigger only (x0.30 if C<=3)"
+ },
+ {
   "id": "RAD-012",
   "status": "partial",
   "reason": "impulse draw (banish top card, may play it until your next Ending Phase, paying costs) has no price; input type says Unit; text ('this', no might) is a gear, priced under the gear rules",
@@ -1233,6 +1285,30 @@
   "calc": "4 + 2.00 (x0.30 if C<=3) + Assault 0.50 (x0.30 if C<=3) = 6.50; ability nets -1.00 per use"
  },
  {
+  "id": "RAD-022",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "Exhaust abilities as choose-one per use x N-hat 3",
+    "value": 6.49,
+    "rule": "reusable gear V = N-hat 3 (enters ready) x u; u = best mode 1.40 + 3-mode selection premium 0.76 (order-statistics model, sigma 1.42, gaps 0.525/1.00)",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "SFD-063 Chemtech Cask",
+   "SFD-019 Assembly Rig",
+   "VEN-087 Hextech Disc",
+   "RAD-105 Reckless Innovator"
+  ],
+  "calc": "modes per use: Gold exhausted 0.875; kill own gear -1 + Recruit token 1.40 = 0.40; kill own unit -2 + Mech token 3.40 = 1.40; best 1.40 + premium 0.76 = u 2.16; x N-hat 3 = 6.49 (best-mode-only alternative 4.20)"
+ },
+ {
   "id": "RAD-023",
   "status": "full",
   "reason": "",
@@ -1467,6 +1543,65 @@
   "calc": "5 might = 5.00; ready trigger +2.00 per card with Energy cost 7+"
  },
  {
+  "id": "RAD-031",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "2 might",
+    "value": 2.0,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   },
+   {
+    "label": "Shield 3",
+    "value": 1.5,
+    "rule": "0.5 per point; total >= 1 C so no keyword rounding",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": {
+   "text": "when played to a battlefield (needs another card's permission): move another friendly unit here to base 1.00 (x0.30 if C<=3)",
+   "value": 1.0
+  },
+  "flow_cost": null,
+  "analogs": [
+   "OGN-067 Blitzcrank - Impassive",
+   "UNL-003 Mischievous Marai",
+   "OGN-184 The Syren"
+  ],
+  "calc": "2 might 2.00 + Shield 3 1.50 = 3.50; play-to-battlefield on-play move friendly to base 1.00 (Syren price, x0.30 if C<=3) is conditional, full trigger only"
+ },
+ {
+  "id": "RAD-032",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "+2 Might this turn",
+    "value": 2.0,
+    "rule": "Reaction: full 1 per point",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": {
+   "text": "if you showed off a gear: ready up to 2 runes (1 each)",
+   "value": 2.0
+  },
+  "flow_cost": null,
+  "analogs": [
+   "OGN-057 Block",
+   "RAD-127 Rousing Display",
+   "UNL-063 Eclipse"
+  ],
+  "calc": "+2 this turn 2.00 (Reaction, full) = 2.00; Show Off reveal 0; ready 2 runes 2.00 conditional, full trigger only"
+ },
+ {
   "id": "RAD-033",
   "status": "partial",
   "reason": "mode 'move a friendly Deploy gear to a battlefield' has no price (gear mechanic)",
@@ -1688,6 +1823,36 @@
   "calc": "deferred (counter); no priced part"
  },
  {
+  "id": "RAD-042",
+  "status": "partial",
+  "reason": "single-card mechanic not priced: 'I don't deal combat damage unless there's a friendly gear here' (Galio / Sacred Protector precedent); negative restriction not deducted, so the value overstates",
+  "components": [
+   {
+    "label": "4 might",
+    "value": 4.0,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   },
+   {
+    "label": "Shield 1",
+    "value": 0.5,
+    "rule": "0.5 per point; native sub-1 C keyword",
+    "lowcost_onplay": false,
+    "native_kw_sub1": true
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "VEN-129 Sacred Protector",
+   "UNL-171 Galio - Indefatigable",
+   "OGN-086 Jeweled Colossus"
+  ],
+  "calc": "4 might 4.00 + Shield 0.50 (x0.30 if C<=3) = 4.50; combat-damage restriction unpriced (drawback, not deducted)"
+ },
+ {
   "id": "RAD-043",
   "status": "full",
   "reason": "",
@@ -1713,6 +1878,36 @@
    "OGN-164 Sett - Brawler"
   ],
   "calc": "4 might = 4.00; exhaust trigger best mode 3.16"
+ },
+ {
+  "id": "RAD-044",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "on play: move an enemy unit to this battlefield",
+    "value": 2.01,
+    "rule": "move enemy 3 x destination restricted 0.67 (Blitzcrank); one-shot gear effect priced as on a spell, move not main-phase discounted",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   },
+   {
+    "label": "aura: friendly units here have Shield 2, x N-hat 3",
+    "value": 3.0,
+    "rule": "Shield 2 grant 0.5 per point = 1.00 per affected unit; base 1 affected unit; gear aura x N-hat 3 (RAD-002/RAD-087 convention)",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "OGN-067 Blitzcrank - Impassive",
+   "RAD-002 Banner of Conquest",
+   "RAD-087 Portable Portal"
+  ],
+  "calc": "2.01 + 1.00 x 3 = 5.01; Deploy (battlefield only, killed when an opponent holds) not priced"
  },
  {
   "id": "RAD-045",
@@ -1935,6 +2130,62 @@
    "SFD-152 Eminent Benefactor"
   ],
   "calc": "0.875 x 2 = 1.75; Deploy not priced"
+ },
+ {
+  "id": "RAD-053",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "2 might",
+    "value": 2.0,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": {
+   "text": "when I become exhausted, Predict",
+   "V1_minus_V0": 0.4,
+   "conditional": false,
+   "why": "Predict 1 = 0.40; exhaust trigger, no independent condition"
+  },
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "SFD-018 Void Hatchling",
+   "RAD-043 Riven - Broken Blade",
+   "RAD-105 Reckless Innovator"
+  ],
+  "calc": "2 might = 2.00; Predict 0.40 per exhaust"
+ },
+ {
+  "id": "RAD-054",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "3 might",
+    "value": 3.0,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": {
+   "text": "Disarm: when I attack, an enemy unit here -1 Might this turn",
+   "V1_minus_V0": 1.0,
+   "conditional": false,
+   "why": "-1 might in combat at full price (RAD-063/RAD-097 Disarm convention)"
+  },
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "RAD-063 Kai'Sa - Rebel",
+   "RAD-097 Siren of the Shallows",
+   "RAD-038 Ahri - Confident"
+  ],
+  "calc": "3 might = 3.00; Disarm 1.00 per attack"
  },
  {
   "id": "RAD-055",
@@ -2205,6 +2456,72 @@
    "OGN-033 Shakedown"
   ],
   "calc": "priced part 0.00 (lower bound); input type Spell but has an Exhaust ability: gear"
+ },
+ {
+  "id": "RAD-065",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "3 might",
+    "value": 3.0,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": {
+   "text": "Disarm 2 (when I attack, enemy here -2 this turn) + once each turn when you exhaust 3+ friendly units at once, draw 1",
+   "V1_minus_V0": 4.0,
+   "conditional": false,
+   "why": "one of each repeatable: Disarm 2 = 2.00 (combat, full) + draw 1 = 2.00; 'exhaust three or more at the same time' read as a narrow triggering event, not an independent condition",
+   "parts": [
+    {
+     "text": "Disarm 2",
+     "value": 2.0,
+     "conditional": false
+    },
+    {
+     "text": "exhaust 3+ friendly units at once: draw 1",
+     "value": 2.0,
+     "conditional": false
+    }
+   ]
+  },
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "RAD-050 Mysterious Chronomancer",
+   "RAD-093 Disposal Expert",
+   "RAD-114 Riven - Deserter"
+  ],
+  "calc": "3 might = 3.00; per trigger Disarm 2 2.00 + draw 2.00 = 4.00"
+ },
+ {
+  "id": "RAD-066",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "4 might",
+    "value": 4.0,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": {
+   "text": "optional additional cost: return a friendly gear to hand (-1, cost side): ready me 2.00 + Might this turn = gear's Energy cost X at x0.50 (combat trick) = 2.00 + 0.50X; optional-cost effect, no x0.30",
+   "value": 2.0
+  },
+  "flow_cost": null,
+  "analogs": [
+   "UNL-028 Pyke - Dockside Butcher",
+   "RAD-075 Skystrike Squadron",
+   "SFD-044 Legion Quartermaster"
+  ],
+  "calc": "4 might = 4.00; optional mode (Pyke convention: ready self 2.00 undiscounted, this-turn might x0.50) = 2.00 + 0.50 per Energy of the returned gear, full trigger only; return gear -1 on the cost side"
  },
  {
   "id": "RAD-067",
@@ -2510,6 +2827,48 @@
   "calc": "7 might 7.00 + enter ready 2.00 (x0.30 if C<=3) + Shield 3 1.50 = 10.50."
  },
  {
+  "id": "RAD-078",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "4 might",
+    "value": 4,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   },
+   {
+    "label": "Shield 3",
+    "value": 1.5,
+    "rule": "Shield 0.5/point; >= 1 C, no keyword rounding",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   },
+   {
+    "label": "Tank",
+    "value": 0,
+    "rule": "Tank 0",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": {
+   "text": "when I move, you may deal damage equal to my Shield to a unit at a battlefield",
+   "V1_minus_V0": 3.0,
+   "conditional": false,
+   "why": "Shield 3 on the card -> 3 damage, battlefield-only x1.00 (Lucian - Gunslinger: damage equal to a printed keyword value is priced at the printed value, not deferred as might-scaling); move trigger, no independent condition"
+  },
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "SFD-028 Lucian - Gunslinger",
+   "SFD-055 Needlessly Large Yordle",
+   "OGN-054 Sunlit Guardian"
+  ],
+  "calc": "4 might 4.00 + Shield 3 1.50 + Tank 0 = 5.50; per move: 3 damage +3.00 (more Shield from other sources adds damage)"
+ },
+ {
   "id": "RAD-079",
   "status": "deferred",
   "reason": "All targets: deals 3 to all units in bases (both players) - deferred (all/indefinite targets).",
@@ -2521,6 +2880,29 @@
    "OGN-190 Kog'Maw - Caustic"
   ],
   "calc": "Per-target price 3.00 (damage 1/pt), not counted."
+ },
+ {
+  "id": "RAD-080",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "8 might",
+    "value": 8,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "VEN-096 Shadowblade Lurker",
+   "SFD-055 Needlessly Large Yordle",
+   "SFD-103 Jaull-Fish"
+  ],
+  "calc": "8 might = 8.00; self cost reduction (2 Energy per battlefield conquered this turn) goes to the cost side in full trigger only (max 2 battlefields in 1v1 -> -4 E)"
  },
  {
   "id": "RAD-081",
@@ -2853,6 +3235,34 @@
   "calc": "4 might + Action grant 0 = 4.00; per conquer, if a friendly Deploy gear is here: channel 1 rune exhausted 2.00."
  },
  {
+  "id": "RAD-092",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "7 might",
+    "value": 7,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": {
+   "text": "if you would channel runes, channel that many plus 1 exhausted rune instead (per channel event, incl. each Channel Phase)",
+   "V1_minus_V0": 2.0,
+   "conditional": false,
+   "why": "channel 1 exhausted rune = 2.00 per replaced event; replacement booked as a repeatable trigger (Heimerdinger - Academy Instructor RAD-132 precedent), not a rule change; no independent condition"
+  },
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "RAD-132 Heimerdinger - Academy Instructor",
+   "OGN-137 Stormclaw Ursine",
+   "VEN-036 Sandstone Chimera"
+  ],
+  "calc": "7 might = 7.00; per channel event +1 exhausted rune +2.00"
+ },
+ {
   "id": "RAD-093",
   "status": "full",
   "reason": "",
@@ -2882,6 +3292,34 @@
    "SFD-072 Dropboarder"
   ],
   "calc": "3 might = 3.00; Disarm 2 per attack: enemy here -2 this turn (in combat, full) 2.00 (Ahri precedent); conditional enter ready (no other units) 2.00 in full trigger only (x0.30 if C<=3)."
+ },
+ {
+  "id": "RAD-094",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "6 might",
+    "value": 6,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": {
+   "text": "when I hold, play three Bomb gear tokens to a single battlefield",
+   "V1_minus_V0": 3.0,
+   "conditional": false,
+   "why": "Bomb token 1.00 each (2 damage on death x0.50, RAD-001/RAD-096 convention) x3; the chain kill of the other Bombs there just fires their own 2 damage, so 3 x 1.00; Deploy not priced; hold trigger is not a condition"
+  },
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "RAD-001 Amateur Demolitionist",
+   "RAD-096 Satchel Charge",
+   "UNL-048 Trevor Snoozebottom"
+  ],
+  "calc": "6 might = 6.00; per hold: 3 Bombs x 1.00 = +3.00"
  },
  {
   "id": "RAD-095",
@@ -3116,6 +3554,67 @@
   "calc": "Mode 1 move to open battlefield 1 x0.67 = 0.67. Mode 2 (Ganking this turn, 1.00) only works when there is no open battlefield, so the state picks the mode: no selection premium; mode 2 reported as cond bonus."
  },
  {
+  "id": "RAD-103",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "3 might",
+    "value": 3,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   },
+   {
+    "label": "Hidden",
+    "value": 0,
+    "rule": "Hidden 0",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": {
+   "text": "When you play me, if you showed off a card with Hidden: [Add] Any Rune (gain 1 power 2.00; on-play effect, would be x0.30 if C<=3 -> 0.60)",
+   "value": 2.0
+  },
+  "flow_cost": null,
+  "analogs": [
+   "RAD-127 Rousing Display",
+   "RAD-060 The Empyrean",
+   "RAD-015 Akali - Brash"
+  ],
+  "calc": "3 might 3.00 + Hidden 0 = 3.00; Show Off restricted to a Hidden card = deck/hand condition (Rousing Display: restricted Show Off -> cond bonus), Add 1 power 2.00 booked 0 in base (x0.30 if C<=3 in full trigger)"
+ },
+ {
+  "id": "RAD-104",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "5 might",
+    "value": 5,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": {
+   "text": "Exhaust: Stun an enemy unit",
+   "V1_minus_V0": 3.0,
+   "conditional": false,
+   "why": "unrestricted stun 4.00 - exhaust self 1.00 = 3.00 net per use; no main-phase x0.50 on a unit's own ability (Arena Kingpin UNL-001 books 'Exhaust: +3 Might this turn' at full: 3 - 1 = 2)"
+  },
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "UNL-001 Arena Kingpin",
+   "UNL-194 Shadow",
+   "OGN-078 Lee Sin - Ascetic"
+  ],
+  "calc": "5 might = 5.00; per use: stun 4.00 - exhaust 1.00 = +3.00"
+ },
+ {
   "id": "RAD-105",
   "status": "full",
   "reason": "",
@@ -3340,6 +3839,36 @@
    "SFD-084 Jayce - Man of Progress"
   ],
   "calc": "4 might = 4.00; per defend: +2 this turn (combat, full) 2 - kill own gear 1 = 1.00; activated '1 E, Exhaust: Bomb token' = 1.00 - 1 - 1 = -1.00 net, not booked (Zed precedent)."
+ },
+ {
+  "id": "RAD-113",
+  "status": "partial",
+  "reason": "activated ability 'opponent must move a unit they control to my battlefield' (opponent's choice, sign uncertain) has no price: Call to Battle (UNL-101) leaves the same effect unpriced",
+  "components": [
+   {
+    "label": "8 might",
+    "value": 8,
+    "rule": "1 might = 1 C",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   },
+   {
+    "label": "Deflect",
+    "value": 0,
+    "rule": "Deflect 0",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "UNL-101 Call to Battle",
+   "UNL-050 Iascylla",
+   "OGN-067 Blitzcrank - Impassive"
+  ],
+  "calc": "8 might 8.00 + Deflect 0 = 8.00 (lower bound); exhaust ability (opponent picks which unit moves to my battlefield) unpriced; for reference, chosen enemy move 3 x destination 0.67 = 2.01 - exhaust 1 = 1.01, not counted"
  },
  {
   "id": "RAD-114",
@@ -3573,6 +4102,81 @@
    "VEN-064 Plaza Guardian"
   ],
   "calc": "6 might + Tank 0 = 6.00; self cost reduction (1 E per exhausted unit) on the cost side in full trigger only."
+ },
+ {
+  "id": "RAD-123",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "attached: +1 might bonus",
+    "value": 1.0,
+    "rule": "equipment might bonus 1/pt",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   },
+   {
+    "label": "attached: Tank",
+    "value": 0,
+    "rule": "Tank 0",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   },
+   {
+    "label": "Quick-Draw",
+    "value": 0,
+    "rule": "Quick-Draw 0 (play cost includes first attach)",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "SFD-022 Long Sword",
+   "SFD-064 Cloth Armor",
+   "RAD-071 Nazuman Ntofo"
+  ],
+  "calc": "input type says Unit (might 1 = might bonus); text is Quick-Draw equipment, priced under the gear rules: attached value 1.00 + Tank 0 = 1.00; equip cost 1 Energy = 1 C; Quick-Draw design eta = 1.00 / (play cost - equip cost 1); first-attach eta1 = 1.00 / (play cost + 1)",
+  "quick_draw_equip": 1
+ },
+ {
+  "id": "RAD-124",
+  "status": "full",
+  "reason": "",
+  "components": [
+   {
+    "label": "banish a unit with 3 Might or less",
+    "value": 4.4,
+    "rule": "kill might <= 3: 8 x 0.55 (banish = kill, no extra price, Wind and Ghosts)",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   },
+   {
+    "label": "'or a gear' alternative target",
+    "value": 0,
+    "rule": "broader target set, not modal: Decree of Unity books 'unit or gear' at the unit price only",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   },
+   {
+    "label": "Burn 2",
+    "value": 0,
+    "rule": "Burn 0",
+    "lowcost_onplay": false,
+    "native_kw_sub1": false
+   }
+  ],
+  "trigger": null,
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "UNL-159 Soul Harvest",
+   "VEN-131 Decree of Unity",
+   "VEN-106 Wind and Ghosts"
+  ],
+  "calc": "input type says Gear but the card is one-shot: priced as the same effect on a spell (gear body 0): 8 x 0.55 = 4.40 + gear option 0 + Burn 2 0 = 4.40"
  },
  {
   "id": "RAD-125",
@@ -3834,6 +4438,36 @@
    "UNL-089 Jhin - Meticulous Killer"
   ],
   "calc": "7 might + Assault 0.50 + Tank 0 = 7.50; per attack: move a friendly unit to my battlefield 1 x0.67 destination = 0.67."
+ },
+ {
+  "id": "RAD-134",
+  "status": "deferred",
+  "reason": "effect on all (indefinite number of) targets: ready your units and give them +3 Might this turn",
+  "components": [],
+  "trigger": null,
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "OGN-022 Thermo Beam",
+   "VEN-081 Onslaught",
+   "OGN-173 Ride the Wind"
+  ],
+  "calc": "lower bound 0.00; per unit (not counted): ready 2.00 + 3 x 0.50 (no timing keyword) 1.50 + same-unit combination premium 1.00 = 4.50"
+ },
+ {
+  "id": "RAD-135",
+  "status": "deferred",
+  "reason": "play from trash / free play of other cards (play up to 3 units and/or gear from your trash ignoring their costs)",
+  "components": [],
+  "trigger": null,
+  "cond_bonus": null,
+  "flow_cost": null,
+  "analogs": [
+   "OGN-102 Portal Rescue",
+   "RAD-140 Chronobreak",
+   "UNL-184 Thrill of the Hunt"
+  ],
+  "calc": "lower bound 0.00; free replay from trash unpriced"
  },
  {
   "id": "RAD-136",
