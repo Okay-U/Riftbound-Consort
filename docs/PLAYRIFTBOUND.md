@@ -701,6 +701,14 @@ query FavoritedOrganizers {
   `https://events.playriftbound.com/_next/static/chunks/…` that only other chunks reference.
   `tools/extract-playriftbound-ops.py` crawls chunk references to find it; the daily workflow in
   the site repo regenerates `playriftbound-ops.json`, which the app reads once per launch.
+- **Standings rules (verified 2026-10-20** against Riot's end-of-round tables of three events, ten rounds,
+  192 rows; `tools/check-standings/run.sh` repeats the check): win 3, draw 1, loss 0; a bye is a win worth
+  3 points but is left out of MW% and GW%; MW% = max(0.33, points from played matches / (3 × played
+  matches)); GW% = max(0.33, game wins / (game wins + game losses)), drawn games ignored; OMW% / OGW% =
+  mean of the opponents' MW% / GW%; order points, OMW%, GW%, OGW% (compare to ~9 decimals, Riot's own
+  values carry float noise). Inside exact ties Riot's order is not derivable. Riot only publishes
+  `endOfRoundStandings` when a round is finalised; the app computes a live preview (CompeteStandings)
+  from the results reported so far and labels it "Preview · not final".
 - Event detail is server-rendered (data in the RSC payload); the client only polls
   `GetCompeteRbRefreshPoller` until something changes.
 - Search response: Relay connection `competeTournamentSearch { edges { cursor node { ... on

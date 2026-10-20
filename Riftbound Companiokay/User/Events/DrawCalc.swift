@@ -26,50 +26,60 @@ nonisolated enum CutChance: Sendable, Equatable {
     }
 }
 
+/// A rival in the top-cut race: points so far and matches still to play (0 once dropped).
+nonisolated struct DrawContender: Sendable, Equatable {
+    let points: Int
+    let remaining: Int
+}
+
 nonisolated enum DrawCalc {
     static let pointsPerWin = 3
     static let pointsPerDraw = 1
     static let pointsPerLoss = 0
 
-    /// Verdict if I take the same result (`perRoundPoints`) in every one of the
-    /// `roundsLeft` remaining Swiss rounds.
-    ///
-    /// - Parameters:
-    ///   - myPoints: my current match points (from standings).
-    ///   - others:   every *other* player's current match points.
-    ///   - cut:      top-cut size (e.g. 8).
-    ///   - roundsLeft: Swiss rounds still to play (≥ 1).
-    ///   - perRoundPoints: 3 win-out, 1 draw-out, 0 lose-out.
+    /// Verdict if I take the same result (`perRoundPoints`) in each of my `myRemaining`
+    /// matches. Every rival carries their own remaining matches, so results already
+    /// reported in the running round count and dropped players cannot climb.
     static func chance(myPoints: Int,
-                       others: [Int],
+                       myRemaining: Int,
+                       others: [DrawContender],
                        cut: Int,
-                       roundsLeft: Int,
                        perRoundPoints: Int) -> CutChance {
-        guard cut > 0, roundsLeft >= 1 else { return .bubble }
+        guard cut > 0, myRemaining >= 1 else { return .bubble }
 
-        let myFinal = myPoints + perRoundPoints * roundsLeft
-        let maxGain = pointsPerWin * roundsLeft
+        let myFinal = myPoints + perRoundPoints * myRemaining
 
-        // Always strictly above me, even if they lose every remaining round.
-        let guaranteedAbove = others.lazy.filter { $0 > myFinal }.count
+        // Always strictly above me, even if they lose every remaining match.
+        let guaranteedAbove = others.lazy.filter { $0.points > myFinal }.count
         if guaranteedAbove >= cut { return .out }
 
         // Could finish at or above me if they win enough (worst case for me).
-        let contenders = others.lazy.filter { $0 + maxGain >= myFinal }.count
+        let contenders = others.lazy.filter { $0.points + pointsPerWin * $0.remaining >= myFinal }.count
         if contenders < cut { return .locked }
 
         return .bubble
     }
 
-    /// Win-out / draw-out / lose-out verdicts in one call.
     static func outlook(myPoints: Int,
-                        others: [Int],
-                        cut: Int,
-                        roundsLeft: Int) -> (win: CutChance, draw: CutChance, lose: CutChance) {
+                        myRemaining: Int,
+                        others: [DrawContender],
+                        cut: Int) -> (win: CutChance, draw: CutChance, lose: CutChance) {
         (
-            win:  chance(myPoints: myPoints, others: others, cut: cut, roundsLeft: roundsLeft, perRoundPoints: pointsPerWin),
-            draw: chance(myPoints: myPoints, others: others, cut: cut, roundsLeft: roundsLeft, perRoundPoints: pointsPerDraw),
-            lose: chance(myPoints: myPoints, others: others, cut: cut, roundsLeft: roundsLeft, perRoundPoints: pointsPerLoss)
+            win:  chance(myPoints: myPoints, myRemaining: myRemaining, others: others, cut: cut, perRoundPoints: pointsPerWin),
+            draw: chance(myPoints: myPoints, myRemaining: myRemaining, others: others, cut: cut, perRoundPoints: pointsPerDraw),
+            lose: chance(myPoints: myPoints, myRemaining: myRemaining, others: others, cut: cut, perRoundPoints: pointsPerLoss)
         )
+    }
+
+    /// Everyone with the same number of rounds left (between rounds, legacy Locator screen).
+    static func chance(myPoints: Int, others: [Int], cut: Int, roundsLeft: Int, perRoundPoints: Int) -> CutChance {
+        chance(myPoints: myPoints, myRemaining: roundsLeft,
+               others: others.map { DrawContender(points: $0, remaining: roundsLeft) },
+               cut: cut, perRoundPoints: perRoundPoints)
+    }
+
+    static func outlook(myPoints: Int, others: [Int], cut: Int, roundsLeft: Int) -> (win: CutChance, draw: CutChance, lose: CutChance) {
+        outlook(myPoints: myPoints, myRemaining: roundsLeft,
+                others: others.map { DrawContender(points: $0, remaining: roundsLeft) }, cut: cut)
     }
 }

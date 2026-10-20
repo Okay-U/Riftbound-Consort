@@ -342,6 +342,22 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 
         var record: String { "\(matchWins ?? 0)-\(matchLosses ?? 0)-\(matchDraws ?? 0)" }
 
+        /// For standings computed on the device (CompeteStandings).
+        init(esportsTeamId: String, rank: Int?, matchPoints: Int?, matchWins: Int?, matchLosses: Int?, matchDraws: Int?,
+             matchWinPercentage: Double?, opponentMatchWinPercentage: Double?,
+             gameWinPercentage: Double?, opponentGameWinPercentage: Double?) {
+            self.esportsTeamId = esportsTeamId
+            self.rank = rank
+            self.matchPoints = matchPoints
+            self.matchWins = matchWins
+            self.matchLosses = matchLosses
+            self.matchDraws = matchDraws
+            self.matchWinPercentage = matchWinPercentage
+            self.opponentMatchWinPercentage = opponentMatchWinPercentage
+            self.gameWinPercentage = gameWinPercentage
+            self.opponentGameWinPercentage = opponentGameWinPercentage
+        }
+
         private enum Keys: String, CodingKey {
             case esportsTeamId, rank, matchPoints, matchWins, matchLosses, matchDraws
             case matchWinPercentage, opponentMatchWinPercentage, gameWinPercentage, opponentGameWinPercentage
