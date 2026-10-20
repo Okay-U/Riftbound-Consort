@@ -28,6 +28,7 @@ struct ScoreboardView: View {
     @State private var xpStepperMode: Bool = false
     @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
     @AppStorage("currentTab") private var currentTab: String = "score"
+    @State private var showNoEventNotice = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var liveActivityDebounce: Task<Void, Never>?
     @State private var reportingMatch: ResolvedMyMatch?
@@ -534,8 +535,11 @@ struct ScoreboardView: View {
                 deckPill
             }
             Spacer()
-            if matchMode.enabled, riftMatch.hasEvent {
-                Button { riftMatch.toggleHidden() } label: {
+            if matchMode.enabled {
+                Button {
+                    if riftMatch.hasEvent { riftMatch.toggleHidden() }
+                    else { showNoEventNotice = true; Task { await riftMatch.refresh(browser: riftBrowser, force: true) } }
+                } label: {
                     Image(systemName: "trophy.fill")
                         .font(.subheadline.weight(.semibold))
                         .frame(width: 28, height: 28)
@@ -543,6 +547,11 @@ struct ScoreboardView: View {
                 .buttonStyle(.bordered)
                 .tint(riftMatch.current != nil ? EventsTheme.green : nil)
                 .accessibilityLabel(riftMatch.current != nil ? "Hide event strip" : "Show event strip")
+                .alert("No live event", isPresented: $showNoEventNotice) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text("The strip appears here once a PlayRiftbound event you are registered for starts, or within three hours before it.")
+                }
             }
 
             Button { xpStepperMode.toggle() } label: {
