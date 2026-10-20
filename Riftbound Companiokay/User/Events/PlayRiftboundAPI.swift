@@ -297,9 +297,10 @@ nonisolated final class PlayRiftboundAPI: Sendable {
 }
 
 /// The GraphQL endpoint never redirects; anything that does is answered as the 3xx itself.
+/// Completion-handler form on purpose: the async form crashes the compiler (SILGen, Obj-C thunk).
 private nonisolated final class RefuseRedirects: NSObject, URLSessionTaskDelegate, Sendable {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
-                    newRequest request: URLRequest) async -> URLRequest? {
-        nil
+                    newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
+        completionHandler(nil)
     }
 }
