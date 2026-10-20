@@ -275,10 +275,14 @@ final class DecklistStore: ObservableObject {
             logger.error("DecklistStore load failed: \(error.localizedDescription)")
             // The next save would replace the file with what is in memory (nothing, or one new
             // deck), so the unreadable original is kept next to it for recovery.
+            // Named by the file's own date: the same unreadable file is copied once, not every launch.
+            let modified = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.modificationDate] as? Date) ?? Date()
             let copy = fileURL.deletingLastPathComponent()
-                .appendingPathComponent("decklists_v2.unreadable-\(Int(Date().timeIntervalSince1970)).json")
-            do { try FileManager.default.copyItem(at: fileURL, to: copy) }
-            catch { logger.error("DecklistStore could not keep the unreadable file: \(error.localizedDescription)") }
+                .appendingPathComponent("decklists_v2.unreadable-\(Int(modified.timeIntervalSince1970)).json")
+            if !FileManager.default.fileExists(atPath: copy.path) {
+                do { try FileManager.default.copyItem(at: fileURL, to: copy) }
+                catch { logger.error("DecklistStore could not keep the unreadable file: \(error.localizedDescription)") }
+            }
         }
     }
 }

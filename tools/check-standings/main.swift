@@ -128,4 +128,6 @@ precondition(published.isFinished && published.placement(teamID: "T1") == .rank(
 let ready = try bracket([[swiss[0], lastRound("READY")]], structure: "SWISS")
 precondition(CompetePairing.resolve(in: ready, playerID: "p1")?.isRoundOpen == false, "report before the round starts")
 precondition(CompetePairing.resolve(in: unpublished, playerID: "p1")?.isRoundOpen == true, "report while the round runs")
+let unknown = try bracket([[swiss[0], lastRound("SOMETHING_NEW")]], structure: "SWISS")
+precondition(CompetePairing.resolve(in: unknown, playerID: "p1")?.isRoundOpen == true, "unknown round status closes Report")
 print("bracket ok: section and continued numbering, 2v2 names, placements, pending round hidden, final waits for Riot")

@@ -81,17 +81,22 @@ final class CardStore: ObservableObject {
         return names.sorted()
     }
 
-    /// Loads the catalogue once, then checks the feed again when the last check is older than
-    /// `refreshInterval` (an unchanged feed answers 304), so a phone that keeps the app in the
-    /// background for days still sees a new set's cards leave preview.
     func loadIfNeeded() {
-        guard !isLoading else { return }
-        if !allCards.isEmpty, let lastCheck, Date().timeIntervalSince(lastCheck) < Self.refreshInterval { return }
+        guard allCards.isEmpty, !isLoading else { return }
+        load()
+    }
+
+    /// Back in the foreground: checks the feed again once it is due (an unchanged feed answers
+    /// 304), so a phone that keeps the app in the background for days still sees a new set's
+    /// cards leave preview. Nil while the first check of this launch is still running.
+    func refreshIfDue() {
+        guard !allCards.isEmpty, !isLoading, let nextCheck, Date() >= nextCheck else { return }
         load()
     }
 
     private static let refreshInterval: TimeInterval = 6 * 60 * 60
-    private var lastCheck: Date?
+    private static let retryInterval: TimeInterval = 15 * 60
+    private var nextCheck: Date?
 
     private nonisolated static let cacheName = "cards_cache_v2.json"
     private nonisolated static let etagKey = "cardsFeedETag"
@@ -130,7 +135,7 @@ final class CardStore: ObservableObject {
                 // The ETag only means something while the snapshot it belongs to exists.
                 let etag = allCards.isEmpty ? nil : UserDefaults.standard.string(forKey: Self.etagKey)
                 let fetched = try await repo.allCards(ifChangedSince: etag)
-                lastCheck = Date()
+                nextCheck = Date().addingTimeInterval(Self.refreshInterval)
                 guard let fetched else {
                     isLoading = false
                     return
@@ -155,6 +160,7 @@ final class CardStore: ObservableObject {
                 // With a snapshot on screen a failed refresh stays invisible;
                 // the error state is only for a truly empty tab.
                 if allCards.isEmpty { loadError = error.localizedDescription }
+                nextCheck = Date().addingTimeInterval(Self.retryInterval)
             }
             isLoading = false
         }

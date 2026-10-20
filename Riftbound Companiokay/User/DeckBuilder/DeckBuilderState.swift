@@ -64,10 +64,12 @@ final class DeckBuilderState: ObservableObject {
     /// Rune counts per legend domain (lowercased). Seeded as even split
     /// when the legend is chosen; user adjusts on the rune pool step.
     @Published var runeCounts: [String: Int] = [:]
-    /// Battlefield and rune entries of an edited deck whose card is not in the card list
-    /// (a card the feed lacks today, an id no migration could map); written back unchanged.
-    private var keptBattlefields: [DecklistEntry] = []
-    private var keptRunes: [DecklistEntry] = []
+    /// Whether the edit-deck sheet may rewrite these slots. False when the deck holds a
+    /// battlefield or rune the pickers cannot show (a card the feed lacks today, an id no
+    /// migration could map, a rune outside the legend's domains): rebuilding the slot from the
+    /// pickers would drop it, so the slot is left exactly as it is.
+    @Published private(set) var editsBattlefields = true
+    @Published private(set) var editsRunes = true
 
     // MARK: - Derived
 
@@ -331,8 +333,8 @@ final class DeckBuilderState: ObservableObject {
         sideDeck = []
         signatureIds = []
         idToIdentity = [:]
-        keptBattlefields = []
-        keptRunes = []
+        editsBattlefields = true
+        editsRunes = true
 
         let lookup: (String) -> Card? = { id in
             cardPool.first(where: { $0.id == id })
@@ -345,10 +347,10 @@ final class DeckBuilderState: ObservableObject {
             champion = card
         }
         for entry in deck.battlefields {
-            if let card = lookup(entry.cardId) {
+            if let card = lookup(entry.cardId), entry.count == 1 {
                 battlefields.append(card)
             } else {
-                keptBattlefields.append(entry)
+                editsBattlefields = false
             }
         }
         for entry in deck.mainDeck {
@@ -370,8 +372,9 @@ final class DeckBuilderState: ObservableObject {
         var counts: [String: Int] = [:]
         for entry in deck.runes {
             guard let card = lookup(entry.cardId),
-                  let domain = card.classification?.domain?.first?.lowercased()
-            else { keptRunes.append(entry); continue }
+                  let domain = card.classification?.domain?.first?.lowercased(),
+                  legendDomainsSet.contains(domain)
+            else { editsRunes = false; continue }
             counts[domain, default: 0] += entry.count
         }
         // Ensure every legend domain has an entry.
@@ -383,21 +386,24 @@ final class DeckBuilderState: ObservableObject {
     }
 
     /// Replaces the slots of an existing deck with this state's current picks, in one save.
-    /// Entries the card list could not resolve when the editor opened stay as they were.
-    /// Used by the edit-deck sheet.
+    /// Battlefields and runes only when the editor could show all of them (`editsBattlefields`,
+    /// `editsRunes`). Used by the edit-deck sheet.
     func commitEdits(toDeckId deckId: UUID,
                      in store: DecklistStore,
                      runePool: [Card]) {
         guard var deck = store.lists.first(where: { $0.id == deckId }) else { return }
-        let runes = legendDomains.compactMap { domain -> (Card, Int)? in
-            let count = runeCounts[domain.lowercased()] ?? 0
-            guard count > 0, let rune = Card.runeCard(forDomain: domain, in: runePool) else { return nil }
-            return (rune, count)
+        if editsBattlefields {
+            deck.battlefields = Self.entries(battlefields.map { ($0, 1) })
         }
-        deck.battlefields = Self.entries(battlefields.map { ($0, 1) }) + keptBattlefields
         deck.mainDeck = mainDeck
         deck.sideDeck = sideDeck
-        deck.runes = Self.entries(runes) + keptRunes
+        if editsRunes {
+            deck.runes = Self.entries(legendDomains.compactMap { domain -> (Card, Int)? in
+                let count = runeCounts[domain.lowercased()] ?? 0
+                guard count > 0, let rune = Card.runeCard(forDomain: domain, in: runePool) else { return nil }
+                return (rune, count)
+            })
+        }
         store.replace(deck)
     }
 

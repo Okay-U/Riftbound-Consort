@@ -47,9 +47,9 @@ struct Riftbound_CompaniokayApp: App {
                 .background(trueBlack ? Color.black : Color(.systemBackground))
                 .task { await authSession.restore() }
                 .onAppear { errataStore.load() }
-                // Back from the background: re-check the card feed if the last check is old.
+                // Back from the background: re-check the card feed when it is due.
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active, !cardStore.allCards.isEmpty { cardStore.loadIfNeeded() }
+                    if phase == .active { cardStore.refreshIfDue() }
                 }
                 .onReceive(cardStore.$allCards) { cards in Task { await decklistStore.migrateLegacyIDs(to: cards) } }
                 .fullScreenCover(isPresented: Binding(

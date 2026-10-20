@@ -598,7 +598,8 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     let isBye: Bool
     let isComplete: Bool
     /// Riot takes results only while the round runs: not before the organiser starts it
-    /// (READY), not once it is finalised.
+    /// (PENDING, READY), not once it is finalised. Any other status counts as open; Riot
+    /// checks again on submit.
     let isRoundOpen: Bool
     /// What a result report needs: game ids in play order, both participant ids, series length.
     let gameIDs: [String]
@@ -633,7 +634,7 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     static func resolve(in tournament: CompeteTournament, playerID: String, round: CompeteTournament.Round) -> CompetePairing? {
         let myTeamID = tournament.teamID(playerID: playerID)
         let ordered = CompeteTournament.tableOrder(round.matches)
-        let open = round.status.map { $0.uppercased() == "IN_PROGRESS" } ?? true
+        let open = !["PENDING", "READY", "FINALIZED"].contains(round.status?.uppercased() ?? "")
         let bye = CompetePairing(roundID: round.id, roundTitle: tournament.title(of: round), tableNumber: nil, matchID: nil,
                                  opponentName: nil, teammateName: nil, isBye: true, isComplete: true, isRoundOpen: open,
                                  gameIDs: [], myParticipantID: nil, opponentParticipantID: nil, bestOf: 1,

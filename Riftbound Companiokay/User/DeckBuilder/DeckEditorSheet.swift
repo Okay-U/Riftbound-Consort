@@ -27,14 +27,23 @@ struct DeckEditorSheet: View {
         NavigationStack {
             VStack(spacing: 0) {
                 Picker("Section", selection: $section) {
-                    ForEach(EditorSection.allCases) { s in
+                    ForEach(sections) { s in
                         Text(s.rawValue).tag(s)
                     }
                 }
                 .pickerStyle(.segmented)
+                // Which tabs exist is known only once the deck is read.
+                .disabled(!didLoad)
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
                 .padding(.bottom, 4)
+
+                if let lockedNote {
+                    Text(lockedNote)
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14).padding(.bottom, 4)
+                }
 
                 if didLoad {
                     pageForSection
@@ -73,6 +82,29 @@ struct DeckEditorSheet: View {
             }
         }
         .interactiveDismissDisabled(true)
+    }
+
+    /// Runes and battlefields the editor cannot show all of are left as they are (see
+    /// `DeckBuilderState.editsRunes`), so their tabs are not offered.
+    private var sections: [EditorSection] {
+        EditorSection.allCases.filter { section in
+            switch section {
+            case .runes:        state.editsRunes
+            case .battlefields: state.editsBattlefields
+            default:            true
+            }
+        }
+    }
+
+    private var lockedNote: String? {
+        let what: String
+        switch (state.editsBattlefields, state.editsRunes) {
+        case (true, true):   return nil
+        case (false, true):  what = "Battlefields stay"
+        case (true, false):  what = "Runes stay"
+        case (false, false): what = "Battlefields and runes stay"
+        }
+        return "\(what) as they are: the current card list doesn't have all of them, or they don't match the legend."
     }
 
     private var loadingCards: some View {
