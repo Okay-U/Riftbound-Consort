@@ -44,8 +44,24 @@ nonisolated enum PlayRiftboundSession {
     }
 
     /// nil when the player has never signed in on New Events (or signed out there).
-    /// One off-screen warm-up load per process; afterwards an empty cookie jar means signed out.
-    @MainActor private static var warmedUp = false
+    /// One off-screen warm-up load per process, shared by every caller; afterwards an empty
+    /// cookie jar means signed out. The site's silent sign-in finishes after the page load,
+    /// so the warm-up keeps polling for cookies a few seconds.
+    @MainActor private static var warmUp: Task<Void, Never>?
+
+    @MainActor
+    private static func warmUpOnce(via browser: PlayRiftboundBrowser) async {
+        if warmUp == nil {
+            warmUp = Task {
+                await browser.refreshSession()
+                for _ in 0..<12 {
+                    if await credentials() != nil { return }
+                    try? await Task.sleep(for: .milliseconds(500))
+                }
+            }
+        }
+        await warmUp?.value
+    }
 
     /// Credentials that are good to use now: an expired session is renewed once
     /// through an off-screen page load. Nil when the player is signed out, or
@@ -53,13 +69,12 @@ nonisolated enum PlayRiftboundSession {
     @MainActor
     static func validCredentials(refreshingVia browser: PlayRiftboundBrowser) async throws -> PlayRiftboundCredentials? {
         var found = await credentials()
-        if found == nil, !warmedUp {
-            warmedUp = true
+        if found == nil {
             // WebKit hands out a data store's cookies only after a web view has used it in
             // this process, so a cold start looks signed out until the PlayRiftbound segment
             // was opened once. Load the site off-screen in our own web view (the one that
             // segment shows), then read again.
-            await browser.refreshSession()
+            await warmUpOnce(via: browser)
             found = await credentials()
         }
         guard let credentials = found else { return nil }

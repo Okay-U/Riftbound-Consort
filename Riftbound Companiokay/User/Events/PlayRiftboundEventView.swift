@@ -293,7 +293,6 @@ struct PlayRiftboundEventView: View {
     private func webButton(_ title: String, symbol: String, url: URL?) -> some View {
         Button {
             guard let url else { return }
-            dismiss()
             browser.open(url)
         } label: {
             Label(title, systemImage: symbol)

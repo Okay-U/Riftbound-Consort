@@ -47,7 +47,7 @@ actor PlayRiftboundOperationIDs {
     static let builtIn: [String: String] = [
         "PlayerTournaments": "b210fdb2100186e794cb96a3cd72b294dcc7ca9ae5733ad540141ac6a390be4d",
         "PlayerRegisteredTournamentIds": "b224261bf00cb424c12a30d914d6216f898e665fefc4550d89cf02679b629b29",
-        "GetCompeteTournamentForRiftboundPlayer": "6d80a2343140f28ea7028af489b315d7d95824c1b116df6c137a76076f9c843b",   // adds roundDuration (2026-10)
+        "GetCompeteTournamentForRiftboundPlayer": "e56d6d93e4f8fa287557521535544350e5cc9baafd78ba69f9f592873b090e57",   // adds roundDuration, tableNumber (2026-10-20)
         "GetCompeteRbRefreshPoller": "459dbd58b231ad1767b999a1bf987836123ac86a0b5110e166de15b69723ba0d",
         "SubmitGameResults": "4f304b3a523f27d1abde2291d1b9e836e7b524f9e455d70b548680170e91c430",
         // Outside the written approval (PlayRiftboundFeatures.unapproved):

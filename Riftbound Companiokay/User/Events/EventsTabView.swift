@@ -10,10 +10,12 @@ import SwiftUI
 
 struct EventsTabView: View {
     @AppStorage("didOnboardEvents") private var didOnboardEvents = false
+    @EnvironmentObject private var browser: PlayRiftboundBrowser
     @State private var showOnboarding = false
+    @State private var path = NavigationPath()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             EventsHomeView()
             .navigationDestination(for: PlayerTournamentEntry.self) { entry in
                 PlayRiftboundEventView(entry: entry)
@@ -45,6 +47,11 @@ struct EventsTabView: View {
             .navigationDestination(for: StoreCalendarRoute.self) { _ in
                 StoreCalendarView()
             }
+        }
+        // A deep link into PlayRiftbound from a pushed screen: back to the root first, the
+        // root then switches to the PlayRiftbound segment and loads the page.
+        .onChange(of: browser.pendingURL, initial: true) { _, url in
+            if url != nil, !path.isEmpty { path = NavigationPath() }
         }
         // Fires when the Events tab is first shown (not at app launch), so the
         // tour appears on the user's first visit to Events, not before.

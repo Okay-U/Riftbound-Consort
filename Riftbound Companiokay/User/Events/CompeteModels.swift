@@ -199,6 +199,8 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 
     nonisolated struct Match: Decodable, Sendable {
         let esportsMatchId: String
+        /// Riot's own table number (in the document since 2026-10); nil on older ids.
+        let tableNumber: Int?
         let status: String?
         let config: MatchConfig?
         let teams: [Team]
@@ -206,6 +208,29 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
         let teamOutcomes: [Outcome]?
 
         var isComplete: Bool { status == "COMPLETED" || !(teamOutcomes ?? []).isEmpty }
+
+        private enum Keys: String, CodingKey { case esportsMatchId, tableNumber, status, config, teams, games, teamOutcomes }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            esportsMatchId = try c.decode(String.self, forKey: .esportsMatchId)
+            tableNumber = Lenient.int(c, .tableNumber)
+            status = try c.decodeIfPresent(String.self, forKey: .status)
+            config = try c.decodeIfPresent(MatchConfig.self, forKey: .config)
+            teams = try c.decodeIfPresent([Team].self, forKey: .teams) ?? []
+            games = try c.decodeIfPresent([Game].self, forKey: .games)
+            teamOutcomes = try c.decodeIfPresent([Outcome].self, forKey: .teamOutcomes)
+        }
+    }
+
+    /// Matches of a round in table order: Riot's `tableNumber` when the document carries it,
+    /// else ascending match id (verified against the site's numbering on three rounds).
+    nonisolated static func tableOrder(_ matches: [Match]) -> [(table: Int, match: Match)] {
+        if matches.allSatisfy({ $0.tableNumber != nil }) {
+            return matches.sorted { ($0.tableNumber ?? 0) < ($1.tableNumber ?? 0) }.map { ($0.tableNumber ?? 0, $0) }
+        }
+        let byID = matches.sorted { ($0.esportsMatchId.count, $0.esportsMatchId) < ($1.esportsMatchId.count, $1.esportsMatchId) }
+        return byID.enumerated().map { ($0.offset + 1, $0.element) }
     }
 
     /// `CompeteBestOfConfig` / `CompetePlayAllConfig`: both carry `count`.
@@ -361,8 +386,8 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 /// The signed-in player's situation in the latest round of a tournament.
 nonisolated struct CompetePairing: Sendable, Equatable {
     let roundNumber: Int
-    /// Riot's schema has no table field. The site numbers tables by ascending match id within the
-    /// round (verified against a live event, 2026-10-05: ids …840/…844/…848 = tables 1/2/3).
+    /// Riot's `tableNumber` where the document has it, else the site's rule of ascending match
+    /// id within the round (verified 2026-10-05 and against the site's own numbers on 2026-10-20).
     let tableNumber: Int?
     let matchID: String?
     let opponentName: String?
@@ -397,12 +422,9 @@ nonisolated struct CompetePairing: Sendable, Equatable {
 
     static func resolve(in tournament: CompeteTournament, playerID: String, round: CompeteTournament.Round) -> CompetePairing? {
         let myTeamID = tournament.teamID(playerID: playerID)
-        // Same-length numeric strings, so a (count, lexical) sort equals a numeric sort without overflow.
-        let byTable = round.matches.sorted {
-            ($0.esportsMatchId.count, $0.esportsMatchId) < ($1.esportsMatchId.count, $1.esportsMatchId)
-        }
-        if let index = byTable.firstIndex(where: { $0.teams.contains { $0.players.contains { $0.id == playerID } } }) {
-            let match = byTable[index]
+        let ordered = CompeteTournament.tableOrder(round.matches)
+        if let slot = ordered.first(where: { $0.match.teams.contains { $0.players.contains { $0.id == playerID } } }) {
+            let match = slot.match
             let myTeam = match.teams.first { $0.players.contains { $0.id == playerID } }
             let oppTeam = match.teams.first { !$0.players.contains { $0.id == playerID } }
             let sortedGames = (match.games ?? []).sorted { ($0.number ?? 0) < ($1.number ?? 0) }
@@ -417,7 +439,7 @@ nonisolated struct CompetePairing: Sendable, Equatable {
                 guard let o = $0.outcome?.uppercased() else { return nil }
                 return o.contains("WIN") ? .win : o.contains("LOS") ? .loss : o.contains("DRAW") || o.contains("TIE") ? .draw : nil
             }
-            return CompetePairing(roundNumber: round.roundNumber, tableNumber: index + 1, matchID: match.esportsMatchId,
+            return CompetePairing(roundNumber: round.roundNumber, tableNumber: slot.table, matchID: match.esportsMatchId,
                                   opponentName: oppTeam?.players.first?.displayName ?? oppTeam.map { tournament.teamName($0.esportsTeamId) },
                                   isBye: false, isComplete: match.isComplete,
                                   gameIDs: sortedGames.map(\.esportsGameId),

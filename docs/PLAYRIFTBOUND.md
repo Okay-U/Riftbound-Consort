@@ -685,7 +685,8 @@ query FavoritedOrganizers {
   `Riftcount` / app version is accepted, so the app identifies itself honestly. Signed-in calls add
   the site's cookies and the marker `Authorization: Cookie __Secure-access_token`.
 - **Live event findings (test event 2026-10-05):** the site numbers tables by **ascending
-  `esportsMatchId` within the round** (array order differs). A result entered on the site arrives
+  `esportsMatchId` within the round** (array order differs). Since 2026-10-20 Riot sends
+  `tableNumber` on each match; the app uses it and keeps the id rule as fallback. A result entered on the site arrives
   as `teamOutcomes` on the match while `status` stays `IN_PROGRESS`. The web UI submits results via
   a Next.js server action (POST to the page URL with a `next-action` header), never via the client
   mutation, so the input shape was recovered from the gateway's own validation errors (anonymous,

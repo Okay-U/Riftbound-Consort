@@ -11,8 +11,9 @@ import SwiftUI
 
 struct PlayRiftboundReportSheet: View {
     let strip: PlayRiftboundStrip
-    let pairing: CompetePairing
+    @State private var pairing: CompetePairing
     var onReported: () -> Void
+    @State private var refreshing = true
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var browser: PlayRiftboundBrowser
@@ -27,7 +28,7 @@ struct PlayRiftboundReportSheet: View {
 
     init(strip: PlayRiftboundStrip, pairing: CompetePairing, onReported: @escaping () -> Void) {
         self.strip = strip
-        self.pairing = pairing
+        _pairing = State(initialValue: pairing)
         self.onReported = onReported
         _games = State(initialValue: Array(repeating: .undecided, count: max(1, min(pairing.bestOf, pairing.gameIDs.count))))
     }
@@ -38,7 +39,7 @@ struct PlayRiftboundReportSheet: View {
     private var draws: Int { games.filter { $0 == .draw }.count }
     private var winsNeeded: Int { games.count / 2 + 1 }
     private var matchDecided: Bool { isSeries && (myWins >= winsNeeded || oppWins >= winsNeeded) }
-    private var canSubmit: Bool { (myWins + oppWins + draws) > 0 && !submitting }
+    private var canSubmit: Bool { (myWins + oppWins + draws) > 0 && !submitting && !refreshing && !pairing.isComplete }
     private var opponentName: String { pairing.opponentName ?? "Opponent" }
 
     private func isRowLocked(_ index: Int) -> Bool { matchDecided && games[index] == .undecided }
@@ -61,7 +62,11 @@ struct PlayRiftboundReportSheet: View {
                     HStack {
                         Text("You report")
                         Spacer()
-                        Text(summary).font(.body.weight(.semibold))
+                        if refreshing { ProgressView() } else { Text(summary).font(.body.weight(.semibold)) }
+                    }
+                    if pairing.isComplete {
+                        Label("This match already has a result on PlayRiftbound.", systemImage: "checkmark.seal.fill")
+                            .foregroundStyle(.green).font(.footnote)
                     }
                     if let errorMessage {
                         Text(errorMessage).foregroundStyle(.red).font(.footnote)
@@ -76,6 +81,7 @@ struct PlayRiftboundReportSheet: View {
                     if submitting { ProgressView() } else { Button("Submit") { confirming = true }.disabled(!canSubmit) }
                 }
             }
+            .task { await refreshPairing() }
             .confirmationDialog("Submit this result?", isPresented: $confirming, titleVisibility: .visible) {
                 Button("Submit \(summary)") { Task { await submit() } }
                 Button("Cancel", role: .cancel) {}
@@ -125,12 +131,35 @@ struct PlayRiftboundReportSheet: View {
         .disabled(locked)
     }
 
+    /// Pairings change (re-pairs, results entered on the site), so the sheet works from the
+    /// latest round data: fetched when it opens and again right before sending.
+    @MainActor
+    private func refreshPairing() async {
+        refreshing = true
+        defer { refreshing = false }
+        guard let credentials = try? await PlayRiftboundSession.validCredentials(refreshingVia: browser),
+              let gameName = credentials.gameName,
+              let tournament = try? await api.tournament(id: strip.tournamentID, credentials: credentials),
+              let playerID = tournament.playerID(gameName: gameName, tagLine: credentials.tagLine),
+              let fresh = CompetePairing.resolve(in: tournament, playerID: playerID) else { return }
+        if fresh.gameIDs.count != pairing.gameIDs.count {
+            games = Array(repeating: .undecided, count: max(1, min(fresh.bestOf, fresh.gameIDs.count)))
+        }
+        pairing = fresh
+    }
+
     @MainActor
     private func submit() async {
-        guard !submitting, let me = pairing.myParticipantID, let opp = pairing.opponentParticipantID else { return }
+        guard !submitting else { return }
         submitting = true
         errorMessage = nil
         defer { submitting = false }
+        await refreshPairing()
+        guard !pairing.isComplete else { return }
+        guard let me = pairing.myParticipantID, let opp = pairing.opponentParticipantID else {
+            errorMessage = "Couldn't find your match in the current round."
+            return
+        }
 
         let results: [PlayRiftboundAPI.GameResult] = zip(pairing.gameIDs, games).compactMap { gameID, outcome in
             switch outcome {

@@ -534,6 +534,17 @@ struct ScoreboardView: View {
                 deckPill
             }
             Spacer()
+            if matchMode.enabled, riftMatch.hasEvent {
+                Button { riftMatch.toggleHidden() } label: {
+                    Image(systemName: "trophy.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.bordered)
+                .tint(riftMatch.current != nil ? EventsTheme.green : nil)
+                .accessibilityLabel(riftMatch.current != nil ? "Hide event strip" : "Show event strip")
+            }
+
             Button { xpStepperMode.toggle() } label: {
                 Text("XP")
                     .font(.subheadline.weight(.bold))

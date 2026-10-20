@@ -196,10 +196,10 @@ struct PlayRiftboundRoundsTab: View {
         VStack(alignment: .leading, spacing: 12) {
             if tournament.rounds.count > 1 { roundPicker }
             if let round {
-                let matches = round.matches.sorted { ($0.esportsMatchId.count, $0.esportsMatchId) < ($1.esportsMatchId.count, $1.esportsMatchId) }
+                let ordered = CompeteTournament.tableOrder(round.matches)
                 VStack(spacing: 8) {
-                    ForEach(Array(matches.enumerated()), id: \.element.esportsMatchId) { index, match in
-                        matchRow(match, table: index + 1)
+                    ForEach(ordered, id: \.match.esportsMatchId) { slot in
+                        matchRow(slot.match, table: slot.table)
                     }
                     ForEach(round.byeTeamIds ?? [], id: \.self) { teamID in
                         byeRow(teamID)

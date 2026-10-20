@@ -29,6 +29,15 @@ nonisolated struct PlayRiftboundStrip: Sendable, Equatable, Identifiable {
 final class PlayRiftboundMatchStore: ObservableObject {
     @Published private(set) var current: PlayRiftboundStrip?
     @Published private(set) var lastError: String?
+    /// The strip the player closed; kept so the header button can bring it back.
+    @Published private(set) var hidden: PlayRiftboundStrip?
+
+    var hasEvent: Bool { current != nil || hidden != nil }
+
+    func toggleHidden() {
+        if current != nil { dismiss() }
+        else if let hidden { dismissedID = nil; self.hidden = nil; current = hidden }
+    }
 
     private let api = PlayRiftboundAPI()
     private let log = Logger(subsystem: "pitopia.Riftcount", category: "PlayRiftboundMatch")
@@ -43,6 +52,7 @@ final class PlayRiftboundMatchStore: ObservableObject {
 
     func dismiss() {
         dismissedID = current?.id
+        hidden = current
         current = nil
     }
 
@@ -82,8 +92,9 @@ final class PlayRiftboundMatchStore: ObservableObject {
                                            webURL: next.tournament.webURL,
                                            pairing: pairing)
             lastError = nil
-            if strip.id == dismissedID { current = nil; return }
+            if strip.id == dismissedID { current = nil; hidden = strip; return }
             dismissedID = nil
+            hidden = nil
             current = strip
         } catch {
             lastError = error.localizedDescription
