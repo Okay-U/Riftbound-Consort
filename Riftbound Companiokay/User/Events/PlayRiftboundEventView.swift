@@ -26,6 +26,8 @@ struct PlayRiftboundEventView: View {
     @State private var pendingAction: RegistrationAction?
     @State private var busy = false
     @State private var actionError: String?
+    /// Bumped per load: an older, slower load (lock screen, pull, report) never replaces a newer one.
+    @State private var loadGeneration = 0
 
     enum RegistrationAction: Identifiable {
         case register, deregister, drop
@@ -368,15 +370,20 @@ struct PlayRiftboundEventView: View {
     // MARK: - Loading
 
     private func load() async {
+        loadGeneration += 1
+        let request = loadGeneration
         do {
             guard let credentials = try await PlayRiftboundSession.validCredentials(refreshingVia: browser) else {
                 error = PlayRiftboundError.notSignedIn.errorDescription
                 return
             }
             if let name = credentials.gameName { me = (name, credentials.tagLine) }
-            tournament = try await api.tournament(id: summary.id, credentials: credentials)
+            let fresh = try await api.tournament(id: summary.id, credentials: credentials)
+            guard request == loadGeneration else { return }
+            tournament = fresh
             error = tournament == nil ? "Event not found." : nil
         } catch {
+            guard request == loadGeneration else { return }
             if tournament == nil { self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
         }
     }

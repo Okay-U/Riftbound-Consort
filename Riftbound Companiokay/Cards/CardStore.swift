@@ -57,11 +57,12 @@ final class CardStore: ObservableObject {
     /// Keeps the first row per printing. The feed is built de-duplicated, but a
     /// source hiccup must never double every card in the grid.
     private static func dedupe(_ cards: [Card]) -> [Card] {
-        var seen = Set<String>()
+        var seen = Set<String>(), ids = Set<String>()
         var out: [Card] = []
         for card in cards {
             let key = "\(card.riftboundId ?? card.id)|\(card.name)"
-            if seen.insert(key).inserted { out.append(card) }
+            // One row per id too: id lookups build dictionaries that trap on a duplicate key.
+            if seen.insert(key).inserted, ids.insert(card.id).inserted { out.append(card) }
         }
         return out
     }
@@ -72,16 +73,25 @@ final class CardStore: ObservableObject {
             let type = card.classification?.type?.lowercased()
             let rarity = card.classification?.rarity?.lowercased()
             if type == "legend" && rarity == "rare" {
-                names.insert(card.name)
+                // One name per legend: "(Overnumbered)", "(Signature)" and "(Starter)" printings
+                // are the same legend for opponents and stats.
+                names.insert(card.name.replacingOccurrences(of: #"\s*\([^)]*\)$"#, with: "", options: .regularExpression))
             }
         }
         return names.sorted()
     }
 
+    /// Loads the catalogue once, then checks the feed again when the last check is older than
+    /// `refreshInterval` (an unchanged feed answers 304), so a phone that keeps the app in the
+    /// background for days still sees a new set's cards leave preview.
     func loadIfNeeded() {
-        guard allCards.isEmpty, !isLoading else { return }
+        guard !isLoading else { return }
+        if !allCards.isEmpty, let lastCheck, Date().timeIntervalSince(lastCheck) < Self.refreshInterval { return }
         load()
     }
+
+    private static let refreshInterval: TimeInterval = 6 * 60 * 60
+    private var lastCheck: Date?
 
     private nonisolated static let cacheName = "cards_cache_v2.json"
     private nonisolated static let etagKey = "cardsFeedETag"
@@ -119,7 +129,9 @@ final class CardStore: ObservableObject {
             do {
                 // The ETag only means something while the snapshot it belongs to exists.
                 let etag = allCards.isEmpty ? nil : UserDefaults.standard.string(forKey: Self.etagKey)
-                guard let fetched = try await repo.allCards(ifChangedSince: etag) else {
+                let fetched = try await repo.allCards(ifChangedSince: etag)
+                lastCheck = Date()
+                guard let fetched else {
                     isLoading = false
                     return
                 }

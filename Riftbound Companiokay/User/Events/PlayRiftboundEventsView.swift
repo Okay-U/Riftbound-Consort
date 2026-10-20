@@ -132,7 +132,15 @@ struct PlayRiftboundEventCard: View {
     /// From the search: the player is registered for this one.
     var registered: Bool = false
 
+    @EnvironmentObject private var favorites: PlayRiftboundFavorites
+
     private var tournament: CompeteTournamentSummary { entry.tournament }
+
+    /// The shared list once loaded, so a heart changed on a store page shows here too.
+    private var isFavoriteStore: Bool {
+        guard let organizer = entry.organizer else { return false }
+        return favorites.signedIn == true ? favorites.contains(organizer.id) : organizer.isFavorited == true
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 13) {
@@ -152,7 +160,7 @@ struct PlayRiftboundEventCard: View {
                     }
                 }
                 if let store = storeLine {
-                    Label(store, systemImage: entry.organizer?.isFavorited == true ? "heart.fill" : "mappin")
+                    Label(store, systemImage: isFavoriteStore ? "heart.fill" : "mappin")
                         .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary).lineLimit(1)
                 }
             }

@@ -60,8 +60,13 @@ struct PlayRiftboundSearchView: View {
         .toolbarBackground(EventsTheme.bg, for: .navigationBar)
         .task {
             placeDraft = place
-            signedIn = (try? await PlayRiftboundSession.validCredentials(refreshingVia: browser)) != nil
             if hasLocation, results.isEmpty { await search() }
+        }
+        // Apart from the public search above, which must not wait for a session warm-up or renewal.
+        .task {
+            // A session that could not be renewed right now is still a signed-in player.
+            do { signedIn = try await PlayRiftboundSession.validCredentials(refreshingVia: browser) != nil }
+            catch { signedIn = true }
         }
     }
 

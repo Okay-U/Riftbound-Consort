@@ -21,6 +21,8 @@ struct PlayRiftboundStoresView: View {
     @State private var placeDraft = ""
     @State private var hits: [StoreHit] = []
     @State private var phase: Phase = .idle
+    /// Bumped per search; an older search that answers late is dropped.
+    @State private var generation = 0
 
     enum Phase: Equatable { case idle, loading, loaded, failed(String) }
 
@@ -64,12 +66,13 @@ struct PlayRiftboundStoresView: View {
             }
             .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 24)
         }
-        .refreshable { await favorites.load(browser: browser); await search() }
+        .refreshable { await search(); await favorites.load(browser: browser) }
         .task {
             placeDraft = place
-            await favorites.load(browser: browser)
             if hasLocation, hits.isEmpty { await search() }
         }
+        // Apart from the public finder above, which must not wait for a session warm-up or renewal.
+        .task { await favorites.load(browser: browser) }
     }
 
     /// Prominent entry to the favourite-stores event calendar, the standout of the Stores segment.
@@ -187,6 +190,8 @@ struct PlayRiftboundStoresView: View {
 
     private func search() async {
         guard hasLocation else { return }
+        generation += 1
+        let request = generation
         phase = .loading
         let filter = PlayRiftboundAPI.SearchFilter(coords: .init(latitude: latitude, longitude: longitude),
                                                    startDate: PlayRiftboundAPI.searchStartDate(), distanceMeters: distanceKm * 1000,
@@ -204,6 +209,7 @@ struct PlayRiftboundStoresView: View {
                       let cursor = page.competeTournamentSearch.pageInfo?.endCursor else { break }
                 after = cursor
             }
+            guard request == generation else { return }
             var byStore: [String: [CompeteSearchResult]] = [:]
             for node in nodes { if let id = node.organizer?.id { byStore[id, default: []].append(node) } }
             hits = byStore.values.compactMap { group -> StoreHit? in
@@ -215,6 +221,7 @@ struct PlayRiftboundStoresView: View {
             .sorted { ($0.distanceMeters ?? .infinity) < ($1.distanceMeters ?? .infinity) }
             phase = .loaded
         } catch {
+            guard request == generation else { return }
             phase = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
         }
     }

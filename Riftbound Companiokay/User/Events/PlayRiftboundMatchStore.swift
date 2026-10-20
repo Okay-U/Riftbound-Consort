@@ -81,6 +81,7 @@ final class PlayRiftboundMatchStore: ObservableObject {
         current = nil
         hidden = nil
         dismissedID = nil
+        lastError = nil
     }
 
     private func load(browser: PlayRiftboundBrowser) async {

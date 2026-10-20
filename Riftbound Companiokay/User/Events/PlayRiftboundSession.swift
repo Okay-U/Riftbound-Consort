@@ -90,22 +90,33 @@ nonisolated enum PlayRiftboundSession {
     /// (xsso iframe → auth.riotgames.com, prompt=none) finishes after the page load, so a
     /// single read right after the load can still see the old token. One renewal at a time.
     @MainActor private static var renewal: Task<PlayRiftboundCredentials?, Never>?
+    /// When the last renewal failed. For a short while callers fail at once instead of each
+    /// loading the site again: offline, or a Riot session that needs a new sign-in.
+    @MainActor private static var lastFailedRenewal: Date?
+    private static let failedRenewalPause: TimeInterval = 20
 
     @MainActor
     static func renewed(via browser: PlayRiftboundBrowser) async throws -> PlayRiftboundCredentials {
-        if renewal == nil {
-            renewal = Task {
-                await browser.refreshSession()
-                for _ in 0..<16 {
-                    if let fresh = await credentials(), !fresh.isExpired { return fresh }
-                    try? await Task.sleep(for: .milliseconds(500))
-                }
-                return nil
-            }
+        if renewal == nil, let failed = lastFailedRenewal, Date().timeIntervalSince(failed) < failedRenewalPause {
+            throw PlayRiftboundError.sessionExpired
         }
-        let result = await renewal?.value
-        renewal = nil
-        guard let result else { throw PlayRiftboundError.sessionExpired }
+        let task = renewal ?? Task {
+            await browser.refreshSession()
+            for _ in 0..<16 {
+                if let fresh = await credentials(), !fresh.isExpired { return fresh }
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+            return nil
+        }
+        renewal = task
+        let result = await task.value
+        // Only the renewal this caller waited for; a newer one may have started meanwhile.
+        if renewal == task { renewal = nil }
+        guard let result else {
+            lastFailedRenewal = Date()
+            throw PlayRiftboundError.sessionExpired
+        }
+        lastFailedRenewal = nil
         return result
     }
 

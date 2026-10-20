@@ -88,8 +88,9 @@ nonisolated struct CardTextBlock: Equatable {
         }
         var rest = Substring(html)
         while let open = rest.firstIndex(of: "<") {
-            appendText(String(rest[..<open]), domain: domain, to: &current)
+            // An unclosed "<" is text: it and everything before it go out once, after the loop.
             guard let close = rest[open...].firstIndex(of: ">") else { break }
+            appendText(String(rest[..<open]), domain: domain, to: &current)
             let tag = rest[rest.index(after: open)..<close].lowercased()
             rest = rest[rest.index(after: close)...]
             switch tag {
@@ -130,6 +131,8 @@ nonisolated struct CardTextBlock: Equatable {
             } else {
                 let code = ns.substring(with: match.range(at: 2))
                 if code == ">" { runs.append(.arrow) }
+                else if code == ">>" { runs += [.arrow, .arrow] }
+                else if code == "NO TEXT" { }   // the gallery's placeholder on preview cards
                 else if let asset = CardSymbol.asset(forCode: code, domain: domain) { runs.append(.symbol(asset: asset)) }
                 else { runs.append(.keyword(code)) }
             }

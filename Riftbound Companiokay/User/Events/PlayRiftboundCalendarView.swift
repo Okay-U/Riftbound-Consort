@@ -49,6 +49,11 @@ struct PlayRiftboundCalendarView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 if !loading, items.isEmpty { emptyOrError }
+                if let loadError, !items.isEmpty {
+                    Label(loadError, systemImage: "wifi.exclamationmark")
+                        .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 if let day = selectedDay { dayEvents(day) }
             }
             .padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 24)
@@ -219,7 +224,11 @@ struct PlayRiftboundCalendarView: View {
     private func load() async {
         loading = items.isEmpty
         loadError = nil
-        let credentials = try? await PlayRiftboundSession.validCredentials(refreshingVia: browser)
+        failedStores = 0
+        let credentials: PlayRiftboundCredentials?
+        var sessionFailed = false
+        do { credentials = try await PlayRiftboundSession.validCredentials(refreshingVia: browser) }
+        catch { credentials = nil; sessionFailed = true }
         await events.refresh(browser: browser)
         let registeredIDs = Set(events.upcoming.map(\.tournament.id))
         var collected: [String: CalEvent] = [:]
@@ -255,12 +264,22 @@ struct PlayRiftboundCalendarView: View {
                 }
             } catch {
                 loadError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                keepStoreEvents(into: &collected)
             }
+        } else if sessionFailed {
+            // Signed in, but the session could not be renewed (offline?): not a sign-out.
+            loadError = "Couldn't refresh your PlayRiftbound session. Pull to refresh."
+            keepStoreEvents(into: &collected)
         } else {
             hasFavourites = false
             if collected.isEmpty { loadError = PlayRiftboundError.notSignedIn.errorDescription }
         }
         items = collected.values.sorted { $0.date < $1.date }
         loading = false
+    }
+
+    /// A failed refresh keeps the store events already on screen.
+    private func keepStoreEvents(into collected: inout [String: CalEvent]) {
+        for event in items where collected[event.id] == nil { collected[event.id] = event }
     }
 }

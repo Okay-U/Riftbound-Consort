@@ -385,14 +385,15 @@ struct ScoreboardView: View {
             }
 
             // Manual refresh: pairings go up between rounds, no need to poll through a round.
+            // A failed refresh keeps the last pairing; the warning icon says it may be out of date.
             Button { Task { await riftMatch.refresh(browser: riftBrowser, force: true) } } label: {
                 Group {
                     if riftMatch.isRefreshing {
                         ProgressView().controlSize(.small).tint(EventsTheme.textSecondary)
                     } else {
-                        Image(systemName: "arrow.clockwise")
+                        Image(systemName: riftMatch.lastError == nil ? "arrow.clockwise" : "exclamationmark.arrow.circlepath")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(EventsTheme.textSecondary)
+                            .foregroundStyle(riftMatch.lastError == nil ? EventsTheme.textSecondary : EventsTheme.gold)
                     }
                 }
                 .frame(width: 26, height: 26)
@@ -400,7 +401,7 @@ struct ScoreboardView: View {
             }
             .buttonStyle(.plain)
             .disabled(riftMatch.isRefreshing)
-            .accessibilityLabel("Refresh pairing")
+            .accessibilityLabel(riftMatch.lastError == nil ? "Refresh pairing" : "Refresh failed, try again")
 
             Button { riftMatch.dismiss() } label: {
                 Image(systemName: "xmark")
@@ -538,19 +539,33 @@ struct ScoreboardView: View {
             if matchMode.enabled {
                 Button {
                     if riftMatch.hasEvent { riftMatch.toggleHidden() }
-                    else { showNoEventNotice = true; Task { await riftMatch.refresh(browser: riftBrowser, force: true) } }
+                    else {
+                        // Look first, then tell: the answer decides between the strip and a notice.
+                        Task {
+                            await riftMatch.refresh(browser: riftBrowser, force: true)
+                            if !riftMatch.hasEvent { showNoEventNotice = true }
+                        }
+                    }
                 } label: {
-                    Image(systemName: "trophy.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(width: 28, height: 28)
+                    Group {
+                        if riftMatch.isRefreshing && !riftMatch.hasEvent {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "trophy.fill").font(.subheadline.weight(.semibold))
+                        }
+                    }
+                    .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.bordered)
                 .tint(riftMatch.current != nil ? EventsTheme.green : nil)
+                .disabled(riftMatch.isRefreshing && !riftMatch.hasEvent)
                 .accessibilityLabel(riftMatch.current != nil ? "Hide event strip" : "Show event strip")
-                .alert("No live event", isPresented: $showNoEventNotice) {
+                .alert(riftMatch.lastError == nil ? "No live event" : "Couldn't reach PlayRiftbound", isPresented: $showNoEventNotice) {
                     Button("OK", role: .cancel) {}
                 } message: {
-                    Text("The strip appears here once a PlayRiftbound event you are registered for starts, or within three hours before it.")
+                    Text(riftMatch.lastError == nil
+                         ? "The strip appears here once a PlayRiftbound event you are registered for starts, or within three hours before it."
+                         : "Check the connection and try again. If you were signed out, sign in again under Events → PlayRiftbound.")
                 }
             }
 

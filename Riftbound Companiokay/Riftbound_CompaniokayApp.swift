@@ -12,6 +12,7 @@ struct Riftbound_CompaniokayApp: App {
     @AppStorage("keepScreenOn") private var keepScreenOn: Bool = true
     @AppStorage("trueBlack")    private var trueBlack: Bool = true
     @AppStorage("didOnboard")   private var didOnboard: Bool = false
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var idleMgr = IdleTimerManager()
     @StateObject private var scoreboard = ScoreboardViewModel()
     @StateObject private var gameTimer = GameTimer()
@@ -46,6 +47,10 @@ struct Riftbound_CompaniokayApp: App {
                 .background(trueBlack ? Color.black : Color(.systemBackground))
                 .task { await authSession.restore() }
                 .onAppear { errataStore.load() }
+                // Back from the background: re-check the card feed if the last check is old.
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active, !cardStore.allCards.isEmpty { cardStore.loadIfNeeded() }
+                }
                 .onReceive(cardStore.$allCards) { cards in Task { await decklistStore.migrateLegacyIDs(to: cards) } }
                 .fullScreenCover(isPresented: Binding(
                     get: { !didOnboard },

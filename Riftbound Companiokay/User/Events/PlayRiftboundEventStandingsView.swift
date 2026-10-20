@@ -157,22 +157,25 @@ struct PlayRiftboundStandingsTab: View {
                 if isOut(team) { return 0 }
                 return roundsAfter + (table.pending.contains(team) ? 1 : 0)
             }
-            if let mine = table.rows.first(where: { $0.esportsTeamId == myTeamID }), remaining(myTeamID) >= 1 {
+            // A cut only means something below the field size: with 8 players a Top 8 is everyone.
+            let cuts = Self.cutOptions.filter { $0 < table.rows.count }
+            if let cut = cuts.contains(cutSize) ? cutSize : cuts.last,
+               let mine = table.rows.first(where: { $0.esportsTeamId == myTeamID }), remaining(myTeamID) >= 1 {
                 let myRemaining = remaining(myTeamID)
                 let myPoints = mine.matchPoints ?? 0
                 let others = table.rows.filter { $0.esportsTeamId != myTeamID }
                     .map { DrawContender(points: $0.matchPoints ?? 0, remaining: remaining($0.esportsTeamId)) }
-                let outlook = DrawCalc.outlook(myPoints: myPoints, myRemaining: myRemaining, others: others, cut: cutSize)
+                let outlook = DrawCalc.outlook(myPoints: myPoints, myRemaining: myRemaining, others: others, cut: cut)
                 let suffix = myRemaining == 1 ? "" : " out"
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         SectionHeader("chart.bar.doc.horizontal", "Can I draw?")
-                        Picker("Top cut", selection: $cutSize) {
-                            Text("Top 4").tag(4); Text("Top 8").tag(8); Text("Top 16").tag(16)
+                        Picker("Top cut", selection: Binding(get: { cut }, set: { cutSize = $0 })) {
+                            ForEach(cuts, id: \.self) { Text("Top \($0)").tag($0) }
                         }
                         .pickerStyle(.menu).tint(EventsTheme.textSecondary)
                     }
-                    Text("Top \(cutSize) · \(myRemaining) match\(myRemaining == 1 ? "" : "es") left · you have \(myPoints) pts")
+                    Text("Top \(cut) · \(myRemaining) match\(myRemaining == 1 ? "" : "es") left · you have \(myPoints) pts")
                         .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
                     outlookRow("Win" + suffix, outlook.win)
                     outlookRow("Draw" + suffix, outlook.draw)
@@ -187,6 +190,8 @@ struct PlayRiftboundStandingsTab: View {
             }
         }
     }
+
+    private static let cutOptions = [4, 8, 16]
 
     /// Dropped or eliminated: no more matches to play.
     private func isOut(_ team: String) -> Bool {
