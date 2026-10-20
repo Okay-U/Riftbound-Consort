@@ -19,6 +19,8 @@ struct PlayRiftboundCalendarView: View {
     @State private var items: [CalEvent] = []
     @State private var loading = true
     @State private var loadError: String?
+    /// Favourite stores whose events could not be loaded this time.
+    @State private var failedStores = 0
     @State private var hasFavourites = true
     @State private var month = Date()
     @State private var selectedDay: Date?
@@ -40,6 +42,12 @@ struct PlayRiftboundCalendarView: View {
                 weekdayRow
                 grid
                 legend
+                if failedStores > 0 {
+                    Label("Couldn't load the events of \(failedStores) favourite store\(failedStores == 1 ? "" : "s"). Pull to refresh.",
+                          systemImage: "exclamationmark.triangle")
+                        .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 if !loading, items.isEmpty { emptyOrError }
                 if let day = selectedDay { dayEvents(day) }
             }
@@ -221,18 +229,27 @@ struct PlayRiftboundCalendarView: View {
             do {
                 let favourites = try await api.favoritedOrganizers(credentials: credentials)
                 hasFavourites = !favourites.isEmpty
-                let results = await withTaskGroup(of: [CompeteSearchResult].self) { group in
-                    for store in favourites {
+                // At most four stores at a time: venue wifi, and Riot's gateway, both prefer it.
+                let (results, failures) = await withTaskGroup(of: [CompeteSearchResult]?.self) { group in
+                    var queue = favourites[...]
+                    func next() {
+                        guard let store = queue.popFirst() else { return }
                         group.addTask { [api] in
-                            guard let summary = try? await api.organizerSummary(id: store.id, credentials: credentials),
-                                  let lat = summary.physicalAddress?.latitude, let lng = summary.physicalAddress?.longitude else { return [] }
-                            return (try? await api.storeEvents(organizerID: store.id, latitude: lat, longitude: lng, credentials: credentials)) ?? []
+                            guard let summary = try? await api.organizerSummary(id: store.id, credentials: credentials) else { return nil }
+                            guard let lat = summary.physicalAddress?.latitude, let lng = summary.physicalAddress?.longitude else { return [] }
+                            return try? await api.storeEvents(organizerID: store.id, latitude: lat, longitude: lng, credentials: credentials)
                         }
                     }
+                    for _ in 0..<4 { next() }
                     var all: [CompeteSearchResult] = []
-                    for await part in group { all += part }
-                    return all
+                    var failed = 0
+                    for await part in group {
+                        if let part { all += part } else { failed += 1 }
+                        next()
+                    }
+                    return (all, failed)
                 }
+                failedStores = failures
                 for result in results where collected[result.tournament.id] == nil {
                     collected[result.tournament.id] = CalEvent(entry: result.entry, registered: registeredIDs.contains(result.tournament.id))
                 }

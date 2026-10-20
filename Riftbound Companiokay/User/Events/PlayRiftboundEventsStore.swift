@@ -22,16 +22,27 @@ final class PlayRiftboundEventsStore: ObservableObject {
 
     private let api = PlayRiftboundAPI()
     private let log = Logger(subsystem: "pitopia.Riftcount", category: "PlayRiftboundEvents")
-    private var isRefreshing = false
     private static let minInterval: TimeInterval = 30
 
     var hasEvents: Bool { !upcoming.isEmpty || !past.isEmpty }
 
+    private var inFlight: Task<Void, Never>?
+
+    /// Callers always get a finished refresh: a plain call joins one that is running, a forced
+    /// call (after register / drop) waits for it and then loads again.
     func refresh(browser: PlayRiftboundBrowser, force: Bool = false) async {
-        guard !isRefreshing else { return }
+        if let running = inFlight {
+            await running.value
+            if !force { return }
+        }
         if !force, let last = lastLoaded, Date().timeIntervalSince(last) < Self.minInterval { return }
-        isRefreshing = true
-        defer { isRefreshing = false }
+        let task = Task { await load(browser: browser) }
+        inFlight = task
+        await task.value
+        if inFlight == task { inFlight = nil }
+    }
+
+    private func load(browser: PlayRiftboundBrowser) async {
         if !hasEvents { state = .loading }
         do {
             guard let credentials = try await PlayRiftboundSession.validCredentials(refreshingVia: browser) else {
@@ -45,6 +56,10 @@ final class PlayRiftboundEventsStore: ObservableObject {
             past = mine.playerTournaments.past.nodes.sorted { start($0) > start($1) }
             lastLoaded = Date()
             state = .loaded
+        } catch is CancellationError {
+            if !hasEvents { state = .idle }
+        } catch let error as URLError where error.code == .cancelled {
+            if !hasEvents { state = .idle }
         } catch {
             log.error("refresh failed: \(error.localizedDescription, privacy: .public)")
             // A failed refresh keeps the last list; the error state is for an empty screen.

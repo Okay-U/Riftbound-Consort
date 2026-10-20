@@ -101,7 +101,13 @@ extension PlayRiftboundAPI {
         var results: [CompeteSearchResult] = []
         var after: String? = nil
         for _ in 0..<5 {
-            let page = try await searchTournaments(filter: filter, sort: .date, after: after, first: 50, credentials: credentials)
+            let page: CompeteSearchData
+            do {
+                page = try await searchTournaments(filter: filter, sort: .date, after: after, first: 50, credentials: credentials)
+            } catch {
+                if after == nil { throw error }
+                break   // a later page failed: keep the events already found
+            }
             results += page.competeTournamentSearch.nodes.filter { $0.organizer?.id == organizerID }
             guard page.competeTournamentSearch.pageInfo?.hasNextPage == true,
                   let cursor = page.competeTournamentSearch.pageInfo?.endCursor else { break }

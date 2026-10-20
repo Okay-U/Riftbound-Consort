@@ -126,7 +126,7 @@ struct CardSearchView: View {
             cardStore.loadIfNeeded()
             if displayedCards.isEmpty { scheduleRefresh(debounce: false) }
         }
-        .onChange(of: cardStore.allCards.count) { _, _ in scheduleRefresh(debounce: false) }
+        .onChange(of: cardStore.revision) { _, _ in scheduleRefresh(debounce: false) }
         .onChange(of: query) { _, _ in scheduleRefresh(debounce: true) }
         .onChange(of: filters) { _, _ in scheduleRefresh(debounce: true) }
         .onChange(of: primarySort) { _, _ in scheduleRefresh(debounce: false) }

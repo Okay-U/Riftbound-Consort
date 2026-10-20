@@ -83,7 +83,7 @@ struct CardFilters: Equatable {
     // availableRarities), so new-set additions (e.g. Vendetta's Unit-Gear)
     // appear without an app update.
     static let knownTypes    = ["Unit", "Spell", "Gear", "Battlefield", "Legend"]
-    static let knownRarities = ["Common", "Uncommon", "Epic", "Showcase"]
+    static let knownRarities = ["Common", "Uncommon", "Rare", "Epic", "Showcase"]
 
     // Display name → fragment to match against card.set?.label
     static let knownSeries: [(name: String, fragment: String)] = [

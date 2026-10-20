@@ -30,6 +30,8 @@ struct PlayRiftboundSearchView: View {
     @State private var phase: Phase = .idle
     @State private var signedIn = false
     @State private var placeDraft = ""
+    /// Bumped by every new search; an answer for an older one is dropped (chips tapped quickly).
+    @State private var generation = 0
 
     enum Phase: Equatable { case idle, locating, loading, loaded, failed(String) }
 
@@ -212,27 +214,33 @@ struct PlayRiftboundSearchView: View {
 
     private func search() async {
         guard hasLocation else { return }
+        generation += 1
+        let request = generation
         phase = .loading
         do {
             let page = try await api.searchTournaments(filter: filter, sort: sort, credentials: await PlayRiftboundSession.publicCredentials())
+            guard request == generation else { return }
             results = page.competeTournamentSearch.nodes
             nextCursor = page.competeTournamentSearch.pageInfo?.hasNextPage == true ? page.competeTournamentSearch.pageInfo?.endCursor : nil
             phase = .loaded
         } catch {
+            guard request == generation else { return }
             phase = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
         }
     }
 
     private func loadMore() async {
         guard let cursor = nextCursor else { return }
+        let request = generation
         nextCursor = nil
         do {
             let page = try await api.searchTournaments(filter: filter, sort: sort, after: cursor, credentials: await PlayRiftboundSession.publicCredentials())
+            guard request == generation else { return }
             let known = Set(results.map(\.tournament.id))
             results += page.competeTournamentSearch.nodes.filter { !known.contains($0.tournament.id) }
             nextCursor = page.competeTournamentSearch.pageInfo?.hasNextPage == true ? page.competeTournamentSearch.pageInfo?.endCursor : nil
         } catch {
-            nextCursor = cursor
+            if request == generation { nextCursor = cursor }
         }
     }
 }

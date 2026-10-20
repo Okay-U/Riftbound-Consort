@@ -29,13 +29,10 @@ final class CardStore: ObservableObject {
     }
 
     /// Baseline rarities plus any new rarity present in the loaded DB.
-    /// "Rare" is deliberately not a baseline: it marks legends, which have
-    /// their own type chip — but if a future set puts it on other cards it
-    /// appears here automatically.
     var availableRarities: [String] {
         dynamicOptions(baseline: CardFilters.knownRarities,
                        values: allCards.compactMap { $0.classification?.rarity },
-                       excluding: ["rare"])
+                       excluding: [])
     }
 
     /// Baseline order first, then unseen values (case-insensitive dedupe)
@@ -127,9 +124,12 @@ final class CardStore: ObservableObject {
                     return
                 }
                 publish(fetched.page.items)
-                UserDefaults.standard.set(fetched.etag, forKey: Self.etagKey)
-                let snapshot = fetched.page.items
-                Task.detached(priority: .utility) { Self.writeCache(snapshot) }
+                let snapshot = fetched.page.items, tag = fetched.etag
+                Task.detached(priority: .utility) {
+                    // The ETag only after its snapshot is on disk: an ETag without the matching
+                    // snapshot would get 304 forever and keep a stale catalogue.
+                    if Self.writeCache(snapshot) { UserDefaults.standard.set(tag, forKey: Self.etagKey) }
+                }
             } catch is CancellationError {
                 // ignored
             } catch {
@@ -147,16 +147,22 @@ final class CardStore: ObservableObject {
         return try? JSONDecoder().decode([Card].self, from: data)
     }
 
-    private nonisolated static func writeCache(_ cards: [Card]) {
-        guard let data = try? JSONEncoder().encode(cards) else { return }
+    @discardableResult
+    private nonisolated static func writeCache(_ cards: [Card]) -> Bool {
+        guard let data = try? JSONEncoder().encode(cards) else { return false }
         // Documents may not exist yet in the Android sandbox.
         try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)
         // A failed write only costs the next launch a refetch.
-        try? data.write(to: cacheURL, options: .atomic)
+        return (try? data.write(to: cacheURL, options: .atomic)) != nil
     }
 
+    /// Bumped on every publish: card text, images or the preview flag can change while the
+    /// number of cards stays the same.
+    @Published private(set) var revision = 0
+
     private func publish(_ cards: [Card]) {
+        revision += 1
         let unique = Self.dedupe(cards)
         allCards = unique
         legendNames = Self.computeLegendNames(from: unique)

@@ -17,6 +17,7 @@ struct PlayRiftboundEventView: View {
     @EnvironmentObject private var events: PlayRiftboundEventsStore
     @EnvironmentObject private var riftMatch: PlayRiftboundMatchStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var tournament: CompeteTournament?
     @State private var me: (name: String, tag: String?)?
     @State private var error: String?
@@ -86,6 +87,10 @@ struct PlayRiftboundEventView: View {
         .toolbarBackground(EventsTheme.bg, for: .navigationBar)
         .refreshable { await load() }
         .task { await load() }
+        // Back from the lock screen between rounds: show the new pairing, not the old one.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await load() } }
+        }
         .sheet(item: $reporting) { strip in
             if let pairing = strip.pairing {
                 PlayRiftboundReportSheet(strip: strip, pairing: pairing) {
@@ -355,10 +360,8 @@ struct PlayRiftboundEventView: View {
     }
 
     private func isMe(_ player: CompeteTournament.RegistrantPlayer?) -> Bool {
-        guard let player, let me else { return false }
-        guard let displayName = player.displayName, displayName.caseInsensitiveCompare(me.name) == .orderedSame else { return false }
-        if let tag = me.tag, let theirs = player.tagLine { return theirs.caseInsensitiveCompare(tag) == .orderedSame }
-        return true
+        guard let player, let tournament, let mine = playerID(in: tournament) else { return false }
+        return player.id == mine
     }
 
     // MARK: - Loading

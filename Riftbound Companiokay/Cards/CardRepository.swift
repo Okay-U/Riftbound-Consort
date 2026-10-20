@@ -34,7 +34,11 @@ nonisolated final class HostedCardRepository: CardRepository {
         guard let http = response as? HTTPURLResponse else { throw CardRepositoryError.badResponse }
         if http.statusCode == 304 { return nil }
         guard http.statusCode == 200 else { throw CardRepositoryError.badResponse }
-        let page = try JSONDecoder().decode(CardPage.self, from: data)
+        // 1.7 MB: decode on a background thread. (Under the project's nonisolated-nonsending
+        // default this async method runs on the caller's actor, which is the main actor.)
+        let page = try await Task.detached(priority: .userInitiated) {
+            try JSONDecoder().decode(CardPage.self, from: data)
+        }.value
         return (page, http.value(forHTTPHeaderField: "ETag"))
     }
 }

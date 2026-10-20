@@ -10,6 +10,7 @@
 //
 
 import SwiftUI
+import WebKit
 internal import Combine
 
 @MainActor
@@ -37,13 +38,51 @@ final class PlayRiftboundBrowser: ObservableObject {
 
     /// Reload the site off-screen so its own code renews the session cookies.
     /// Returns once the page finished loading (or after a timeout); the caller re-reads the cookies.
+    /// While the PlayRiftbound segment has nothing loaded yet this loads its web view (which
+    /// pre-loads the segment); once it shows a page, a second, invisible web view on the same
+    /// data store does the work, so the page the player is looking at is never replaced.
     func refreshSession() async {
         let model = ensureModel()
-        model.load(Self.refreshPage)
-        // Poll instead of a delegate continuation: one call site, and a stuck load must not hang it.
+        if model.currentURL == nil {
+            model.load(Self.refreshPage)
+            await waitWhileLoading { model.isLoading }
+            return
+        }
+        let view = refresher ?? makeRefresher()
+        view.load(URLRequest(url: Self.refreshPage))
+        await waitWhileLoading { view.isLoading }
+    }
+
+    private var refresher: WKWebView?
+    private let refresherPolicy = OffscreenPolicy()
+
+    private func makeRefresher() -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = WKWebsiteDataStore(forIdentifier: PlayRiftboundPolicy.dataStoreID)
+        config.mediaTypesRequiringUserActionForPlayback = .all
+        let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 844), configuration: config)
+        view.navigationDelegate = refresherPolicy
+        refresher = view
+        return view
+    }
+
+    /// Poll instead of a delegate continuation: a stuck load must not hang the caller.
+    private func waitWhileLoading(_ isLoading: () -> Bool) async {
         for _ in 0..<60 {
             try? await Task.sleep(for: .milliseconds(250))
-            if !model.isLoading { return }
+            if !isLoading() { return }
         }
+    }
+}
+
+/// Same top-level allowlist as the visible web view; nothing is ever handed to Safari
+/// from the invisible one.
+private final class OffscreenPolicy: NSObject, WKNavigationDelegate {
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+        guard let url = navigationAction.request.url else { return .cancel }
+        let isTopLevel = navigationAction.targetFrame == nil || navigationAction.targetFrame?.isMainFrame == true
+        guard isTopLevel else { return .allow }
+        if url.scheme?.lowercased() == "about" { return .allow }
+        return PlayRiftboundPolicy.isAllowed(url) ? .allow : .cancel
     }
 }

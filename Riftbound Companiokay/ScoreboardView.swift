@@ -122,7 +122,8 @@ struct ScoreboardView: View {
         }
         .task {
             await matchMode.refresh(session: session)
-            await riftMatch.refresh(browser: riftBrowser)
+            // The strip only shows with match mode on; no off-screen PlayRiftbound load otherwise.
+            if matchMode.enabled { await riftMatch.refresh(browser: riftBrowser) }
         }
         .onChange(of: gameTimer.isRunning, initial: false) { _, _ in
             syncLiveActivity()
@@ -143,7 +144,7 @@ struct ScoreboardView: View {
                 vm.adoptSharedScoresIfAvailable()
                 syncLiveActivity()
                 Task { await matchMode.refresh(session: session) }
-                Task { await riftMatch.refresh(browser: riftBrowser) }
+                if matchMode.enabled { Task { await riftMatch.refresh(browser: riftBrowser) } }
             }
         }
         .onChange(of: liveActivityEnabled, initial: false) { _, _ in
@@ -154,7 +155,7 @@ struct ScoreboardView: View {
             // the strip isn't stale (TabView keeps this view alive, so .task won't refire).
             if tab == "score" {
                 Task { await matchMode.refresh(session: session) }
-                Task { await riftMatch.refresh(browser: riftBrowser) }
+                if matchMode.enabled { Task { await riftMatch.refresh(browser: riftBrowser) } }
             }
         }
         .onChange(of: vm.playerCount, initial: false) { _, _ in

@@ -482,15 +482,23 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 
     /// Compete player id for a Riot ID, from the registrant list or, once the
     /// event runs, the participant list.
+    /// Riot IDs are only unique with the tag: an exact name + tag match wins; a name alone is
+    /// accepted only when nobody else in the event has that name. Nil when it is ambiguous.
     func playerID(gameName: String, tagLine: String?) -> String? {
-        func matches(_ p: RegistrantPlayer?) -> Bool {
-            guard let p, let displayName = p.displayName else { return false }
-            let nameMatches = displayName.caseInsensitiveCompare(gameName) == .orderedSame
-            let tagMatches = tagLine == nil || p.tagLine == nil || p.tagLine!.caseInsensitiveCompare(tagLine!) == .orderedSame
-            return nameMatches && tagMatches
+        var byID: [String: RegistrantPlayer] = [:]
+        for p in (tournamentRegistrants ?? []).compactMap(\.player) + (tournamentParticipants ?? []).compactMap(\.player) {
+            byID[p.id] = byID[p.id] ?? p
         }
-        return (tournamentRegistrants ?? []).first { matches($0.player) }?.player?.id
-            ?? (tournamentParticipants ?? []).first { matches($0.player) }?.player?.id
+        let named = byID.values.filter { $0.displayName?.caseInsensitiveCompare(gameName) == .orderedSame }
+        if let tagLine {
+            let exact = named.filter { $0.tagLine?.caseInsensitiveCompare(tagLine) == .orderedSame }
+            if exact.count == 1 { return exact[0].id }
+            if !exact.isEmpty { return nil }
+            // Riot's data may omit the tag; fall back to the name only if it is unique and untagged.
+            let untagged = named.filter { $0.tagLine == nil }
+            return named.count == 1 && untagged.count == 1 ? untagged[0].id : nil
+        }
+        return named.count == 1 ? named[0].id : nil
     }
 }
 

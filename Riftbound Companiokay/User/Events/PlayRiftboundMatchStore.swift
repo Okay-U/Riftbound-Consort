@@ -44,6 +44,8 @@ final class PlayRiftboundMatchStore: ObservableObject {
     @Published private(set) var isRefreshing = false
     private var lastRefresh: Date?
     private var dismissedID: String?
+    /// A forced refresh that arrived while another one was running (e.g. right after a report).
+    private var followUp = false
 
     /// How far ahead an event counts as "next": the strip is for the day at the table,
     /// not a reminder, so only events starting within a few hours (or already running).
@@ -59,14 +61,33 @@ final class PlayRiftboundMatchStore: ObservableObject {
     /// Best effort, non-destructive: network failures keep what is shown; only a definitive
     /// "no session" or "no event" clears the strip.
     func refresh(browser: PlayRiftboundBrowser, force: Bool = false) async {
-        guard !isRefreshing else { return }
+        if isRefreshing {
+            if force { followUp = true }
+            return
+        }
         if !force, let last = lastRefresh, Date().timeIntervalSince(last) < Self.minInterval { return }
         isRefreshing = true
-        defer { isRefreshing = false; lastRefresh = Date() }
+        await load(browser: browser)
+        isRefreshing = false
+        if followUp {
+            followUp = false
+            await refresh(browser: browser, force: true)
+        }
+    }
 
+    /// Nothing to show any more: also forget a strip the player had hidden, so the header
+    /// button cannot bring back an old event.
+    private func clear() {
+        current = nil
+        hidden = nil
+        dismissedID = nil
+    }
+
+    private func load(browser: PlayRiftboundBrowser) async {
         do {
             guard let credentials = try await PlayRiftboundSession.validCredentials(refreshingVia: browser) else {
-                current = nil
+                clear()
+                lastRefresh = Date()
                 return
             }
             let mine = try await api.myTournaments(credentials: credentials)
@@ -74,7 +95,8 @@ final class PlayRiftboundMatchStore: ObservableObject {
             func start(_ entry: PlayerTournamentEntry) -> Date { entry.tournament.startsAt ?? .distantFuture }
             let soon = mine.playerTournaments.upcoming.nodes.filter { start($0) <= horizon }
             guard let next = soon.min(by: { start($0) < start($1) }) else {
-                current = nil
+                clear()
+                lastRefresh = Date()
                 return
             }
 
@@ -92,11 +114,16 @@ final class PlayRiftboundMatchStore: ObservableObject {
                                            webURL: next.tournament.webURL,
                                            pairing: pairing)
             lastError = nil
+            lastRefresh = Date()
             if strip.id == dismissedID { current = nil; hidden = strip; return }
             dismissedID = nil
             hidden = nil
             current = strip
+        } catch is CancellationError {
+            // The view went away; keep what is shown.
+        } catch let error as URLError where error.code == .cancelled {
         } catch {
+            // Failures keep the strip and do not start the 45 s back-off, so the next appear retries.
             lastError = error.localizedDescription
             log.error("refresh failed: \(error.localizedDescription, privacy: .public)")
         }

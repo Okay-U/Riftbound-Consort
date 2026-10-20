@@ -199,9 +199,9 @@ struct CardTextView: View {
     private static func line(_ runs: [CardTextBlock.Run]) -> Text {
         runs.reduce(Text("")) { acc, run in
             switch run {
-            case .text(let s):    return acc + Text(s)
-            case .keyword(let k): return acc + Text("[\(k)]").bold()
-            case .symbol(let a):  return acc + Text(glyph(a)).baselineOffset(glyphBaselineOffset)
+            case .text(let s):    return Text("\(acc)\(s)")
+            case .keyword(let k): return Text("\(acc)\(Text("[\(k)]").bold())")
+            case .symbol(let a):  return Text("\(acc)\(Text(glyph(a)).baselineOffset(glyphBaselineOffset))")
             }
         }
     }

@@ -48,10 +48,14 @@ nonisolated enum PlayRiftboundSession {
     /// cookie jar means signed out. The site's silent sign-in finishes after the page load,
     /// so the warm-up keeps polling for cookies a few seconds.
     @MainActor private static var warmUp: Task<Void, Never>?
+    @MainActor private static var warmUpStarted: Date?
 
     @MainActor
     private static func warmUpOnce(via browser: PlayRiftboundBrowser) async {
+        // A warm-up that found nothing (offline at launch, or signed out) may run again later.
+        if let started = warmUpStarted, Date().timeIntervalSince(started) > 600 { warmUp = nil }
         if warmUp == nil {
+            warmUpStarted = Date()
             warmUp = Task {
                 await browser.refreshSession()
                 for _ in 0..<12 {
@@ -130,10 +134,20 @@ nonisolated enum PlayRiftboundSession {
     static func credentials() async -> PlayRiftboundCredentials? {
         let store = WKWebsiteDataStore(forIdentifier: PlayRiftboundPolicy.dataStoreID)
         let cookies = await store.httpCookieStore.allCookies()
-        let site = cookies.filter { $0.domain.lowercased().hasSuffix("playriftbound.com") }
+        func bareDomain(_ cookie: HTTPCookie) -> String {
+            var domain = cookie.domain.lowercased()
+            if domain.hasPrefix(".") { domain.removeFirst() }
+            return domain
+        }
+        // Everything Riot set for the site, for reading the session's own cookies…
+        let site = cookies.filter { bareDomain($0) == "playriftbound.com" || bareDomain($0).hasSuffix(".playriftbound.com") }
         guard site.contains(where: { $0.name == accessCookie }) else { return nil }
-
-        let header = site.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+        // …but the header carries only what a browser sends to https://playriftbound.com itself
+        // (apex or domain-wide cookies, not host-only cookies of xsso. / events.). Should the
+        // access token ever live elsewhere, fall back to the whole set as before.
+        let apex = site.filter { bareDomain($0) == "playriftbound.com" }
+        let sent = apex.contains(where: { $0.name == accessCookie }) ? apex : site
+        let header = sent.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
         let sessionExpiry = site.first { $0.name == expiryCookie }
             .flatMap { $0.value.removingPercentEncoding }
             .flatMap { ISO8601DateFormatter().date(from: $0) }

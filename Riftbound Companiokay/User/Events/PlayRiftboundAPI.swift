@@ -62,34 +62,34 @@ actor PlayRiftboundOperationIDs {
     ]
 
     private var ids = builtIn
-    private var refreshed = false
+    private var refresh: Task<[String: String], Never>?
 
     func id(for operation: String) async -> String? {
-        await refreshOnce()
+        // One feed fetch shared by every caller; concurrent first calls wait for it instead of
+        // racing ahead with possibly stale built-in ids.
+        if refresh == nil { refresh = Task { await Self.fetchFeed() } }
+        if let fetched = await refresh?.value {
+            for (name, id) in fetched { ids[name] = id }
+        }
         return ids[operation]
     }
 
-    /// Drop the in-memory override so the next call fetches the feed again.
-    func invalidate() { refreshed = false }
+    /// Fetch the feed again on the next call (after Riot rejected an id).
+    func invalidate() { refresh = nil }
 
     private struct Feed: Decodable {
         struct Entry: Decodable { let id: String }
         let operations: [String: Entry]
     }
 
-    private func refreshOnce() async {
-        guard !refreshed else { return }
-        refreshed = true
-        do {
-            let (data, response) = try await URLSession.shared.data(from: Self.feed)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else { return }
-            let feed = try JSONDecoder().decode(Feed.self, from: data)
-            for (name, entry) in feed.operations where entry.id.count == 64 {
-                ids[name] = entry.id
-            }
-        } catch {
-            // Built-in ids stay in force; the feed is an accelerator, not a dependency.
-        }
+    /// Built-in ids stay in force when this fails; the feed is an accelerator, not a dependency.
+    private static func fetchFeed() async -> [String: String] {
+        var request = URLRequest(url: feed, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let decoded = try? JSONDecoder().decode(Feed.self, from: data) else { return [:] }
+        return decoded.operations.compactMapValues { $0.id.count == 64 ? $0.id : nil }
     }
 }
 
@@ -110,7 +110,9 @@ nonisolated final class PlayRiftboundAPI: Sendable {
         config.httpShouldSetCookies = false
         config.httpCookieAcceptPolicy = .never
         config.timeoutIntervalForRequest = 20
-        session = URLSession(configuration: config)
+        // The player's cookies are set by hand on each request; a redirect must never carry
+        // them anywhere else (or re-POST a result), so redirects are refused outright.
+        session = URLSession(configuration: config, delegate: RefuseRedirects(), delegateQueue: nil)
         self.ids = ids
     }
 
@@ -288,4 +290,12 @@ nonisolated final class PlayRiftboundAPI: Sendable {
         }
         return decoder
     }()
+}
+
+/// The GraphQL endpoint never redirects; anything that does is answered as the 3xx itself.
+private nonisolated final class RefuseRedirects: NSObject, URLSessionTaskDelegate, Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest) async -> URLRequest? {
+        nil
+    }
 }

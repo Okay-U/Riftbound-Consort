@@ -199,11 +199,13 @@ struct PlayRiftboundStoresView: View {
                                                    types: nil, formats: nil, playerFormats: nil, favoritedOrganizersOnly: nil)
         do {
             var nodes: [CompeteSearchResult] = []
+            var seen: Set<String> = []
             var after: String? = nil
-            for _ in 0..<3 {
+            // Nearest first, up to 500 events: enough to reach the edge of the radius in a city.
+            for _ in 0..<10 {
                 let page = try await api.searchTournaments(filter: filter, sort: .distance, after: after, first: 50,
                                                            credentials: await PlayRiftboundSession.publicCredentials())
-                nodes += page.competeTournamentSearch.nodes
+                nodes += page.competeTournamentSearch.nodes.filter { seen.insert($0.tournament.id).inserted }
                 guard page.competeTournamentSearch.pageInfo?.hasNextPage == true,
                       let cursor = page.competeTournamentSearch.pageInfo?.endCursor else { break }
                 after = cursor
