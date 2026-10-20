@@ -3,8 +3,7 @@
 //  Riftbound Companiokay
 //
 //  One store: contact card from OrganizerSummary, favourite toggle, and its
-//  upcoming events (the search centred on the store). Outside Riot's
-//  approval, see PlayRiftboundFeatures.
+//  upcoming events (the search centred on the store).
 //
 
 import SwiftUI

@@ -142,13 +142,12 @@ struct PlayRiftboundEventView: View {
                 NavigationLink(value: organizer) {
                     HStack(spacing: 4) {
                         Text(organizer.name.uppercased())
-                        if PlayRiftboundFeatures.unapproved { Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)) }
+                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold))
                     }
                     .font(.system(size: 11, weight: .bold)).tracking(0.5)
                     .foregroundStyle(EventsTheme.green)
                 }
                 .buttonStyle(.plain)
-                .disabled(!PlayRiftboundFeatures.unapproved)
             }
             Text(summary.name)
                 .font(.system(size: 22, weight: .bold)).foregroundStyle(.white)
@@ -169,7 +168,7 @@ struct PlayRiftboundEventView: View {
 
     private var actions: some View {
         VStack(spacing: 8) {
-            if PlayRiftboundFeatures.unapproved, let action = availableAction {
+            if let action = availableAction {
                 Button { pendingAction = action } label: {
                     Group {
                         if busy { ProgressView().tint(action == .register ? EventsTheme.matchFillBottom : .white) }

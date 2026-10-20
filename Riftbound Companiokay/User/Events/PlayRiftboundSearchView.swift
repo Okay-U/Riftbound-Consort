@@ -2,8 +2,7 @@
 //  PlayRiftboundSearchView.swift
 //  Riftbound Companiokay
 //
-//  Native event finder on PlayRiftbound's search (not in Riot's approval yet,
-//  see PlayRiftboundFeatures): a place, a radius, the site's type / format /
+//  Native event finder on PlayRiftbound's search: a place, a radius, the site's type / format /
 //  player-count filters, favourites only, sorted by date or distance.
 //
 

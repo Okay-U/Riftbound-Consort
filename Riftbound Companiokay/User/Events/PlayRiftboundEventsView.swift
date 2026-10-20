@@ -39,14 +39,14 @@ struct PlayRiftboundEventsView: View {
         case .loaded:
             if store.hasEvents {
                 VStack(alignment: .leading, spacing: 22) {
-                    if PlayRiftboundFeatures.unapproved { findButton }
+                    findButton
                     if let live = liveEntry { liveHero(live) }
                     if !store.upcoming.isEmpty { section("calendar", "Upcoming", store.upcoming) }
                     if !store.past.isEmpty { section("clock.arrow.circlepath", "Past", store.past) }
                 }
             } else {
                 VStack(spacing: 16) {
-                    if PlayRiftboundFeatures.unapproved { findButton }
+                    findButton
                     notice("trophy", "No events yet", "Events you register for on PlayRiftbound show up here.",
                            button: "Find an event") { openSite(PlayRiftboundPolicy.home) }
                 }

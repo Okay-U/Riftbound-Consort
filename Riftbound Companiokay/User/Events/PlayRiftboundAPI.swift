@@ -50,7 +50,7 @@ actor PlayRiftboundOperationIDs {
         "GetCompeteTournamentForRiftboundPlayer": "e56d6d93e4f8fa287557521535544350e5cc9baafd78ba69f9f592873b090e57",   // adds roundDuration, tableNumber (2026-10-20)
         "GetCompeteRbRefreshPoller": "459dbd58b231ad1767b999a1bf987836123ac86a0b5110e166de15b69723ba0d",
         "SubmitGameResults": "4f304b3a523f27d1abde2291d1b9e836e7b524f9e455d70b548680170e91c430",
-        // Outside the written approval (PlayRiftboundFeatures.unapproved):
+        // Beyond the three operations in Riot's written approval (see docs/PLAYRIFTBOUND.md §4):
         "CompeteTournamentSearch": "acbcbba681a9c9a8063f792f7d665ba1eda81b19528b6af19e523f0c2061bec2",
         "RegisterCompetePlayer": "7372d50ddebea493bd6aefdfce20666c7030d272252c0714fdcb2f63a92f9089",
         "DeregisterCompetePlayer": "c2c3984c2c050f1f9ab54e5fb373e99e645e91cf010ee4a681b80089826b63d2",

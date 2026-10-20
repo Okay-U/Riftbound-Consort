@@ -2,8 +2,7 @@
 //  PlayRiftboundStoresView.swift
 //  Riftbound Companiokay
 //
-//  Stores on PlayRiftbound data (outside Riot's approval, see
-//  PlayRiftboundFeatures): the player's favourite stores and a finder that
+//  Stores on PlayRiftbound data: the player's favourite stores and a finder that
 //  groups nearby events by store. Each store opens PlayRiftboundStoreView.
 //
 

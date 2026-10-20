@@ -5,8 +5,7 @@
 //  Month calendar of upcoming events at the player's favourite stores plus
 //  everything they are registered for. Registered = solid green dot, not
 //  registered = outline. Tap a day to list its events, tap an event to open
-//  it. Store events come from the search centred on each store (see
-//  PlayRiftboundFeatures for the approval status).
+//  it. Store events come from the search centred on each store.
 //
 
 import SwiftUI
