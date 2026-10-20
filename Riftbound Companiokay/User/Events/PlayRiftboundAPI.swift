@@ -98,11 +98,12 @@ actor PlayRiftboundOperationIDs {
 nonisolated final class PlayRiftboundAPI: Sendable {
     static let endpoint = URL(string: "https://playriftbound.com/api/gql")!
 
-    private let session: URLSession
     private let ids: PlayRiftboundOperationIDs
     private let log = Logger(subsystem: "pitopia.Riftcount", category: "PlayRiftboundAPI")
 
-    init(ids: PlayRiftboundOperationIDs = .shared) {
+    /// One session for every instance: a session keeps its delegate until it is invalidated,
+    /// and views create a new API on every update, so a session each would never be freed.
+    private static let session: URLSession = {
         // No cookie jar of our own: the player's cookies are passed per request and
         // never stored outside the web view's data store.
         let config = URLSessionConfiguration.ephemeral
@@ -112,7 +113,10 @@ nonisolated final class PlayRiftboundAPI: Sendable {
         config.timeoutIntervalForRequest = 20
         // The player's cookies are set by hand on each request; a redirect must never carry
         // them anywhere else (or re-POST a result), so redirects are refused outright.
-        session = URLSession(configuration: config, delegate: RefuseRedirects(), delegateQueue: nil)
+        return URLSession(configuration: config, delegate: RefuseRedirects(), delegateQueue: nil)
+    }()
+
+    init(ids: PlayRiftboundOperationIDs = .shared) {
         self.ids = ids
     }
 
@@ -239,7 +243,7 @@ nonisolated final class PlayRiftboundAPI: Sendable {
             request.setValue("Cookie \(PlayRiftboundSession.accessCookie)", forHTTPHeaderField: "Authorization")
         }
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await Self.session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw PlayRiftboundError.badResponse }
         if http.statusCode == 401 || http.statusCode == 403 {
             // Without a session a 401/403 is the gateway or CDN, not an expired sign-in.

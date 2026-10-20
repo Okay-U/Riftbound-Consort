@@ -48,6 +48,15 @@ final class DecklistStore: ObservableObject {
         save()
     }
 
+    /// Writes an edited deck back with a single save, so an interrupted edit never leaves
+    /// half a deck on disk.
+    func replace(_ list: Decklist) {
+        guard let i = index(of: list) else { return }
+        lists[i] = list
+        lists[i].updatedAt = Date()
+        save()
+    }
+
     /// Creates a new deck from a parsed text decklist. Auto-fills runes from
     /// the parsed counts using rune cards looked up from `runePool`.
     @discardableResult
@@ -151,29 +160,39 @@ final class DecklistStore: ObservableObject {
 
     // MARK: - Legacy ids
 
-    /// Set when the saved decks could not be read; nothing may overwrite the file then.
+    /// Set when the saved decks could not be read (the file was copied aside first); the
+    /// migration stays off then.
     private var loadFailed = false
-    private var migrating = false
+    /// The running migration; callers that arrive meanwhile wait for it.
+    private var migration: Task<Void, Never>?
 
     /// Decks saved before 3.5 hold riftcodex database ids. Remaps only entries whose id
     /// is not in the hosted feed: through the shared `riftbound_id`, else by exact name
     /// when that name is unique in the feed (or unique within the old card's set). Entries
     /// that cannot be resolved are left as they are. The riftcodex snapshot is deleted only
     /// once every entry resolves, so a later feed can still fix the rest.
+    /// Waits for a run already in progress: the deck editor must not load old ids.
     func migrateLegacyIDs(to cards: [Card]) async {
-        let legacyURL = CardStore.legacyCacheURL
-        guard !cards.isEmpty, !loadFailed, !migrating,
-              FileManager.default.fileExists(atPath: legacyURL.path) else { return }
-        migrating = true
-        defer { migrating = false }
-        let legacy: [Card]? = await Task.detached(priority: .utility) {
-            guard let data = try? Data(contentsOf: legacyURL) else { return nil }
-            return try? JSONDecoder().decode([Card].self, from: data)
-        }.value
-        guard let legacy else {
-            try? FileManager.default.removeItem(at: legacyURL)
+        if let migration {
+            await migration.value
             return
         }
+        let run = Task { await remapLegacyIDs(to: cards) }
+        migration = run
+        await run.value
+        migration = nil
+    }
+
+    private func remapLegacyIDs(to cards: [Card]) async {
+        let legacyURL = CardStore.legacyCacheURL
+        guard !cards.isEmpty, !loadFailed,
+              FileManager.default.fileExists(atPath: legacyURL.path) else { return }
+        // An unreadable snapshot only loses the id route; names still resolve, and the file
+        // stays for the next launch.
+        let legacy: [Card] = await Task.detached(priority: .utility) {
+            guard let data = try? Data(contentsOf: legacyURL) else { return [] }
+            return (try? JSONDecoder().decode([Card].self, from: data)) ?? []
+        }.value
 
         let known = Set(cards.map(\.id))
         let byRiftboundID = Dictionary(cards.compactMap { c in c.riftboundId.map { ($0, c.id) } },
@@ -254,6 +273,12 @@ final class DecklistStore: ObservableObject {
         } catch {
             loadFailed = true
             logger.error("DecklistStore load failed: \(error.localizedDescription)")
+            // The next save would replace the file with what is in memory (nothing, or one new
+            // deck), so the unreadable original is kept next to it for recovery.
+            let copy = fileURL.deletingLastPathComponent()
+                .appendingPathComponent("decklists_v2.unreadable-\(Int(Date().timeIntervalSince1970)).json")
+            do { try FileManager.default.copyItem(at: fileURL, to: copy) }
+            catch { logger.error("DecklistStore could not keep the unreadable file: \(error.localizedDescription)") }
         }
     }
 }

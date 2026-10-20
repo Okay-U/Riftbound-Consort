@@ -431,7 +431,7 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
     private var allMatches: [Match] { stages.flatMap(\.sections).flatMap(\.rounds).flatMap(\.matches) }
 
     /// Where a team finished: its bracket result once it played in a top cut (`.top(8)` for a
-    /// quarterfinal loss), else its last official Swiss rank, like the site's own position.
+    /// quarterfinal loss), else its rank in the final Swiss table.
     enum Placement: Equatable { case rank(Int), top(Int) }
 
     func placement(teamID: String) -> Placement? {
@@ -443,12 +443,13 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
             // A won match with no later one means the team is still playing.
             return match.isComplete && !won ? .top(size) : nil
         }
-        return lastStanding(teamID: teamID)?.rank.map(Placement.rank)
+        return finalSwissStanding(teamID: teamID)?.rank.map(Placement.rank)
     }
 
-    /// The team's row in the latest official table that has it.
-    func lastStanding(teamID: String) -> Standing? {
-        rounds.reversed().lazy.compactMap { $0.endOfRoundStandings?.first { $0.esportsTeamId == teamID } }.first
+    /// The team's row in the last Swiss round's official table. Nil until Riot finalises that
+    /// round: an earlier table would show a place the last round may already have changed.
+    func finalSwissStanding(teamID: String) -> Standing? {
+        swissRounds.last?.endOfRoundStandings?.first { $0.esportsTeamId == teamID }
     }
 
     var hasRounds: Bool { !rounds.isEmpty }
@@ -456,14 +457,15 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
     /// Riot's own test (`getTournamentStatus`): participants exist once the event runs.
     var hasStarted: Bool { !(tournamentParticipants ?? []).isEmpty && !stages.isEmpty }
 
-    /// Over once the last round is fully reported and nothing is left to play: the final of a
-    /// bracket, or the last planned round of a Swiss-only event. (Not `endsAt`: that is the
-    /// scheduled end and events run late.)
+    /// Over once nothing is left to play: the final of a bracket is reported, or the last
+    /// planned round of a Swiss-only event has its official table (Riot publishes it when the
+    /// round is finalised). (Not `endsAt`: that is the scheduled end and events run late.)
     var isFinished: Bool {
         guard let last = rounds.last, !last.matches.isEmpty, last.matches.allSatisfy(\.isComplete) else { return false }
-        if isElimination(last) { return last.matches.count == 1 }
+        if isElimination(last) { return bracketSize(last) <= 2 }
         if config?.structure?.uppercased() == "SWISS_PLUS_SINGLE_ELIM" { return false }
         return plannedSwissRounds > 0 && swissRounds.count >= plannedSwissRounds
+            && !(last.endOfRoundStandings ?? []).isEmpty
     }
 
     // MARK: Swiss and top cut
@@ -595,6 +597,9 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     let teammateName: String?
     let isBye: Bool
     let isComplete: Bool
+    /// Riot takes results only while the round runs: not before the organiser starts it
+    /// (READY), not once it is finalised.
+    let isRoundOpen: Bool
     /// What a result report needs: game ids in play order, both participant ids, series length.
     let gameIDs: [String]
     let myParticipantID: String?
@@ -616,7 +621,7 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     var mySide: String { "You" + (teammateName.map { " & \($0)" } ?? "") }
 
     var isReportable: Bool {
-        !isBye && !isComplete && matchID != nil && !gameIDs.isEmpty
+        !isBye && !isComplete && isRoundOpen && matchID != nil && !gameIDs.isEmpty
             && myParticipantID != nil && opponentParticipantID != nil
     }
 
@@ -628,8 +633,9 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     static func resolve(in tournament: CompeteTournament, playerID: String, round: CompeteTournament.Round) -> CompetePairing? {
         let myTeamID = tournament.teamID(playerID: playerID)
         let ordered = CompeteTournament.tableOrder(round.matches)
+        let open = round.status.map { $0.uppercased() == "IN_PROGRESS" } ?? true
         let bye = CompetePairing(roundID: round.id, roundTitle: tournament.title(of: round), tableNumber: nil, matchID: nil,
-                                 opponentName: nil, teammateName: nil, isBye: true, isComplete: true,
+                                 opponentName: nil, teammateName: nil, isBye: true, isComplete: true, isRoundOpen: open,
                                  gameIDs: [], myParticipantID: nil, opponentParticipantID: nil, bestOf: 1,
                                  myTeamID: myTeamID, opponentTeamID: nil, myGameWins: 0, opponentGameWins: 0, result: .win)
         if let slot = ordered.first(where: { $0.match.teams.contains { $0.players.contains { $0.id == playerID } } }) {
@@ -658,7 +664,7 @@ nonisolated struct CompetePairing: Sendable, Equatable {
                                   matchID: match.esportsMatchId,
                                   opponentName: tournament.teamName(theirs),
                                   teammateName: teammates.isEmpty ? nil : teammates.joined(separator: " & "),
-                                  isBye: false, isComplete: match.isComplete,
+                                  isBye: false, isComplete: match.isComplete, isRoundOpen: open,
                                   gameIDs: sortedGames.map(\.esportsGameId),
                                   myParticipantID: (tournament.participant(playerID: playerID)
                                                     ?? mine.flatMap { tournament.participant(teamID: $0) })?.id,

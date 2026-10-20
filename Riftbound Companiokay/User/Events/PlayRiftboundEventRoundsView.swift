@@ -62,7 +62,7 @@ struct PlayRiftboundMatchesTab: View {
     }
 
     private func finalCard(_ placement: CompeteTournament.Placement, teamID: String) -> some View {
-        let standing = tournament.lastStanding(teamID: teamID)
+        let standing = tournament.finalSwissStanding(teamID: teamID)
         let hasTopCut = tournament.rounds.contains(where: tournament.isElimination)
         let (title, medal): (String, String?) = switch placement {
         case .rank(1):          (Self.ordinal(1), "crown.fill")
@@ -107,6 +107,9 @@ struct PlayRiftboundMatchesTab: View {
                             .background(EventsTheme.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                } else if !pairing.isComplete && !pairing.isRoundOpen {
+                    Text("Results can be reported while the round is running.")
+                        .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
                 }
             }
         }

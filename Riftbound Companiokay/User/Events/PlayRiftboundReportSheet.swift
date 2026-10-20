@@ -4,7 +4,8 @@
 //
 //  Report the player's own match result to PlayRiftbound. Same interaction as the
 //  Locator sheet: best-of-1 = one row (You / Draw / Opponent), best-of-3 = one row
-//  per game, locked once a side has two wins. Only games the player marks are sent.
+//  per game, entered in order and locked once a side has two wins, as on the site.
+//  Only the games the player marks are sent, never one after the deciding game.
 //
 
 import SwiftUI
@@ -38,11 +39,40 @@ struct PlayRiftboundReportSheet: View {
     private var oppWins: Int { games.filter { $0 == .opponent }.count }
     private var draws: Int { games.filter { $0 == .draw }.count }
     private var winsNeeded: Int { games.count / 2 + 1 }
-    private var matchDecided: Bool { isSeries && (myWins >= winsNeeded || oppWins >= winsNeeded) }
-    private var canSubmit: Bool { (myWins + oppWins + draws) > 0 && !submitting && !refreshing && !pairing.isComplete }
+    /// The game that decided the series, nil while it is open.
+    private var decidingGame: Int? {
+        guard isSeries else { return nil }
+        var mine = 0, theirs = 0
+        for (index, game) in games.enumerated() {
+            switch game {
+            case .me: mine += 1
+            case .opponent: theirs += 1
+            case .draw: break
+            case .undecided: return nil
+            }
+            if mine >= winsNeeded || theirs >= winsNeeded { return index }
+        }
+        return nil
+    }
+    private var matchDecided: Bool { decidingGame != nil }
+    private var canSubmit: Bool {
+        (myWins + oppWins + draws) > 0 && !submitting && !refreshing && !pairing.isComplete && pairing.isRoundOpen
+    }
     private var opponentName: String { pairing.opponentName ?? "Opponent" }
 
-    private func isRowLocked(_ index: Int) -> Bool { matchDecided && games[index] == .undecided }
+    /// Like the site: games are entered in order, and none after the one that decided the series.
+    private func isRowLocked(_ index: Int) -> Bool {
+        if index > 0, games[index - 1] == .undecided { return true }
+        if let deciding = decidingGame, index > deciding { return true }
+        return false
+    }
+
+    /// Changing a game clears the ones after it, as on the site: they belonged to another course
+    /// of the series.
+    private func set(_ index: Int, _ outcome: GameOutcome) {
+        games[index] = outcome
+        for later in games.indices where later > index { games[later] = .undecided }
+    }
 
     var body: some View {
         NavigationStack {
@@ -55,7 +85,7 @@ struct PlayRiftboundReportSheet: View {
                     if isSeries {
                         Text(matchDecided
                              ? "Match is decided at \(winsNeeded) game wins. The remaining game is disabled."
-                             : "Set each game you played. Only the games you mark are sent.")
+                             : "Enter the games in the order you played them. Only the games you mark are sent.")
                     }
                 }
                 Section {
@@ -65,8 +95,12 @@ struct PlayRiftboundReportSheet: View {
                         if refreshing { ProgressView() } else { Text(summary).font(.body.weight(.semibold)) }
                     }
                     if pairing.isComplete {
-                        Label("This match already has a result on PlayRiftbound.", systemImage: "checkmark.seal.fill")
+                        Label("Already reported on PlayRiftbound" + (pairing.scoreText.map { ": You \($0) \(opponentName)" } ?? "."),
+                              systemImage: "checkmark.seal.fill")
                             .foregroundStyle(.green).font(.footnote)
+                    } else if !pairing.isRoundOpen {
+                        Text("PlayRiftbound takes results only while the round is running.")
+                            .foregroundStyle(.secondary).font(.footnote)
                     }
                     if let errorMessage {
                         Text(errorMessage).foregroundStyle(.red).font(.footnote)
@@ -76,7 +110,8 @@ struct PlayRiftboundReportSheet: View {
             .navigationTitle("Report result")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                // A result already on its way is sent either way; closing would only hide the outcome.
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(submitting) }
                 ToolbarItem(placement: .confirmationAction) {
                     if submitting { ProgressView() } else { Button("Submit") { confirming = true }.disabled(!canSubmit) }
                 }
@@ -89,6 +124,7 @@ struct PlayRiftboundReportSheet: View {
                 Text("This reports your \(pairing.roundTitle) result to PlayRiftbound. The organizer can still adjust it.")
             }
         }
+        .interactiveDismissDisabled(submitting)
     }
 
     private var summary: String {
@@ -116,7 +152,7 @@ struct PlayRiftboundReportSheet: View {
     private func choice(_ title: String, _ value: GameOutcome, _ index: Int, tint: Color, locked: Bool) -> some View {
         let selected = games[index] == value
         Button {
-            games[index] = selected ? .undecided : value
+            set(index, selected ? .undecided : value)
         } label: {
             Text(title)
                 .font(.subheadline.weight(selected ? .semibold : .regular))
@@ -165,9 +201,9 @@ struct PlayRiftboundReportSheet: View {
             return
         }
         if pairing.isComplete {
-            // Already reported (by us on a lost response, by the opponent or the organizer).
+            // Already reported (by us on a lost response, by the opponent or the organizer):
+            // the sheet stays open and shows what is on file, which may differ from these marks.
             onReported()
-            dismiss()
             return
         }
         guard let me = pairing.myParticipantID, let opp = pairing.opponentParticipantID else {
@@ -175,7 +211,8 @@ struct PlayRiftboundReportSheet: View {
             return
         }
 
-        let results: [PlayRiftboundAPI.GameResult] = zip(pairing.gameIDs, games).compactMap { gameID, outcome in
+        let played = decidingGame.map { games.prefix($0 + 1) } ?? games[...]
+        let results: [PlayRiftboundAPI.GameResult] = zip(pairing.gameIDs, played).compactMap { gameID, outcome in
             switch outcome {
             case .undecided: return nil
             case .me: return .init(gameId: gameID, draw: false, winnerParticipantId: me)

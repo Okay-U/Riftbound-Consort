@@ -123,6 +123,13 @@ final class CardStore: ObservableObject {
                     isLoading = false
                     return
                 }
+                // A feed that lost most of the catalogue is a broken build, not a new card list:
+                // keep the cards on screen and their offline copy.
+                guard Self.isPlausible(fetched.page.items, replacing: allCards) else {
+                    if allCards.isEmpty { loadError = "The card list looks incomplete. Please try again later." }
+                    isLoading = false
+                    return
+                }
                 publish(fetched.page.items)
                 let snapshot = fetched.page.items, tag = fetched.etag
                 Task.detached(priority: .utility) {
@@ -139,6 +146,14 @@ final class CardStore: ObservableObject {
             }
             isLoading = false
         }
+    }
+
+    /// The feed's own build refuses fewer than 1000 cards or a 3% drop; the app only refuses
+    /// the obviously broken: fewer than this, or under half of the cards shown now.
+    private static let minimumFeedCards = 500
+
+    private static func isPlausible(_ new: [Card], replacing old: [Card]) -> Bool {
+        new.count >= max(minimumFeedCards, old.count / 2)
     }
 
     private nonisolated static func readCache() -> [Card]? {

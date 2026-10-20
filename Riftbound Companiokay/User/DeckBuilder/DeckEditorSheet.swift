@@ -36,7 +36,11 @@ struct DeckEditorSheet: View {
                 .padding(.top, 8)
                 .padding(.bottom, 4)
 
-                pageForSection
+                if didLoad {
+                    pageForSection
+                } else {
+                    loadingCards
+                }
             }
             .navigationTitle("Edit Deck")
             .navigationBarTitleDisplayMode(.inline)
@@ -51,19 +55,39 @@ struct DeckEditorSheet: View {
                                           runePool: cardStore.allCards)
                         dismiss()
                     }
+                    // Saving before the deck was read against the card list would drop its
+                    // battlefields and runes.
+                    .disabled(!didLoad)
                 }
             }
-            .onAppear {
-                cardStore.loadIfNeeded()
-                if !didLoad {
-                    if let deck = decklistStore.lists.first(where: { $0.id == deckId }) {
-                        state.loadFromExisting(deck, cardPool: cardStore.allCards)
-                    }
-                    didLoad = true
+            .onAppear { cardStore.loadIfNeeded() }
+            // The deck is read once the card list is there, and after old card ids were
+            // remapped (first start of 3.5): editing old ids would write them back.
+            .task(id: cardStore.allCards.isEmpty) {
+                guard !didLoad, !cardStore.allCards.isEmpty else { return }
+                await decklistStore.migrateLegacyIDs(to: cardStore.allCards)
+                if let deck = decklistStore.lists.first(where: { $0.id == deckId }) {
+                    state.loadFromExisting(deck, cardPool: cardStore.allCards)
                 }
+                didLoad = true
             }
         }
         .interactiveDismissDisabled(true)
+    }
+
+    private var loadingCards: some View {
+        VStack(spacing: 10) {
+            if let error = cardStore.loadError {
+                Text("The card list couldn't be loaded, so the deck can't be edited yet.")
+                    .font(.subheadline.weight(.semibold))
+                Text(error).font(.footnote).foregroundStyle(.secondary)
+            } else {
+                ProgressView("Loading cards…")
+            }
+        }
+        .multilineTextAlignment(.center)
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder

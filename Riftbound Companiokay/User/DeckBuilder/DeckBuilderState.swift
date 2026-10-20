@@ -64,6 +64,10 @@ final class DeckBuilderState: ObservableObject {
     /// Rune counts per legend domain (lowercased). Seeded as even split
     /// when the legend is chosen; user adjusts on the rune pool step.
     @Published var runeCounts: [String: Int] = [:]
+    /// Battlefield and rune entries of an edited deck whose card is not in the card list
+    /// (a card the feed lacks today, an id no migration could map); written back unchanged.
+    private var keptBattlefields: [DecklistEntry] = []
+    private var keptRunes: [DecklistEntry] = []
 
     // MARK: - Derived
 
@@ -327,6 +331,8 @@ final class DeckBuilderState: ObservableObject {
         sideDeck = []
         signatureIds = []
         idToIdentity = [:]
+        keptBattlefields = []
+        keptRunes = []
 
         let lookup: (String) -> Card? = { id in
             cardPool.first(where: { $0.id == id })
@@ -341,6 +347,8 @@ final class DeckBuilderState: ObservableObject {
         for entry in deck.battlefields {
             if let card = lookup(entry.cardId) {
                 battlefields.append(card)
+            } else {
+                keptBattlefields.append(entry)
             }
         }
         for entry in deck.mainDeck {
@@ -363,7 +371,7 @@ final class DeckBuilderState: ObservableObject {
         for entry in deck.runes {
             guard let card = lookup(entry.cardId),
                   let domain = card.classification?.domain?.first?.lowercased()
-            else { continue }
+            else { keptRunes.append(entry); continue }
             counts[domain, default: 0] += entry.count
         }
         // Ensure every legend domain has an entry.
@@ -374,45 +382,33 @@ final class DeckBuilderState: ObservableObject {
         runeCounts = counts
     }
 
-    /// Replaces the slots of an existing deck with this state's current
-    /// picks. Used by the edit-deck sheet.
+    /// Replaces the slots of an existing deck with this state's current picks, in one save.
+    /// Entries the card list could not resolve when the editor opened stay as they were.
+    /// Used by the edit-deck sheet.
     func commitEdits(toDeckId deckId: UUID,
                      in store: DecklistStore,
                      runePool: [Card]) {
-        guard let deck = store.lists.first(where: { $0.id == deckId }) else { return }
+        guard var deck = store.lists.first(where: { $0.id == deckId }) else { return }
+        let runes = legendDomains.compactMap { domain -> (Card, Int)? in
+            let count = runeCounts[domain.lowercased()] ?? 0
+            guard count > 0, let rune = Card.runeCard(forDomain: domain, in: runePool) else { return nil }
+            return (rune, count)
+        }
+        deck.battlefields = Self.entries(battlefields.map { ($0, 1) }) + keptBattlefields
+        deck.mainDeck = mainDeck
+        deck.sideDeck = sideDeck
+        deck.runes = Self.entries(runes) + keptRunes
+        store.replace(deck)
+    }
 
-        // Wipe and reapply all editable slots.
-        for entry in deck.battlefields {
-            store.remove(entry, from: deck, slot: .battlefield)
+    /// One entry per card id with the copies added up, as `DecklistStore.add` stores them.
+    private static func entries(_ cards: [(Card, Int)]) -> [DecklistEntry] {
+        var out: [DecklistEntry] = []
+        for (card, count) in cards {
+            if let i = out.firstIndex(where: { $0.cardId == card.id }) { out[i].count += count }
+            else { out.append(DecklistEntry(cardId: card.id, cardName: card.name, count: count)) }
         }
-        for entry in deck.mainDeck {
-            store.remove(entry, from: deck, slot: .mainDeck)
-        }
-        for entry in deck.sideDeck {
-            store.remove(entry, from: deck, slot: .sideDeck)
-        }
-        for entry in deck.runes {
-            store.remove(entry, from: deck, slot: .rune)
-        }
-
-        guard let refreshed = store.lists.first(where: { $0.id == deckId }) else { return }
-
-        for bf in battlefields {
-            store.add(bf, to: refreshed, slot: .battlefield)
-        }
-        applyEntries(mainDeck, to: refreshed, slot: .mainDeck, via: store)
-        applyEntries(sideDeck, to: refreshed, slot: .sideDeck, via: store)
-
-        for domain in legendDomains {
-            let key = domain.lowercased()
-            let count = runeCounts[key] ?? 0
-            guard count > 0,
-                  let rune = Card.runeCard(forDomain: domain, in: runePool)
-            else { continue }
-            for _ in 0..<count {
-                store.add(rune, to: refreshed, slot: .rune)
-            }
-        }
+        return out
     }
 
     // MARK: - Helpers

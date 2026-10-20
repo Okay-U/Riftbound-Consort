@@ -82,6 +82,12 @@ final class GameRecordStore: ObservableObject {
             sortRecords()
         } catch {
             logger.error("GameRecordStore load failed: \(error.localizedDescription)")
+            // The next save would replace the file with only the new game, so the unreadable
+            // original is kept next to it for recovery.
+            let copy = fileURL.deletingLastPathComponent()
+                .appendingPathComponent("games.unreadable-\(Int(Date().timeIntervalSince1970)).json")
+            do { try FileManager.default.copyItem(at: fileURL, to: copy) }
+            catch { logger.error("GameRecordStore could not keep the unreadable file: \(error.localizedDescription)") }
         }
     }
 }

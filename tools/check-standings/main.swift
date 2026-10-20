@@ -82,13 +82,13 @@ func cut(final status: String, from n: Int) -> [[String: Any]] {
     [round(n, "FINALIZED", [match("m5", teams[0], teams[3], winner: "T1"), match("m6", teams[1], teams[2], winner: "T3")]),
      round(n + 1, status, [match("m7", teams[0], teams[2], winner: "T3")])]
 }
-func bracket(_ sections: [[[String: Any]]]) throws -> CompeteTournament {
+func bracket(_ sections: [[[String: Any]]], structure: String = "SWISS_PLUS_SINGLE_ELIM") throws -> CompeteTournament {
     let participants = players.enumerated().map { i, p -> [String: Any] in
         ["id": "part-\(p.0)", "esportsTeamId": "T\(i / 2 + 1)", "status": i >= 8 ? "ELIMINATED" : "ACTIVE",
          "player": ["id": p.0, "displayName": p.1]]
     }
     let json: [String: Any] = ["id": "check", "name": "Bracket check",
-                               "config": ["structure": "SWISS_PLUS_SINGLE_ELIM", "roundCount": 2, "playerFormat": "TWO_V_TWO"],
+                               "config": ["structure": structure, "roundCount": 2, "playerFormat": "TWO_V_TWO"],
                                "stages": [["sections": sections.map { ["rounds": $0] }]],
                                "tournamentParticipants": participants]
     return try decoder.decode(CompeteTournament.self, from: JSONSerialization.data(withJSONObject: json))
@@ -116,4 +116,16 @@ for t in [try bracket([swiss, cut(final: "FINALIZED", from: 1)]), try bracket([s
 let pending = try bracket([swiss, cut(final: "PENDING", from: 1)])
 precondition(pending.rounds.count == 3 && !pending.isFinished && pending.placement(teamID: "T3") == nil, "pending round shown")
 precondition(CompetePairing.resolve(in: pending, playerID: "p1")?.opponentName == "Gus & Hal", "pending: latest pairing")
-print("bracket ok: section and continued numbering, 2v2 names, placements, pending round hidden")
+// Swiss only: the final standing waits for Riot's table of the last round, even when every
+// result is in; until the organiser starts a round, it takes no results.
+func lastRound(_ status: String) -> [String: Any] {
+    round(2, status, [match("m3", teams[0], teams[2], winner: "T1"), match("m4", teams[1], teams[4], winner: "T2")], byes: ["T4"])
+}
+let unpublished = try bracket([[swiss[0], lastRound("IN_PROGRESS")]], structure: "SWISS")
+precondition(!unpublished.isFinished && unpublished.placement(teamID: "T1") == nil, "final standing before the last table")
+let published = try bracket([swiss], structure: "SWISS")
+precondition(published.isFinished && published.placement(teamID: "T1") == .rank(1), "final standing after the last table")
+let ready = try bracket([[swiss[0], lastRound("READY")]], structure: "SWISS")
+precondition(CompetePairing.resolve(in: ready, playerID: "p1")?.isRoundOpen == false, "report before the round starts")
+precondition(CompetePairing.resolve(in: unpublished, playerID: "p1")?.isRoundOpen == true, "report while the round runs")
+print("bracket ok: section and continued numbering, 2v2 names, placements, pending round hidden, final waits for Riot")
