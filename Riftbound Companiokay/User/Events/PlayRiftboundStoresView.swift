@@ -175,7 +175,7 @@ struct PlayRiftboundStoresView: View {
     // MARK: - Loading
 
     private func loadFavourites() async {
-        guard let credentials = await PlayRiftboundSession.credentials(), !credentials.isExpired else { signedIn = false; return }
+        guard let credentials = try? await PlayRiftboundSession.validCredentials(refreshingVia: browser) else { signedIn = false; return }
         signedIn = true
         favourites = (try? await api.favoritedOrganizers(credentials: credentials)) ?? favourites
     }
@@ -202,7 +202,7 @@ struct PlayRiftboundStoresView: View {
             var after: String? = nil
             for _ in 0..<3 {
                 let page = try await api.searchTournaments(filter: filter, sort: .distance, after: after, first: 50,
-                                                           credentials: await PlayRiftboundSession.credentials())
+                                                           credentials: await PlayRiftboundSession.publicCredentials())
                 nodes += page.competeTournamentSearch.nodes
                 guard page.competeTournamentSearch.pageInfo?.hasNextPage == true,
                       let cursor = page.competeTournamentSearch.pageInfo?.endCursor else { break }

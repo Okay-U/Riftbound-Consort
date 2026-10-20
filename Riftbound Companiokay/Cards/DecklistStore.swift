@@ -151,47 +151,85 @@ final class DecklistStore: ObservableObject {
 
     // MARK: - Legacy ids
 
-    /// Decks saved before 3.5 hold riftcodex database ids. Maps them onto the
-    /// hosted feed through the shared `riftbound_id`, falling back to the card
-    /// name for printings the feed does not carry (promo reprints). Runs once:
-    /// the riftcodex snapshot is deleted afterwards.
-    func migrateLegacyIDs(to cards: [Card]) {
-        let legacyURL = CardStore.legacyCacheURL
-        guard !cards.isEmpty,
-              let data = try? Data(contentsOf: legacyURL),
-              let legacy = try? JSONDecoder().decode([Card].self, from: data) else { return }
+    /// Set when the saved decks could not be read; nothing may overwrite the file then.
+    private var loadFailed = false
+    private var migrating = false
 
+    /// Decks saved before 3.5 hold riftcodex database ids. Remaps only entries whose id
+    /// is not in the hosted feed: through the shared `riftbound_id`, else by exact name
+    /// when that name is unique in the feed (or unique within the old card's set). Entries
+    /// that cannot be resolved are left as they are. The riftcodex snapshot is deleted only
+    /// once every entry resolves, so a later feed can still fix the rest.
+    func migrateLegacyIDs(to cards: [Card]) async {
+        let legacyURL = CardStore.legacyCacheURL
+        guard !cards.isEmpty, !loadFailed, !migrating,
+              FileManager.default.fileExists(atPath: legacyURL.path) else { return }
+        migrating = true
+        defer { migrating = false }
+        let legacy: [Card]? = await Task.detached(priority: .utility) {
+            guard let data = try? Data(contentsOf: legacyURL) else { return nil }
+            return try? JSONDecoder().decode([Card].self, from: data)
+        }.value
+        guard let legacy else {
+            try? FileManager.default.removeItem(at: legacyURL)
+            return
+        }
+
+        let known = Set(cards.map(\.id))
         let byRiftboundID = Dictionary(cards.compactMap { c in c.riftboundId.map { ($0, c.id) } },
                                        uniquingKeysWith: { first, _ in first })
-        let byName = Dictionary(cards.map { ($0.name.lowercased(), $0.id) },
-                                uniquingKeysWith: { first, _ in first })
-        var map: [String: String] = [:]
-        for old in legacy {
-            let base = old.name.replacingOccurrences(of: #"\s*\([^)]*\)$"#, with: "", options: .regularExpression)
-            if let new = old.riftboundId.flatMap({ byRiftboundID[$0] })
-                ?? byName[old.name.lowercased()]
-                ?? byName[base.lowercased()] {
-                map[old.id] = new
+        let byName = Dictionary(grouping: cards, by: { $0.name.lowercased() })
+        let legacyByID = Dictionary(legacy.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
+        func unique(_ name: String, set: String?) -> String? {
+            let candidates = byName[name.lowercased()] ?? []
+            if candidates.count == 1 { return candidates[0].id }
+            let sameSet = candidates.filter { $0.set?.setId != nil && $0.set?.setId == set }
+            return sameSet.count == 1 ? sameSet[0].id : nil
+        }
+        func resolve(_ entry: DecklistEntry) -> String? {
+            if known.contains(entry.cardId) { return entry.cardId }
+            if let old = legacyByID[entry.cardId] {
+                if let id = old.riftboundId.flatMap({ byRiftboundID[$0] }) { return id }
+                let base = old.name.replacingOccurrences(of: #"\s*\([^)]*\)$"#, with: "", options: .regularExpression)
+                if let id = unique(old.name, set: old.set?.setId) ?? unique(base, set: old.set?.setId) { return id }
             }
+            return unique(entry.cardName, set: nil)
         }
 
+        var changed = false
+        var unresolved = 0
         func remap(_ entry: DecklistEntry) -> DecklistEntry {
-            guard let new = map[entry.cardId] else { return entry }
-            return DecklistEntry(cardId: new, cardName: entry.cardName, count: entry.count)
+            guard let id = resolve(entry) else { unresolved += 1; return entry }
+            guard id != entry.cardId else { return entry }
+            changed = true
+            return DecklistEntry(cardId: id, cardName: entry.cardName, count: entry.count)
         }
-        lists = lists.map { list in
+        /// Two old printings can land on one new id; one row per card keeps ForEach ids unique.
+        func merged(_ entries: [DecklistEntry]) -> [DecklistEntry] {
+            var out: [DecklistEntry] = []
+            for entry in entries.map(remap) {
+                if let i = out.firstIndex(where: { $0.cardId == entry.cardId }) { out[i].count += entry.count }
+                else { out.append(entry) }
+            }
+            return out
+        }
+        let migrated = lists.map { list in
             var l = list
             l.champion     = list.champion.map(remap)
             l.legend       = list.legend.map(remap)
-            l.battlefields = list.battlefields.map(remap)
-            l.mainDeck     = list.mainDeck.map(remap)
-            l.sideDeck     = list.sideDeck.map(remap)
-            l.runes        = list.runes.map(remap)
+            l.battlefields = merged(list.battlefields)
+            l.mainDeck     = merged(list.mainDeck)
+            l.sideDeck     = merged(list.sideDeck)
+            l.runes        = merged(list.runes)
             return l
         }
-        save()
-        try? FileManager.default.removeItem(at: legacyURL)
-        logger.info("Mapped \(map.count) of \(legacy.count) legacy card ids onto the hosted feed")
+        if changed {
+            lists = migrated
+            save()
+        }
+        if unresolved == 0 { try? FileManager.default.removeItem(at: legacyURL) }
+        logger.info("Legacy card ids: changed \(changed), unresolved entries \(unresolved)")
     }
 
     // MARK: - Persistence
@@ -214,6 +252,7 @@ final class DecklistStore: ObservableObject {
             let data = try Data(contentsOf: fileURL)
             lists = try JSONDecoder().decode([Decklist].self, from: data)
         } catch {
+            loadFailed = true
             logger.error("DecklistStore load failed: \(error.localizedDescription)")
         }
     }

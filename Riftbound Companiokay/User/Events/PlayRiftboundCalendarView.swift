@@ -211,7 +211,7 @@ struct PlayRiftboundCalendarView: View {
     private func load() async {
         loading = items.isEmpty
         loadError = nil
-        let credentials = await PlayRiftboundSession.credentials()
+        let credentials = try? await PlayRiftboundSession.validCredentials(refreshingVia: browser)
         await events.refresh(browser: browser)
         let registeredIDs = Set(events.upcoming.map(\.tournament.id))
         var collected: [String: CalEvent] = [:]

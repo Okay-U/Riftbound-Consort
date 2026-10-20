@@ -157,7 +157,12 @@ struct PlayRiftboundEventView: View {
             }
             HStack(spacing: 8) {
                 Label(playersText, systemImage: "person.2")
-                if isRegistered { pill("Registered", tint: EventsTheme.green) }
+                switch playerState {
+                case .registered, .active: pill("Registered", tint: EventsTheme.green)
+                case .waitlisted: pill("Waitlisted", tint: EventsTheme.gold)
+                case .dropped: pill("Dropped", tint: EventsTheme.textSecondary)
+                case .none: EmptyView()
+                }
             }
             .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
         }
@@ -195,19 +200,31 @@ struct PlayRiftboundEventView: View {
         }
     }
 
-    private var isRegistered: Bool {
-        if events.upcoming.contains(where: { $0.tournament.id == summary.id }) { return true }
-        guard let tournament, me != nil else { return false }
-        return (tournament.tournamentRegistrants ?? []).contains { ($0.status ?? "REGISTERED") == "REGISTERED" && isMe($0.player) }
+    /// Riot's own status once the tournament is loaded; the "my events" list only until then.
+    private var playerState: CompeteTournament.PlayerState {
+        if let tournament, let id = playerID(in: tournament) { return tournament.state(of: id) }
+        if tournament == nil, events.upcoming.contains(where: { $0.tournament.id == summary.id }) { return .registered }
+        return .none
     }
 
-    private var isOver: Bool { isPast || summary.startsAt.map { $0.addingTimeInterval(12 * 3600) < Date() } == true }
+    private var isOver: Bool {
+        isPast || tournament?.isFinished == true || summary.startsAt.map { $0.addingTimeInterval(12 * 3600) < Date() } == true
+    }
+
+    private var registrationClosed: Bool {
+        if let end = tournament?.registrationEndAt, end < Date() { return true }
+        if let cap = summary.config?.participantCapacity, cap > 0, summary.registeredCount >= cap { return true }
+        return false
+    }
 
     private var availableAction: RegistrationAction? {
-        guard me != nil, !isOver else { return nil }
+        guard me != nil, !isOver, tournament != nil else { return nil }
         let started = tournament?.hasRounds == true
-        if isRegistered { return started ? .drop : .deregister }
-        return started ? nil : .register
+        switch playerState {
+        case .registered, .active, .waitlisted: return started ? .drop : .deregister
+        case .dropped: return nil
+        case .none: return started || registrationClosed ? nil : .register
+        }
     }
 
     private func perform(_ action: RegistrationAction) async {

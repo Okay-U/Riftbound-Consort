@@ -127,8 +127,8 @@ struct PlayRiftboundStoreView: View {
     private func load() async {
         loading = upcoming.isEmpty
         error = nil
-        let credentials = await PlayRiftboundSession.credentials()
-        signedIn = credentials != nil && credentials?.isExpired == false
+        let credentials = try? await PlayRiftboundSession.validCredentials(refreshingVia: browser)
+        signedIn = credentials != nil
         do {
             if summary == nil { summary = try await api.organizerSummary(id: organizer.id, credentials: credentials) }
             let lat = summary?.physicalAddress?.latitude ?? organizer.physicalAddress?.latitude

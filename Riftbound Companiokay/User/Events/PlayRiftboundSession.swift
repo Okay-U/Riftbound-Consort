@@ -79,11 +79,38 @@ nonisolated enum PlayRiftboundSession {
         }
         guard let credentials = found else { return nil }
         guard credentials.isExpired else { return credentials }
-        await browser.refreshSession()
-        guard let renewed = await Self.credentials(), !renewed.isExpired else {
-            throw PlayRiftboundError.sessionExpired
+        return try await renewed(via: browser)
+    }
+
+    /// Reloads the site off-screen and waits for fresh cookies. Riot's silent sign-in
+    /// (xsso iframe → auth.riotgames.com, prompt=none) finishes after the page load, so a
+    /// single read right after the load can still see the old token. One renewal at a time.
+    @MainActor private static var renewal: Task<PlayRiftboundCredentials?, Never>?
+
+    @MainActor
+    static func renewed(via browser: PlayRiftboundBrowser) async throws -> PlayRiftboundCredentials {
+        if renewal == nil {
+            renewal = Task {
+                await browser.refreshSession()
+                for _ in 0..<16 {
+                    if let fresh = await credentials(), !fresh.isExpired { return fresh }
+                    try? await Task.sleep(for: .milliseconds(500))
+                }
+                return nil
+            }
         }
-        return renewed
+        let result = await renewal?.value
+        renewal = nil
+        guard let result else { throw PlayRiftboundError.sessionExpired }
+        return result
+    }
+
+    /// For public operations (search, store details): the session if it is still valid,
+    /// otherwise nothing. Never renews and never fails, so public data loads either way.
+    @MainActor
+    static func publicCredentials() async -> PlayRiftboundCredentials? {
+        guard let found = await credentials(), !found.isExpired else { return nil }
+        return found
     }
 
     /// `exp` claim of a JWT, without verifying it (we only need to know when to renew).

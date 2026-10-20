@@ -35,6 +35,16 @@ nonisolated struct CompeteConnection<Node: Decodable & Sendable>: Decodable, Sen
     nonisolated struct Edge: Decodable, Sendable {
         let cursor: String?
         let node: Node?
+
+        private enum Keys: String, CodingKey { case cursor, node }
+
+        // A node of an unexpected union member (or with a field we cannot read) drops out
+        // of the list instead of failing the whole page.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            cursor = try? c.decodeIfPresent(String.self, forKey: .cursor)
+            node = try? c.decodeIfPresent(Node.self, forKey: .node)
+        }
     }
 
     nonisolated struct PageInfo: Decodable, Sendable {
@@ -89,11 +99,25 @@ nonisolated struct CompeteTournamentSummary: Decodable, Sendable, Hashable, Iden
     nonisolated struct EntryFee: Decodable, Sendable, Hashable {
         let currency: String
         let minorUnits: Int
+
+        private enum Keys: String, CodingKey { case currency, minorUnits }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            currency = (try? c.decodeIfPresent(String.self, forKey: .currency)) ?? "EUR"
+            minorUnits = Lenient.int(c, .minorUnits) ?? 0
+        }
     }
 
     nonisolated struct RegistrantCount: Decodable, Sendable, Hashable {
         let status: String
         let count: Int
+
+        private enum Keys: String, CodingKey { case status, count }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            status = (try? c.decodeIfPresent(String.self, forKey: .status)) ?? ""
+            count = Lenient.int(c, .count) ?? 0
+        }
     }
 
     nonisolated struct Config: Decodable, Sendable, Hashable {
@@ -101,6 +125,15 @@ nonisolated struct CompeteTournamentSummary: Decodable, Sendable, Hashable, Iden
         let format: String?
         let playerFormat: String?
         let participantCapacity: Int?
+
+        private enum Keys: String, CodingKey { case tournamentType, format, playerFormat, participantCapacity }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            tournamentType = try? c.decodeIfPresent(String.self, forKey: .tournamentType)
+            format = try? c.decodeIfPresent(String.self, forKey: .format)
+            playerFormat = try? c.decodeIfPresent(String.self, forKey: .playerFormat)
+            participantCapacity = Lenient.int(c, .participantCapacity)
+        }
     }
 
     var registeredCount: Int {
@@ -149,6 +182,20 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
         let matchFormat: String?
         let participantCapacity: Int?
         let roundCount: Int?
+
+        private enum Keys: String, CodingKey {
+            case tournamentType, format, playerFormat, structure, matchFormat, participantCapacity, roundCount
+        }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            tournamentType = try? c.decodeIfPresent(String.self, forKey: .tournamentType)
+            format = try? c.decodeIfPresent(String.self, forKey: .format)
+            playerFormat = try? c.decodeIfPresent(String.self, forKey: .playerFormat)
+            structure = try? c.decodeIfPresent(String.self, forKey: .structure)
+            matchFormat = try? c.decodeIfPresent(String.self, forKey: .matchFormat)
+            participantCapacity = Lenient.int(c, .participantCapacity)
+            roundCount = Lenient.int(c, .roundCount)
+        }
     }
 
     nonisolated struct Stage: Decodable, Sendable {
@@ -167,6 +214,13 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
     nonisolated struct Rank: Decodable, Sendable {
         let position: Int?
         let esportsTeamId: String?
+
+        private enum Keys: String, CodingKey { case position, esportsTeamId }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            position = Lenient.int(c, .position)
+            esportsTeamId = try? c.decodeIfPresent(String.self, forKey: .esportsTeamId)
+        }
     }
 
     nonisolated struct Round: Decodable, Sendable {
@@ -236,6 +290,11 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
     /// `CompeteBestOfConfig` / `CompetePlayAllConfig`: both carry `count`.
     nonisolated struct MatchConfig: Decodable, Sendable {
         let count: Int?
+
+        private enum Keys: String, CodingKey { case count }
+        init(from decoder: Decoder) throws {
+            count = Lenient.int(try decoder.container(keyedBy: Keys.self), .count)
+        }
     }
 
     nonisolated struct Team: Decodable, Sendable {
@@ -252,6 +311,14 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
         let esportsGameId: String
         let number: Int?
         let teamOutcomes: [Outcome]?
+
+        private enum Keys: String, CodingKey { case esportsGameId, number, teamOutcomes }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            esportsGameId = try c.decode(String.self, forKey: .esportsGameId)
+            number = Lenient.int(c, .number)
+            teamOutcomes = try? c.decodeIfPresent([Outcome].self, forKey: .teamOutcomes)
+        }
     }
 
     nonisolated struct Outcome: Decodable, Sendable {
@@ -364,6 +431,34 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 
     var hasRounds: Bool { !rounds.isEmpty }
 
+    /// Over once Riot publishes final placements, or once every planned Swiss round is fully
+    /// reported. (Not `endsAt`: that is the scheduled end and events run late.)
+    var isFinished: Bool {
+        if stages.flatMap(\.sections).contains(where: { !($0.ranks ?? []).isEmpty }) { return true }
+        guard let planned = config?.roundCount, planned > 0, rounds.count >= planned,
+              let last = rounds.last, !last.matches.isEmpty else { return false }
+        return last.matches.allSatisfy(\.isComplete)
+    }
+
+    /// The player's registration as Riot reports it: participant status once the event runs
+    /// (ACTIVE / DROPPED), registrant status before that.
+    enum PlayerState: Equatable { case none, registered, waitlisted, active, dropped }
+
+    func state(of playerID: String) -> PlayerState {
+        if let participant = (tournamentParticipants ?? []).first(where: { $0.player?.id == playerID }) {
+            return participant.status?.uppercased().contains("DROP") == true ? .dropped : .active
+        }
+        if let registrant = (tournamentRegistrants ?? []).first(where: { $0.player?.id == playerID }) {
+            switch registrant.status?.uppercased() ?? "REGISTERED" {
+            case let s where s.contains("WAIT"): return .waitlisted
+            case let s where s.contains("REGISTER") && !s.contains("UNREGISTER") && !s.contains("DEREGISTER"): return .registered
+            case let s where s.contains("CHECK"): return .registered
+            default: return .none
+            }
+        }
+        return .none
+    }
+
     var webURL: URL? { URL(string: "https://playriftbound.com/en-US/events/\(id)") }
 
     /// All rounds in play order.
@@ -468,9 +563,18 @@ nonisolated struct CompetePairing: Sendable, Equatable {
 nonisolated enum Lenient {
     static func int<K: CodingKey>(_ c: KeyedDecodingContainer<K>, _ key: K) -> Int? {
         if let v = try? c.decodeIfPresent(Int.self, forKey: key) { return v }
-        if let v = try? c.decodeIfPresent(Double.self, forKey: key) { return Int(v) }
-        if let s = try? c.decodeIfPresent(String.self, forKey: key) { return Int(s) ?? Double(s).map { Int($0) } }
+        if let v = try? c.decodeIfPresent(Double.self, forKey: key) { return clamp(v) }
+        if let s = try? c.decodeIfPresent(String.self, forKey: key) {
+            let trimmed = s.trimmingCharacters(in: .whitespaces)
+            return Int(trimmed) ?? Double(trimmed).flatMap(clamp)
+        }
         return nil
+    }
+
+    /// `Int(_: Double)` traps on NaN, infinity and out-of-range values from the network.
+    private static func clamp(_ v: Double) -> Int? {
+        guard v.isFinite, abs(v) < 1e15 else { return nil }
+        return Int(v.rounded())
     }
 
     static func double<K: CodingKey>(_ c: KeyedDecodingContainer<K>, _ key: K) -> Double? {

@@ -239,7 +239,10 @@ nonisolated final class PlayRiftboundAPI: Sendable {
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw PlayRiftboundError.badResponse }
-        if http.statusCode == 401 || http.statusCode == 403 { throw PlayRiftboundError.sessionExpired }
+        if http.statusCode == 401 || http.statusCode == 403 {
+            // Without a session a 401/403 is the gateway or CDN, not an expired sign-in.
+            throw credentials == nil ? PlayRiftboundError.http(http.statusCode) : PlayRiftboundError.sessionExpired
+        }
 
         let envelope: GraphQLEnvelope<T>
         do {
@@ -286,34 +289,3 @@ nonisolated final class PlayRiftboundAPI: Sendable {
         return decoder
     }()
 }
-
-// MARK: - Debug probe (step 1 verification, removed once the UI exists)
-
-#if DEBUG
-extension PlayRiftboundAPI {
-    /// Logs the signed-in player's upcoming PlayRiftbound events. Run from Xcode and read the console.
-    @MainActor
-    static func debugProbe() async {
-        let log = Logger(subsystem: "pitopia.Riftcount", category: "PlayRiftboundAPI")
-        guard let credentials = await PlayRiftboundSession.credentials() else {
-            log.debug("probe: no PlayRiftbound session in the web view store")
-            return
-        }
-        if credentials.isExpired {
-            log.debug("probe: session expired at \(credentials.expiry?.description ?? "-")")
-            return
-        }
-        do {
-            let data = try await PlayRiftboundAPI().myTournaments(credentials: credentials)
-            let upcoming = data.playerTournaments.upcoming.nodes
-            log.debug("probe: \(upcoming.count) upcoming, \(data.playerTournaments.past.nodes.count) past")
-            for entry in upcoming {
-                let t = entry.tournament
-                log.debug("probe upcoming: \(t.name) · \(t.startsAt?.description ?? "-") · \(entry.organizer?.name ?? "-") · \(t.registeredCount)/\(t.config?.participantCapacity ?? 0)")
-            }
-        } catch {
-            log.error("probe failed: \(error.localizedDescription, privacy: .public)")
-        }
-    }
-}
-#endif

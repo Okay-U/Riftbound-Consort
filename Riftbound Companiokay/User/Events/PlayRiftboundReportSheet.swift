@@ -133,19 +133,25 @@ struct PlayRiftboundReportSheet: View {
 
     /// Pairings change (re-pairs, results entered on the site), so the sheet works from the
     /// latest round data: fetched when it opens and again right before sending.
+    /// Returns false when the player's match changed under the open sheet (re-pair, next
+    /// round): the marks are cleared so they never go to the wrong match. A failed fetch
+    /// keeps the pairing the sheet opened with, which came from a fetch moments earlier.
     @MainActor
-    private func refreshPairing() async {
+    @discardableResult
+    private func refreshPairing() async -> Bool {
         refreshing = true
         defer { refreshing = false }
         guard let credentials = try? await PlayRiftboundSession.validCredentials(refreshingVia: browser),
               let gameName = credentials.gameName,
               let tournament = try? await api.tournament(id: strip.tournamentID, credentials: credentials),
               let playerID = tournament.playerID(gameName: gameName, tagLine: credentials.tagLine),
-              let fresh = CompetePairing.resolve(in: tournament, playerID: playerID) else { return }
-        if fresh.gameIDs.count != pairing.gameIDs.count {
+              let fresh = CompetePairing.resolve(in: tournament, playerID: playerID) else { return true }
+        let sameMatch = fresh.matchID == pairing.matchID && fresh.gameIDs == pairing.gameIDs
+        if !sameMatch {
             games = Array(repeating: .undecided, count: max(1, min(fresh.bestOf, fresh.gameIDs.count)))
         }
         pairing = fresh
+        return sameMatch
     }
 
     @MainActor
@@ -154,8 +160,16 @@ struct PlayRiftboundReportSheet: View {
         submitting = true
         errorMessage = nil
         defer { submitting = false }
-        await refreshPairing()
-        guard !pairing.isComplete else { return }
+        guard await refreshPairing() else {
+            errorMessage = "Your pairing changed. Check the games and submit again."
+            return
+        }
+        if pairing.isComplete {
+            // Already reported (by us on a lost response, by the opponent or the organizer).
+            onReported()
+            dismiss()
+            return
+        }
         guard let me = pairing.myParticipantID, let opp = pairing.opponentParticipantID else {
             errorMessage = "Couldn't find your match in the current round."
             return
@@ -169,6 +183,10 @@ struct PlayRiftboundReportSheet: View {
             case .draw: return .init(gameId: gameID, draw: true, winnerParticipantId: nil)
             }
         }
+        guard !results.isEmpty else {
+            errorMessage = "Mark at least one game."
+            return
+        }
         do {
             guard let credentials = try await PlayRiftboundSession.validCredentials(refreshingVia: browser) else {
                 errorMessage = PlayRiftboundError.notSignedIn.errorDescription
@@ -178,8 +196,7 @@ struct PlayRiftboundReportSheet: View {
                 try await api.submitGameResults(tournamentID: strip.tournamentID, games: results, credentials: credentials)
             } catch PlayRiftboundError.sessionExpired {
                 // The site renews its token on a page load; do that once and retry.
-                await browser.refreshSession()
-                guard let renewed = await PlayRiftboundSession.credentials(), !renewed.isExpired else { throw PlayRiftboundError.sessionExpired }
+                let renewed = try await PlayRiftboundSession.renewed(via: browser)
                 try await api.submitGameResults(tournamentID: strip.tournamentID, games: results, credentials: renewed)
             }
             onReported()

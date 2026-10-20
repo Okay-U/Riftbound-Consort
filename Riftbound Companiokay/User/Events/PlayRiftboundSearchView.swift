@@ -58,7 +58,7 @@ struct PlayRiftboundSearchView: View {
         .toolbarBackground(EventsTheme.bg, for: .navigationBar)
         .task {
             placeDraft = place
-            signedIn = await PlayRiftboundSession.credentials() != nil
+            signedIn = (try? await PlayRiftboundSession.validCredentials(refreshingVia: browser)) != nil
             if hasLocation, results.isEmpty { await search() }
         }
     }
@@ -214,7 +214,7 @@ struct PlayRiftboundSearchView: View {
         guard hasLocation else { return }
         phase = .loading
         do {
-            let page = try await api.searchTournaments(filter: filter, sort: sort, credentials: await PlayRiftboundSession.credentials())
+            let page = try await api.searchTournaments(filter: filter, sort: sort, credentials: await PlayRiftboundSession.publicCredentials())
             results = page.competeTournamentSearch.nodes
             nextCursor = page.competeTournamentSearch.pageInfo?.hasNextPage == true ? page.competeTournamentSearch.pageInfo?.endCursor : nil
             phase = .loaded
@@ -227,7 +227,7 @@ struct PlayRiftboundSearchView: View {
         guard let cursor = nextCursor else { return }
         nextCursor = nil
         do {
-            let page = try await api.searchTournaments(filter: filter, sort: sort, after: cursor, credentials: await PlayRiftboundSession.credentials())
+            let page = try await api.searchTournaments(filter: filter, sort: sort, after: cursor, credentials: await PlayRiftboundSession.publicCredentials())
             let known = Set(results.map(\.tournament.id))
             results += page.competeTournamentSearch.nodes.filter { !known.contains($0.tournament.id) }
             nextCursor = page.competeTournamentSearch.pageInfo?.hasNextPage == true ? page.competeTournamentSearch.pageInfo?.endCursor : nil

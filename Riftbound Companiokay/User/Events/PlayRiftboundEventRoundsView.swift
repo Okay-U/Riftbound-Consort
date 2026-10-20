@@ -27,11 +27,7 @@ struct PlayRiftboundMatchesTab: View {
         guard let last = pairings.last, last.roundNumber == tournament.rounds.last?.roundNumber, !last.isComplete else { return nil }
         return last
     }
-    private var isOver: Bool {
-        isPast || tournament.endsAt.map { $0 < Date() } == true
-            || (tournament.rounds.last.map { round in !round.matches.isEmpty && round.matches.allSatisfy(\.isComplete) } == true
-                && tournament.stages.flatMap(\.sections).contains { !($0.ranks ?? []).isEmpty })
-    }
+    private var isOver: Bool { isPast || tournament.isFinished }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
