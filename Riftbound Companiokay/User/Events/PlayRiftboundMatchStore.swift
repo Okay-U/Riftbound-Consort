@@ -22,7 +22,7 @@ nonisolated struct PlayRiftboundStrip: Sendable, Equatable, Identifiable {
     /// nil until the tournament has a round with the player in it.
     let pairing: CompetePairing?
 
-    var id: String { tournamentID + (pairing.map { "-\($0.roundNumber)" } ?? "") }
+    var id: String { tournamentID + (pairing.map { "-\($0.roundID)" } ?? "") }
 }
 
 @MainActor

@@ -326,8 +326,7 @@ struct ScoreboardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "trophy.fill")
                     if let pairing = strip.pairing {
-                        Text("Round \(pairing.roundNumber)"
-                             + (pairing.tableNumber.map { " · Table \($0)" } ?? ""))
+                        Text(pairing.roundTitle + (pairing.tableNumber.map { " · Table \($0)" } ?? ""))
                     } else if let date = strip.startsAt {
                         Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())
                     } else {
@@ -338,7 +337,7 @@ struct ScoreboardView: View {
                 .foregroundStyle(EventsTheme.green)
 
                 if let pairing = strip.pairing {
-                    Text(pairing.isBye ? "Bye this round" : "You  vs  \(pairing.opponentName ?? "TBD")")
+                    Text(pairing.isBye ? "Bye this round" : "\(pairing.mySide)  vs  \(pairing.opponentName ?? "TBD")")
                 } else {
                     Text(strip.eventName + (strip.organizerName.map { " · \($0)" } ?? ""))
                 }

@@ -1,6 +1,7 @@
 #!/bin/sh
 # Recomputes PlayRiftbound standings with the app's CompeteStandings and compares them
-# with Riot's official end-of-round tables of finished public events (no sign-in).
+# with Riot's official end-of-round tables of finished public events (no sign-in), then
+# checks the top-cut and 2v2 reading on a synthetic bracket.
 # Run after touching CompeteStandings.swift or CompeteModels.swift:  sh tools/check-standings/run.sh
 set -e
 here="$(cd "$(dirname "$0")" && pwd)"

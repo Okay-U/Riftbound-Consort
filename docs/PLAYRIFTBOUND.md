@@ -709,6 +709,18 @@ query FavoritedOrganizers {
   values carry float noise). Inside exact ties Riot's order is not derivable. Riot only publishes
   `endOfRoundStandings` when a round is finalised; the app computes a live preview (CompeteStandings)
   from the results reported so far and labels it "Preview · not final".
+- **Top cut, 2v2, PENDING (read from the site's client code 2026-10-20; nothing of it seen live yet).**
+  The site keeps one stage and shows only the *current section's* rounds that are not `PENDING`
+  (`getCurrentSection`, `getPublishedRounds`); a `PENDING` round holds the organiser's unpublished
+  pairings, so the app hides it too. A top cut (`SWISS_PLUS_SINGLE_ELIM`, Summoner Skirmishes from
+  2026-11-14) is expected as a later section whose round numbers may start at 1 again; the app keys
+  rounds by section + number, also treats rounds past `roundCount` as the cut, names them by bracket
+  size (Quarterfinal, Semifinal, Final), keeps standings / live preview / Can-I-Draw to Swiss, and
+  places bracket players by their last bracket match (1st, 2nd, Top 4 …). Default Swiss rounds
+  without `roundCount`: `ceil(log2(participants))`. Participant status also has `ELIMINATED`, match
+  outcome also `FORFEIT`. In 2v2 every player is a participant sharing the team's `esportsTeamId`;
+  the site's report form offers each player of both teams and sends that player's participant id.
+  `tools/check-standings/run.sh` checks this reading on a synthetic 2v2 bracket.
 - Event detail is server-rendered (data in the RSC payload); the client only polls
   `GetCompeteRbRefreshPoller` until something changes.
 - Search response: Relay connection `competeTournamentSearch { edges { cursor node { ... on
@@ -736,7 +748,7 @@ their code are deleted in the same release.
 | | Details card: description, program chip, date, `format • 1v1 • Swiss`, `N Runden • Bo • price` | `description`, `tournamentProgram.programName`, `config.format/playerFormat/structure/roundCount/matchFormat`, `entryFee` | available |
 | | Contact card: address, website, email, phone | `OrganizerSummary` (not approved) | web deep link, or ask Riot to add the op |
 | | Registered players with "(you)" marker | `tournamentRegistrants` + our own participant id | available |
-| **Live / past event, tab "Your matches"** | Finale card: final placement + celebration | last round `endOfRoundStandings.rank` for our team (section `ranks` once Riot fills it); own illustration | available |
+| **Live / past event, tab "Your matches"** | Finale card: final placement + celebration | latest `endOfRoundStandings.rank` that lists our team, or the bracket result in a top cut (the document has no section `ranks`); own illustration | available |
 | | Previous matches: per round card `Table N · Round N`, both players with seed badge `#n` and record `W-L-D` at that time, game-score boxes, winner highlighted | table = sorted match id; seed = `tournamentParticipants[].position`; record = previous round's standings (0-0-0 in round 1); games won = count of `games[].teamOutcomes` WIN per team | available |
 | **Tab "Rounds"** | Your pairing (round picker), then all pairings | `rounds[].matches` | available |
 | **Tab "Standings"** | Your standing (round picker); table rank, name, W-L-D, points, ACTIVE / DROPPED, expand → OMW% GW% OGW% | `endOfRoundStandings` (rank, matchWins/Losses/Draws, matchPoints, opponentMatchWinPercentage, gameWinPercentage, opponentGameWinPercentage), `tournamentParticipants[].status` | available |

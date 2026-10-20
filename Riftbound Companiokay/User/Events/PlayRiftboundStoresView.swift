@@ -11,6 +11,7 @@ import CoreLocation
 
 struct PlayRiftboundStoresView: View {
     @EnvironmentObject private var browser: PlayRiftboundBrowser
+    @EnvironmentObject private var favorites: PlayRiftboundFavorites
 
     @AppStorage("riftSearchPlace") private var place = ""
     @AppStorage("riftSearchLat") private var latitude: Double = 0
@@ -18,8 +19,6 @@ struct PlayRiftboundStoresView: View {
     @AppStorage("riftSearchKm") private var distanceKm = 50
 
     @State private var placeDraft = ""
-    @State private var favourites: [CompeteOrganizer] = []
-    @State private var signedIn = false
     @State private var hits: [StoreHit] = []
     @State private var phase: Phase = .idle
 
@@ -41,15 +40,15 @@ struct PlayRiftboundStoresView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 calendarCard
-                if signedIn {
+                if favorites.signedIn == true {
                     VStack(alignment: .leading, spacing: 10) {
                         SectionHeader("heart.fill", "Favourite stores")
-                        if favourites.isEmpty {
+                        if favorites.stores.isEmpty {
                             Text("Tap the heart on a store to keep it here.")
                                 .font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
                         } else {
                             VStack(spacing: 8) {
-                                ForEach(favourites, id: \.id) { organizer in
+                                ForEach(favorites.stores, id: \.id) { organizer in
                                     NavigationLink(value: organizer) { storeRow(organizer, subtitle: organizer.physicalAddress?.formattedAddress, trailing: nil) }
                                         .buttonStyle(.plain)
                                 }
@@ -65,10 +64,10 @@ struct PlayRiftboundStoresView: View {
             }
             .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 24)
         }
-        .refreshable { await loadFavourites(); await search() }
+        .refreshable { await favorites.load(browser: browser); await search() }
         .task {
             placeDraft = place
-            await loadFavourites()
+            await favorites.load(browser: browser)
             if hasLocation, hits.isEmpty { await search() }
         }
     }
@@ -85,9 +84,9 @@ struct PlayRiftboundStoresView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Store Calendar")
                         .font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
-                    Text(favourites.isEmpty
+                    Text(favorites.stores.isEmpty
                          ? "All your favourite stores' events in one place"
-                         : "Every event at your \(favourites.count) favourite store\(favourites.count == 1 ? "" : "s"), by date")
+                         : "Every event at your \(favorites.stores.count) favourite store\(favorites.stores.count == 1 ? "" : "s"), by date")
                         .font(.system(size: 12.5)).foregroundStyle(EventsTheme.textSecondary).lineLimit(2)
                 }
                 Spacer(minLength: 8)
@@ -154,9 +153,10 @@ struct PlayRiftboundStoresView: View {
     }
 
     private func storeRow(_ organizer: CompeteOrganizer, subtitle: String?, trailing: String?) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: organizer.isFavorited == true ? "heart.fill" : "storefront")
-                .font(.system(size: 15)).foregroundStyle(organizer.isFavorited == true ? EventsTheme.green : EventsTheme.textSecondary)
+        let favorite = favorites.contains(organizer.id)
+        return HStack(spacing: 12) {
+            Image(systemName: favorite ? "heart.fill" : "storefront")
+                .font(.system(size: 15)).foregroundStyle(favorite ? EventsTheme.green : EventsTheme.textSecondary)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 3) {
                 Text(organizer.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
@@ -173,12 +173,6 @@ struct PlayRiftboundStoresView: View {
     }
 
     // MARK: - Loading
-
-    private func loadFavourites() async {
-        guard let credentials = try? await PlayRiftboundSession.validCredentials(refreshingVia: browser) else { signedIn = false; return }
-        signedIn = true
-        favourites = (try? await api.favoritedOrganizers(credentials: credentials)) ?? favourites
-    }
 
     private func geocodeAndSearch() async {
         let text = placeDraft.trimmingCharacters(in: .whitespaces)

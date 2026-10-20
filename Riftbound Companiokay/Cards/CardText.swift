@@ -5,7 +5,8 @@
 //  Renders a card's ability text with Riot's glyphs inline. The feed keeps the
 //  gallery's HTML in `text.rich`: paragraphs, line breaks, bullet lists and
 //  symbol tokens such as `:rb_might:` or `:rb_energy_2:`. Keywords in square
-//  brackets are set in bold, as on the printed card.
+//  brackets are set in bold, as on the printed card; the `[>]` after a keyword
+//  (`[Reaction][>]`, `[Level 3][>]`) is the card's arrow.
 //
 
 import SwiftUI
@@ -69,6 +70,7 @@ nonisolated struct CardTextBlock: Equatable {
         case text(String)
         case keyword(String)
         case symbol(asset: String)
+        case arrow
     }
     let isBullet: Bool
     let runs: [Run]
@@ -127,7 +129,8 @@ nonisolated struct CardTextBlock: Equatable {
                 else { runs.append(.text(token.replacingOccurrences(of: "_", with: " "))) }
             } else {
                 let code = ns.substring(with: match.range(at: 2))
-                if let asset = CardSymbol.asset(forCode: code, domain: domain) { runs.append(.symbol(asset: asset)) }
+                if code == ">" { runs.append(.arrow) }
+                else if let asset = CardSymbol.asset(forCode: code, domain: domain) { runs.append(.symbol(asset: asset)) }
                 else { runs.append(.keyword(code)) }
             }
             cursor = match.range.location + match.range.length
@@ -202,6 +205,7 @@ struct CardTextView: View {
             case .text(let s):    return Text("\(acc)\(s)")
             case .keyword(let k): return Text("\(acc)\(Text("[\(k)]").bold())")
             case .symbol(let a):  return Text("\(acc)\(Text(glyph(a)).baselineOffset(glyphBaselineOffset))")
+            case .arrow:          return Text("\(acc)\(Text(Image(systemName: "arrowtriangle.right.fill")).font(.system(size: 11)))")
             }
         }
     }
@@ -209,7 +213,7 @@ struct CardTextView: View {
 
 #if DEBUG
 #Preview {
-    CardTextView(rich: "<p>[Equip] :rb_rune_fury: (:rb_rune_fury:: Attach this to a unit you control.)<br />The first time I move each turn, [Add] :rb_energy_1::rb_rune_rainbow:.</p><ul><li>Choose up to 3 cards. Their owners recycle them.</li><li>Draw 1.</li></ul>", plain: nil)
+    CardTextView(rich: "<p>[Level 3][&gt;] I have +1 :rb_might:.<br />[Equip] :rb_rune_fury: (:rb_rune_fury:: Attach this to a unit you control.)<br />The first time I move each turn, [Add] :rb_energy_1::rb_rune_rainbow:.</p><ul><li>Choose up to 3 cards. Their owners recycle them.</li><li>Draw 1.</li></ul>", plain: nil)
         .padding()
 }
 #endif

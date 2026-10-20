@@ -19,17 +19,23 @@ struct PlayRiftboundStandingsTab: View {
     @State private var expanded: Set<String> = []
     @State private var cutSize = 8
 
-    /// Riot's table after a finished round, or our live preview of the running one.
-    enum Selection: Hashable { case live, after(Int) }
+    /// Riot's table after a finished round (by `Round.id`), or our live preview of the running one.
+    enum Selection: Hashable { case live, after(String) }
 
     private var roundsWithStandings: [CompeteTournament.Round] {
         tournament.rounds.filter { !($0.endOfRoundStandings ?? []).isEmpty }
     }
 
+    /// The running Swiss round, nil once a top cut has started.
+    private var runningSwissRound: CompeteTournament.Round? {
+        guard let last = tournament.rounds.last, !tournament.isElimination(last) else { return nil }
+        return last
+    }
+
     /// The running round's table computed from the results reported so far. Nil once Riot
     /// published the round's standings, or while nothing in it is reported yet.
     private var liveTable: CompeteStandings.Table? {
-        guard let last = tournament.rounds.last, (last.endOfRoundStandings ?? []).isEmpty else { return nil }
+        guard let last = runningSwissRound, (last.endOfRoundStandings ?? []).isEmpty else { return nil }
         let table = CompeteStandings.compute(tournament, throughRound: last.roundNumber)
         return table.reportedMatches > 0 ? table : nil
     }
@@ -59,19 +65,19 @@ struct PlayRiftboundStandingsTab: View {
     private func resolvedSelection(live: CompeteStandings.Table?) -> Selection {
         switch selection {
         case .live?: if live != nil { return .live }
-        case .after(let n)?: if roundsWithStandings.contains(where: { $0.roundNumber == n }) { return .after(n) }
+        case .after(let id)?: if roundsWithStandings.contains(where: { $0.id == id }) { return .after(id) }
         case nil: break
         }
         // During a round the live preview is what players want; otherwise Riot's latest table.
         if live != nil { return .live }
-        return .after(roundsWithStandings.last?.roundNumber ?? 0)
+        return .after(roundsWithStandings.last?.id ?? "")
     }
 
     private func rows(for selection: Selection, live: CompeteStandings.Table?) -> [CompeteTournament.Standing] {
         switch selection {
         case .live: return live?.rows ?? []
-        case .after(let n):
-            let round = roundsWithStandings.first { $0.roundNumber == n }
+        case .after(let id):
+            let round = roundsWithStandings.first { $0.id == id }
             return (round?.endOfRoundStandings ?? []).sorted { ($0.rank ?? Int.max) < ($1.rank ?? Int.max) }
         }
     }
@@ -79,8 +85,8 @@ struct PlayRiftboundStandingsTab: View {
     private func roundPicker(current: Selection, live: CompeteStandings.Table?) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                ForEach(roundsWithStandings, id: \.roundNumber) { r in
-                    chip("After R\(r.roundNumber)", on: current == .after(r.roundNumber)) { selection = .after(r.roundNumber) }
+                ForEach(roundsWithStandings) { r in
+                    chip("After \(tournament.shortTitle(of: r))", on: current == .after(r.id)) { selection = .after(r.id) }
                 }
                 if let live {
                     chip("Live R\(live.roundNumber)", on: current == .live, dot: true) { selection = .live }
@@ -143,11 +149,12 @@ struct PlayRiftboundStandingsTab: View {
     /// none once dropped). Riot's data has no cut size, so the player picks one.
     @ViewBuilder
     private var drawCard: some View {
-        if let total = tournament.config?.roundCount, let myTeamID, let lastRound = tournament.rounds.last {
+        let total = tournament.plannedSwissRounds
+        if total > 0, let myTeamID, let lastRound = runningSwissRound {
             let table = CompeteStandings.compute(tournament, throughRound: lastRound.roundNumber)
             let roundsAfter = max(0, total - lastRound.roundNumber)
             let remaining: (String) -> Int = { team in
-                if tournament.participant(teamID: team)?.status?.uppercased().contains("DROP") == true { return 0 }
+                if isOut(team) { return 0 }
                 return roundsAfter + (table.pending.contains(team) ? 1 : 0)
             }
             if let mine = table.rows.first(where: { $0.esportsTeamId == myTeamID }), remaining(myTeamID) >= 1 {
@@ -179,6 +186,12 @@ struct PlayRiftboundStandingsTab: View {
                 .eventsCard(radius: 15)
             }
         }
+    }
+
+    /// Dropped or eliminated: no more matches to play.
+    private func isOut(_ team: String) -> Bool {
+        let status = tournament.participant(teamID: team)?.status?.uppercased() ?? ""
+        return status.contains("DROP") || status.contains("ELIM")
     }
 
     private func outlookRow(_ title: String, _ chance: CutChance) -> some View {
@@ -256,7 +269,9 @@ struct PlayRiftboundStandingsTab: View {
 
 struct PlayRiftboundRosterTab: View {
     let tournament: CompeteTournament
-    let myTeamID: String?
+    let myPlayerID: String?
+
+    private var myTeamID: String? { myPlayerID.flatMap(tournament.teamID(playerID:)) }
 
     private var participants: [CompeteTournament.Participant] {
         (tournament.tournamentParticipants ?? []).sorted {
@@ -280,12 +295,13 @@ struct PlayRiftboundRosterTab: View {
     private func list(_ players: [CompeteTournament.Participant]) -> some View {
         VStack(spacing: 0) {
             ForEach(Array(players.enumerated()), id: \.element.id) { index, p in
-                let mine = myTeamID != nil && p.esportsTeamId == myTeamID
+                let mine = myPlayerID != nil && p.player?.id == myPlayerID
+                let teammate = !mine && myTeamID != nil && p.esportsTeamId == myTeamID
                 HStack {
                     Text(p.player?.displayName ?? "Player")
                         .font(.system(size: 14, weight: mine ? .bold : .regular))
                         .foregroundStyle(isDropped(p) ? EventsTheme.textTertiary : (mine ? EventsTheme.green : .white))
-                    if mine { Text("You").font(.system(size: 10, weight: .bold)).foregroundStyle(EventsTheme.green)
+                    if mine || teammate { Text(mine ? "You" : "Team").font(.system(size: 10, weight: .bold)).foregroundStyle(EventsTheme.green)
                         .padding(.horizontal, 6).padding(.vertical, 2).background(EventsTheme.greenSoft, in: Capsule()) }
                     Spacer()
                     if let seed = p.position { Text("#\(seed)").font(.system(size: 12, design: .rounded)).foregroundStyle(EventsTheme.textTertiary) }

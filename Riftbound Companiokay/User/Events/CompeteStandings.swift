@@ -42,7 +42,8 @@ nonisolated enum CompeteStandings {
         return .loss
     }
 
-    /// Standings after every reported result up to and including `round`.
+    /// Swiss standings after every reported result up to and including Swiss round `round`;
+    /// top-cut rounds do not count.
     static func compute(_ tournament: CompeteTournament, throughRound round: Int) -> Table {
         var points: [String: Int] = [:], byePoints: [String: Int] = [:]
         var wins: [String: Int] = [:], losses: [String: Int] = [:], draws: [String: Int] = [:]
@@ -55,7 +56,7 @@ nonisolated enum CompeteStandings {
 
         func note(_ team: String) { if seen.insert(team).inserted { teams.append(team) } }
 
-        for r in tournament.rounds where r.roundNumber <= round {
+        for r in tournament.swissRounds where r.roundNumber <= round {
             for team in r.byeTeamIds ?? [] {
                 note(team)
                 points[team, default: 0] += 3
@@ -121,7 +122,7 @@ nonisolated enum CompeteStandings {
                   omw: mean(opponents[id] ?? [], matchWin), gw: gameWin(id), ogw: mean(opponents[id] ?? [], gameWin))
         }
         // Inside exact ties keep the last official order, so rows do not jump around.
-        let previous = tournament.rounds.last { $0.roundNumber < round && !($0.endOfRoundStandings ?? []).isEmpty }
+        let previous = tournament.swissRounds.last { $0.roundNumber < round && !($0.endOfRoundStandings ?? []).isEmpty }
         var previousRank: [String: Int] = [:]
         for s in previous?.endOfRoundStandings ?? [] { if let rank = s.rank { previousRank[s.esportsTeamId] = rank } }
 

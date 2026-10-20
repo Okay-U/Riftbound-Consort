@@ -13,19 +13,15 @@ struct PlayRiftboundStoreView: View {
 
     @EnvironmentObject private var browser: PlayRiftboundBrowser
     @EnvironmentObject private var events: PlayRiftboundEventsStore
+    @EnvironmentObject private var favorites: PlayRiftboundFavorites
     @State private var summary: CompeteOrganizerSummary?
     @State private var upcoming: [CompeteSearchResult] = []
-    @State private var isFavorite: Bool
-    @State private var signedIn = false
     @State private var loading = true
     @State private var error: String?
+    @State private var favoriteError: String?
 
     private let api = PlayRiftboundAPI()
-
-    init(organizer: CompeteOrganizer) {
-        self.organizer = organizer
-        _isFavorite = State(initialValue: organizer.isFavorited ?? false)
-    }
+    private var isFavorite: Bool { favorites.contains(organizer.id) }
 
     var body: some View {
         ScrollView {
@@ -42,6 +38,8 @@ struct PlayRiftboundStoreView: View {
         .toolbarBackground(EventsTheme.bg, for: .navigationBar)
         .refreshable { await load() }
         .task { await load() }
+        // The heart must match the Stores list even when the page was opened from an event.
+        .task { await favorites.load(browser: browser) }
     }
 
     private var header: some View {
@@ -51,9 +49,12 @@ struct PlayRiftboundStoreView: View {
                 if let address = summary?.physicalAddress?.formattedAddress ?? organizer.physicalAddress?.formattedAddress {
                     Text(address).font(.system(size: 13)).foregroundStyle(EventsTheme.textSecondary)
                 }
+                if let favoriteError {
+                    Text(favoriteError).font(.system(size: 12)).foregroundStyle(.red)
+                }
             }
             Spacer()
-            if signedIn {
+            if favorites.signedIn == true {
                 Button { Task { await toggleFavorite() } } label: {
                     Image(systemName: isFavorite ? "heart.fill" : "heart")
                         .font(.system(size: 18, weight: .semibold))
@@ -62,6 +63,7 @@ struct PlayRiftboundStoreView: View {
                         .background(EventsTheme.cardInset, in: Circle())
                 }
                 .buttonStyle(.plain)
+                .disabled(favorites.pending.contains(organizer.id))
                 .accessibilityLabel(isFavorite ? "Remove from favourites" : "Add to favourites")
             }
         }
@@ -128,7 +130,6 @@ struct PlayRiftboundStoreView: View {
         loading = upcoming.isEmpty
         error = nil
         let credentials = try? await PlayRiftboundSession.validCredentials(refreshingVia: browser)
-        signedIn = credentials != nil
         do {
             if summary == nil { summary = try await api.organizerSummary(id: organizer.id, credentials: credentials) }
             let lat = summary?.physicalAddress?.latitude ?? organizer.physicalAddress?.latitude
@@ -146,10 +147,8 @@ struct PlayRiftboundStoreView: View {
     }
 
     private func toggleFavorite() async {
-        guard let credentials = try? await PlayRiftboundSession.validCredentials(refreshingVia: browser) else { return }
-        let target = !isFavorite
-        isFavorite = target
-        do { try await api.setFavorite(organizerID: organizer.id, on: target, credentials: credentials) }
-        catch { isFavorite = !target; self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
+        favoriteError = nil
+        do { try await favorites.toggle(organizer, browser: browser) }
+        catch { favoriteError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
     }
 }

@@ -86,7 +86,7 @@ struct PlayRiftboundReportSheet: View {
                 Button("Submit \(summary)") { Task { await submit() } }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This reports your result for round \(pairing.roundNumber) to PlayRiftbound. The organizer can still adjust it.")
+                Text("This reports your \(pairing.roundTitle) result to PlayRiftbound. The organizer can still adjust it.")
             }
         }
     }

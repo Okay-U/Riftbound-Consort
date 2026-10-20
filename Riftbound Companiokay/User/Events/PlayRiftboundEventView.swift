@@ -62,7 +62,7 @@ struct PlayRiftboundEventView: View {
                     case .standings:
                         PlayRiftboundStandingsTab(tournament: tournament, myTeamID: myTeamID(in: tournament))
                     case .roster:
-                        PlayRiftboundRosterTab(tournament: tournament, myTeamID: myTeamID(in: tournament))
+                        PlayRiftboundRosterTab(tournament: tournament, myPlayerID: playerID(in: tournament))
                     case .info:
                         actions
                         details(tournament)
@@ -166,6 +166,7 @@ struct PlayRiftboundEventView: View {
                 case .registered, .active: pill("Registered", tint: EventsTheme.green)
                 case .waitlisted: pill("Waitlisted", tint: EventsTheme.gold)
                 case .dropped: pill("Dropped", tint: EventsTheme.textSecondary)
+                case .eliminated: pill("Eliminated", tint: EventsTheme.textSecondary)
                 case .none: EmptyView()
                 }
             }
@@ -224,10 +225,10 @@ struct PlayRiftboundEventView: View {
 
     private var availableAction: RegistrationAction? {
         guard me != nil, !isOver, tournament != nil else { return nil }
-        let started = tournament?.hasRounds == true
+        let started = tournament.map { $0.hasStarted || $0.hasRounds } == true
         switch playerState {
         case .registered, .active, .waitlisted: return started ? .drop : .deregister
-        case .dropped: return nil
+        case .dropped, .eliminated: return nil
         case .none: return started || registrationClosed ? nil : .register
         }
     }

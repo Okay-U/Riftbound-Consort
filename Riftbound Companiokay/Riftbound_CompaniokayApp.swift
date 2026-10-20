@@ -24,6 +24,7 @@ struct Riftbound_CompaniokayApp: App {
     @StateObject private var riftBrowser = PlayRiftboundBrowser()
     @StateObject private var riftMatch = PlayRiftboundMatchStore()
     @StateObject private var riftEvents = PlayRiftboundEventsStore()
+    @StateObject private var riftFavorites = PlayRiftboundFavorites()
 
     var body: some Scene {
         WindowGroup {
@@ -40,6 +41,7 @@ struct Riftbound_CompaniokayApp: App {
                 .environmentObject(riftBrowser)
                 .environmentObject(riftMatch)
                 .environmentObject(riftEvents)
+                .environmentObject(riftFavorites)
                 .preferredColorScheme(.dark)
                 .background(trueBlack ? Color.black : Color(.systemBackground))
                 .task { await authSession.restore() }

@@ -207,23 +207,9 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
     nonisolated struct Section: Decodable, Sendable {
         let esportsSectionId: String?
         let rounds: [Round]
-        /// Final placement, filled once the section is over.
-        let ranks: [Rank]?
     }
 
-    nonisolated struct Rank: Decodable, Sendable {
-        let position: Int?
-        let esportsTeamId: String?
-
-        private enum Keys: String, CodingKey { case position, esportsTeamId }
-        init(from decoder: Decoder) throws {
-            let c = try decoder.container(keyedBy: Keys.self)
-            position = Lenient.int(c, .position)
-            esportsTeamId = try? c.decodeIfPresent(String.self, forKey: .esportsTeamId)
-        }
-    }
-
-    nonisolated struct Round: Decodable, Sendable {
+    nonisolated struct Round: Decodable, Sendable, Identifiable {
         let roundNumber: Int
         let status: String?
         let startedAt: Date?
@@ -233,6 +219,11 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
         let droppedTeamIds: [String]?
         let matches: [Match]
         let endOfRoundStandings: [Standing]?
+        /// Position of the round's section across all stages, set by `rounds`: 0 for Swiss,
+        /// 1+ for a later section such as a top cut, whose round numbers may start at 1 again.
+        fileprivate(set) var sectionIndex = 0
+
+        var id: String { "\(sectionIndex)-\(roundNumber)" }
 
         private enum Keys: String, CodingKey {
             case roundNumber, status, startedAt, roundDuration, byeTeamIds, droppedTeamIds, matches, endOfRoundStandings
@@ -412,57 +403,133 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
         }
     }
 
+    /// A team's participant; in 2v2 every player is a participant of their own, so this is
+    /// one of the team's players.
     func participant(teamID: String) -> Participant? {
         (tournamentParticipants ?? []).first { $0.esportsTeamId == teamID }
     }
 
+    func participant(playerID: String) -> Participant? {
+        (tournamentParticipants ?? []).first { $0.player?.id == playerID }
+    }
+
     func teamID(playerID: String) -> String? {
-        (tournamentParticipants ?? []).first { $0.player?.id == playerID }?.esportsTeamId
+        if let id = participant(playerID: playerID)?.esportsTeamId { return id }
+        return allMatches.lazy.flatMap(\.teams).first { $0.players.contains { $0.id == playerID } }?.esportsTeamId
     }
 
-    /// Display name of a team, from the participant list or any match it played.
+    /// Display name of a team: its players, "Ann & Bo" in 2v2, from the participant list and
+    /// the first match the team played.
     func teamName(_ teamID: String) -> String {
-        if let name = participant(teamID: teamID)?.player?.displayName { return name }
-        for round in rounds {
-            for match in round.matches {
-                if let team = match.teams.first(where: { $0.esportsTeamId == teamID }),
-                   let name = team.players.first?.displayName { return name }
-            }
-        }
-        return "Player"
+        let listed = (tournamentParticipants ?? []).filter { $0.esportsTeamId == teamID }.compactMap(\.player?.displayName)
+        let played = allMatches.lazy.flatMap(\.teams).first { $0.esportsTeamId == teamID }?.players.compactMap(\.displayName) ?? []
+        let names = listed + played.filter { !listed.contains($0) }
+        return names.isEmpty ? "Player" : names.joined(separator: " & ")
     }
 
-    /// Final placement from the section ranks, else the rank after the last round.
-    func finalRank(teamID: String) -> Int? {
-        if let rank = stages.flatMap(\.sections).compactMap(\.ranks).joined().first(where: { $0.esportsTeamId == teamID }),
-           let position = rank.position {
-            return position
+    /// Every match in the bracket, published or not, for name and team lookups.
+    private var allMatches: [Match] { stages.flatMap(\.sections).flatMap(\.rounds).flatMap(\.matches) }
+
+    /// Where a team finished: its bracket result once it played in a top cut (`.top(8)` for a
+    /// quarterfinal loss), else its last official Swiss rank, like the site's own position.
+    enum Placement: Equatable { case rank(Int), top(Int) }
+
+    func placement(teamID: String) -> Placement? {
+        for round in rounds.reversed() where isElimination(round) {
+            guard let match = round.matches.first(where: { $0.teams.contains { $0.esportsTeamId == teamID } }) else { continue }
+            let won = (match.teamOutcomes ?? []).contains { $0.esportsTeamId == teamID && $0.isWin }
+            let size = bracketSize(round)
+            if size <= 2 { return match.isComplete ? .rank(won ? 1 : 2) : nil }
+            // A won match with no later one means the team is still playing.
+            return match.isComplete && !won ? .top(size) : nil
         }
-        return rounds.last?.endOfRoundStandings?.first { $0.esportsTeamId == teamID }?.rank
+        return lastStanding(teamID: teamID)?.rank.map(Placement.rank)
     }
 
-    func standing(teamID: String, after round: Round) -> Standing? {
-        round.endOfRoundStandings?.first { $0.esportsTeamId == teamID }
+    /// The team's row in the latest official table that has it.
+    func lastStanding(teamID: String) -> Standing? {
+        rounds.reversed().lazy.compactMap { $0.endOfRoundStandings?.first { $0.esportsTeamId == teamID } }.first
     }
 
     var hasRounds: Bool { !rounds.isEmpty }
 
-    /// Over once Riot publishes final placements, or once every planned Swiss round is fully
-    /// reported. (Not `endsAt`: that is the scheduled end and events run late.)
+    /// Riot's own test (`getTournamentStatus`): participants exist once the event runs.
+    var hasStarted: Bool { !(tournamentParticipants ?? []).isEmpty && !stages.isEmpty }
+
+    /// Over once the last round is fully reported and nothing is left to play: the final of a
+    /// bracket, or the last planned round of a Swiss-only event. (Not `endsAt`: that is the
+    /// scheduled end and events run late.)
     var isFinished: Bool {
-        if stages.flatMap(\.sections).contains(where: { !($0.ranks ?? []).isEmpty }) { return true }
-        guard let planned = config?.roundCount, planned > 0, rounds.count >= planned,
-              let last = rounds.last, !last.matches.isEmpty else { return false }
-        return last.matches.allSatisfy(\.isComplete)
+        guard let last = rounds.last, !last.matches.isEmpty, last.matches.allSatisfy(\.isComplete) else { return false }
+        if isElimination(last) { return last.matches.count == 1 }
+        if config?.structure?.uppercased() == "SWISS_PLUS_SINGLE_ELIM" { return false }
+        return plannedSwissRounds > 0 && swissRounds.count >= plannedSwissRounds
+    }
+
+    // MARK: Swiss and top cut
+    // Written from the site's client code (2026-10-20); no Riftbound top cut has been played on
+    // PlayRiftbound yet. The site keeps one stage and moves to the next section for a new phase.
+
+    /// Swiss rounds the event plans: the configured count, else the site's default of
+    /// ceil(log2(teams)).
+    var plannedSwissRounds: Int {
+        if let n = config?.roundCount, n > 0 { return n }
+        let teams = Set((tournamentParticipants ?? []).compactMap(\.esportsTeamId)).count
+        return teams > 1 ? Int(ceil(log2(Double(teams)))) : 0
+    }
+
+    /// A single-elimination round: every round of a SINGLE_ELIM event, any section after the
+    /// first, and for SWISS_PLUS_SINGLE_ELIM also rounds past the planned Swiss count.
+    func isElimination(_ round: Round) -> Bool {
+        switch config?.structure?.uppercased() {
+        case "SINGLE_ELIM": return true
+        case "SWISS_PLUS_SINGLE_ELIM":
+            return round.sectionIndex > 0 || (plannedSwissRounds > 0 && round.roundNumber > plannedSwissRounds)
+        default: return round.sectionIndex > 0
+        }
+    }
+
+    var swissRounds: [Round] { rounds.filter { !isElimination($0) } }
+
+    /// Players a bracket round starts with, rounded up to the bracket size: 8 for a quarterfinal.
+    private func bracketSize(_ round: Round) -> Int {
+        let players = round.matches.count * 2 + (round.byeTeamIds ?? []).count
+        return players <= 2 ? 2 : 1 << Int(ceil(log2(Double(players))))
+    }
+
+    /// "Round 3"; in a bracket the stage: "Quarterfinal", "Semifinal", "Final", "Top 16".
+    func title(of round: Round) -> String {
+        guard isElimination(round) else { return "Round \(round.roundNumber)" }
+        switch bracketSize(round) {
+        case 2: return "Final"
+        case 4: return "Semifinal"
+        case 8: return "Quarterfinal"
+        case let size: return "Top \(size)"
+        }
+    }
+
+    /// Chip label: "R3", "QF", "SF", "F", "T16".
+    func shortTitle(of round: Round) -> String {
+        guard isElimination(round) else { return "R\(round.roundNumber)" }
+        switch bracketSize(round) {
+        case 2: return "F"
+        case 4: return "SF"
+        case 8: return "QF"
+        case let size: return "T\(size)"
+        }
     }
 
     /// The player's registration as Riot reports it: participant status once the event runs
-    /// (ACTIVE / DROPPED), registrant status before that.
-    enum PlayerState: Equatable { case none, registered, waitlisted, active, dropped }
+    /// (ACTIVE / DROPPED / ELIMINATED), registrant status before that.
+    enum PlayerState: Equatable { case none, registered, waitlisted, active, dropped, eliminated }
 
     func state(of playerID: String) -> PlayerState {
-        if let participant = (tournamentParticipants ?? []).first(where: { $0.player?.id == playerID }) {
-            return participant.status?.uppercased().contains("DROP") == true ? .dropped : .active
+        if let participant = participant(playerID: playerID) {
+            switch participant.status?.uppercased() ?? "" {
+            case let s where s.contains("DROP"): return .dropped
+            case let s where s.contains("ELIM"): return .eliminated
+            default: return .active
+            }
         }
         if let registrant = (tournamentRegistrants ?? []).first(where: { $0.player?.id == playerID }) {
             switch registrant.status?.uppercased() ?? "REGISTERED" {
@@ -477,8 +544,19 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 
     var webURL: URL? { URL(string: "https://playriftbound.com/en-US/events/\(id)") }
 
-    /// All rounds in play order.
-    var rounds: [Round] { stages.flatMap(\.sections).flatMap(\.rounds).sorted { $0.roundNumber < $1.roundNumber } }
+    /// Rounds players can see, in play order: section by section (Swiss, then a top cut), each by
+    /// round number. PENDING rounds are the organiser's unpublished pairings; the site hides them.
+    var rounds: [Round] {
+        stages.flatMap(\.sections).enumerated().flatMap { index, section in
+            section.rounds.filter { $0.status?.uppercased() != "PENDING" }
+                .sorted { $0.roundNumber < $1.roundNumber }
+                .map { round in
+                    var placed = round
+                    placed.sectionIndex = index
+                    return placed
+                }
+        }
+    }
 
     /// Compete player id for a Riot ID, from the registrant list or, once the
     /// event runs, the participant list.
@@ -504,12 +582,17 @@ nonisolated struct CompeteTournament: Decodable, Sendable {
 
 /// The signed-in player's situation in the latest round of a tournament.
 nonisolated struct CompetePairing: Sendable, Equatable {
-    let roundNumber: Int
+    /// `Round.id`: unique across Swiss and a top cut.
+    let roundID: String
+    /// "Round 3", "Quarterfinal".
+    let roundTitle: String
     /// Riot's `tableNumber` where the document has it, else the site's rule of ascending match
     /// id within the round (verified 2026-10-05 and against the site's own numbers on 2026-10-20).
     let tableNumber: Int?
     let matchID: String?
     let opponentName: String?
+    /// The other players of the player's own team in 2v2.
+    let teammateName: String?
     let isBye: Bool
     let isComplete: Bool
     /// What a result report needs: game ids in play order, both participant ids, series length.
@@ -529,6 +612,9 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     /// "2–1", or nothing before a game is in.
     var scoreText: String? { myGameWins + opponentGameWins > 0 ? "\(myGameWins)–\(opponentGameWins)" : nil }
 
+    /// "You", "You & Bo" in 2v2.
+    var mySide: String { "You" + (teammateName.map { " & \($0)" } ?? "") }
+
     var isReportable: Bool {
         !isBye && !isComplete && matchID != nil && !gameIDs.isEmpty
             && myParticipantID != nil && opponentParticipantID != nil
@@ -542,10 +628,15 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     static func resolve(in tournament: CompeteTournament, playerID: String, round: CompeteTournament.Round) -> CompetePairing? {
         let myTeamID = tournament.teamID(playerID: playerID)
         let ordered = CompeteTournament.tableOrder(round.matches)
+        let bye = CompetePairing(roundID: round.id, roundTitle: tournament.title(of: round), tableNumber: nil, matchID: nil,
+                                 opponentName: nil, teammateName: nil, isBye: true, isComplete: true,
+                                 gameIDs: [], myParticipantID: nil, opponentParticipantID: nil, bestOf: 1,
+                                 myTeamID: myTeamID, opponentTeamID: nil, myGameWins: 0, opponentGameWins: 0, result: .win)
         if let slot = ordered.first(where: { $0.match.teams.contains { $0.players.contains { $0.id == playerID } } }) {
             let match = slot.match
             let myTeam = match.teams.first { $0.players.contains { $0.id == playerID } }
-            let oppTeam = match.teams.first { !$0.players.contains { $0.id == playerID } }
+            // The site counts a match without an opponent as a bye.
+            guard let oppTeam = match.teams.first(where: { !$0.players.contains { $0.id == playerID } }) else { return bye }
             let sortedGames = (match.games ?? []).sorted { ($0.number ?? 0) < ($1.number ?? 0) }
             func wins(_ teamID: String?) -> Int {
                 guard let teamID else { return 0 }
@@ -553,27 +644,30 @@ nonisolated struct CompetePairing: Sendable, Equatable {
                     (game.teamOutcomes ?? []).contains { $0.esportsTeamId == teamID && $0.isWin }
                 }.count
             }
-            let mine = myTeam?.esportsTeamId, theirs = oppTeam?.esportsTeamId
+            let mine = myTeam?.esportsTeamId, theirs = oppTeam.esportsTeamId
             let result: Result? = (match.teamOutcomes ?? []).first { $0.esportsTeamId == mine }.flatMap {
                 guard let o = $0.outcome?.uppercased() else { return nil }
-                return o.contains("WIN") ? .win : o.contains("LOS") ? .loss : o.contains("DRAW") || o.contains("TIE") ? .draw : nil
+                return o.contains("WIN") ? .win : o.contains("LOS") || o.contains("FORFEIT") ? .loss
+                    : o.contains("DRAW") || o.contains("TIE") ? .draw : nil
             }
-            return CompetePairing(roundNumber: round.roundNumber, tableNumber: slot.table, matchID: match.esportsMatchId,
-                                  opponentName: oppTeam?.players.first?.displayName ?? oppTeam.map { tournament.teamName($0.esportsTeamId) },
+            let teammates = (myTeam?.players ?? []).filter { $0.id != playerID }.compactMap(\.displayName)
+            // Like the site's report form: every player is a participant; any player of a team stands for it.
+            let opponentParticipant = oppTeam.players.lazy.compactMap { tournament.participant(playerID: $0.id) }.first
+                ?? tournament.participant(teamID: theirs)
+            return CompetePairing(roundID: round.id, roundTitle: tournament.title(of: round), tableNumber: slot.table,
+                                  matchID: match.esportsMatchId,
+                                  opponentName: tournament.teamName(theirs),
+                                  teammateName: teammates.isEmpty ? nil : teammates.joined(separator: " & "),
                                   isBye: false, isComplete: match.isComplete,
                                   gameIDs: sortedGames.map(\.esportsGameId),
-                                  myParticipantID: mine.flatMap { tournament.participant(teamID: $0)?.id },
-                                  opponentParticipantID: theirs.flatMap { tournament.participant(teamID: $0)?.id },
+                                  myParticipantID: (tournament.participant(playerID: playerID)
+                                                    ?? mine.flatMap { tournament.participant(teamID: $0) })?.id,
+                                  opponentParticipantID: opponentParticipant?.id,
                                   bestOf: match.config?.count ?? max(sortedGames.count, 1),
                                   myTeamID: mine, opponentTeamID: theirs,
                                   myGameWins: wins(mine), opponentGameWins: wins(theirs), result: result)
         }
-        if let myTeamID, (round.byeTeamIds ?? []).contains(myTeamID) {
-            return CompetePairing(roundNumber: round.roundNumber, tableNumber: nil, matchID: nil,
-                                  opponentName: nil, isBye: true, isComplete: true,
-                                  gameIDs: [], myParticipantID: nil, opponentParticipantID: nil, bestOf: 1,
-                                  myTeamID: myTeamID, opponentTeamID: nil, myGameWins: 0, opponentGameWins: 0, result: .win)
-        }
+        if let myTeamID, (round.byeTeamIds ?? []).contains(myTeamID) { return bye }
         return nil
     }
 }
