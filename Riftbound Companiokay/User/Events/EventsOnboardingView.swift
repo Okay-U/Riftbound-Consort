@@ -201,14 +201,14 @@ private struct EventsOnboardingPage: Identifiable {
         EventsOnboardingPage(
             symbol: "lock.shield.fill",
             title: "Sign in",
-            subtitle: "Use your Riftbound Locator account.",
+            subtitle: "Use your Riot ID on PlayRiftbound.",
             bullets: [
-                .init(symbol: "envelope.fill", title: "Email login",
-                      detail: "The same account as locator.riftbound.uvsgames.com."),
-                .init(symbol: "lock.fill", title: "Your password is never stored",
-                      detail: "We keep only a secure login token on your device."),
+                .init(symbol: "safari", title: "Riot's own pages",
+                      detail: "Sign in happens in the PlayRiftbound segment, never in the app."),
+                .init(symbol: "lock.fill", title: "Nothing stored by us",
+                      detail: "Your session stays in the in-app browser on your device."),
                 .init(symbol: "person.crop.circle", title: "Sign out anytime",
-                      detail: "From the account menu in the Events tab.")
+                      detail: "From the menu in the PlayRiftbound segment.")
             ]
         ),
         EventsOnboardingPage(
@@ -217,7 +217,7 @@ private struct EventsOnboardingPage: Identifiable {
             subtitle: "Discover and save the shops you play at.",
             bullets: [
                 .init(symbol: "magnifyingglass", title: "Search by city",
-                      detail: "See nearby stores on a list or map."),
+                      detail: "Events and stores nearby, with the site's filters."),
                 .init(symbol: "heart.fill", title: "Save favorites",
                       detail: "Tap the heart on any store."),
                 .init(symbol: "calendar", title: "Store Calendar",
@@ -232,7 +232,7 @@ private struct EventsOnboardingPage: Identifiable {
                 .init(symbol: "list.bullet.rectangle", title: "Browse events",
                       detail: "Upcoming, live and past."),
                 .init(symbol: "checkmark.circle.fill", title: "Sign up",
-                      detail: "Register and pay in person at the store."),
+                      detail: "Register with your Riot account, pay at the store."),
                 .init(symbol: "xmark.circle", title: "Drop anytime",
                       detail: "Change your mind with one tap.")
             ]

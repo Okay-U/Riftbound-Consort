@@ -6,7 +6,7 @@
 
 **Riftbound Companiokay** (display name "Riftcount: Score Tracker") is a companion app for the Riftbound trading card game — **iOS and Android from one repo** since 2026-07-03:
 
-- **iOS** (App Store, version 3.4): SwiftUI app in `Riftbound Companiokay/`, built via `Riftbound Companiokay.xcodeproj`. Zero external package dependencies.
+- **iOS** (App Store, version 3.5): SwiftUI app in `Riftbound Companiokay/`, built via `Riftbound Companiokay.xcodeproj`. Zero external package dependencies.
 - **Android** (3.4.0, versionCode 9): [Skip](https://skip.dev) native Fuse app in `android/` (module `Riftcount`, appid `pitopia.Riftcount`). Compiled Swift + SkipUI→Compose bridging. Deps: skip, skip-fuse-ui, skip-keychain, skip-web.
 
 Plans and audits live in `docs/`: `PLAYRIFTBOUND.md` (Riot platform migration, in-app browser, approved session client, site map), `TAKEOVER_ASSESSMENT.md` (security / code / design tickets), `coach-companion.md` (design draft). Keep it to these; ask before adding a doc.
