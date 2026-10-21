@@ -4,7 +4,8 @@ Native Kotlin + Jetpack Compose app in `android-native/`. It replaces the frozen
 as an update of the same Play listing. Decided 2026-10-21, plan approved 2026-10-22.
 
 - **Functional spec:** the iOS app (`Riftbound Companiokay/`). Everything iOS does must exist, except the
-  Locator/eloshowdown "Old" segment (dies in November), widgets and Live Activity.
+  Locator/eloshowdown "Old" segment (dies in November), widgets and Live Activity (no lock-screen score
+  either, Okay 2026-10-22).
 - **Design spec:** the chosen mocks on the design canvas
   (https://claude.ai/artifact/ARcSMfQqecAVKCB4ETYz9A, page "Chosen · all tabs"): `ScoreFinal`,
   `EventsMix`, `CardsFinal`, `DecksMix`, `SettingsHybrid`. Where a mock and iOS disagree, the mock wins
@@ -26,19 +27,22 @@ score halves end above it. System back on any tab other than Score returns to Sc
 |---|---|
 | applicationId | `pitopia.Riftcount` (same as the Skip app, so it installs as an update) |
 | Debug build | suffix `.native`, label "Riftcount native": runs next to the old app on the emulator |
+| Staging build | release code (R8) with the debug key and the same `.native` suffix: judge speed on the emulator |
 | namespace | `pitopia.riftcount` |
 | versionCode / versionName | 10 / 3.5.0 (Skip app shipped 9 / 3.4.0) |
 | minSdk / target / compile | 28 / 36 / 36 (same min as the Skip app) |
 | AGP / Kotlin / JVM | 9.2.0 (built-in Kotlin) / 2.3.0 + compose plugin / 17 |
 | Compose | BOM 2026.05.01 |
 | Gradle | 9.6.1 (wrapper committed) |
-| Release signing | `app/keystore.properties` + upload key (gitignored, Okay only); Okay signs and uploads |
+| Release signing | `app/keystore.properties` (keys `keyAlias`, `keyPassword`, `storeFile`, `storePassword`, as in the Skip app) + upload key, both gitignored, Okay only; without it the release APK stays unsigned |
 
-Dependencies: AndroidX/Jetpack and official Kotlin libraries only (activity-compose, Compose,
-kotlinx-serialization, coroutines). No third-party libraries; card images load through a small own loader.
+Dependencies: AndroidX/Jetpack and official Kotlin libraries (activity-compose, Compose,
+kotlinx-serialization, coroutines). A further library only where an animation needs it, and then it is
+reported to Okay. Card images load through a small own loader.
 
-Commands (from `android-native/`): `gradle :app:assembleDebug`, `gradle :app:testDebugUnitTest`,
-`adb install -r app/build/outputs/apk/debug/app-debug.apk`.
+Commands (from `android-native/`): `gradle :app:assembleDebug` (or `assembleStaging`),
+`gradle :app:testDebugUnitTest`, `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
+Phase 0 numbers: release APK 2.1 MB (the Skip app's bundle was 55.9 MB), cold start 180 ms (staging).
 
 ## Storage: keep the Skip app's files, so the update keeps every deck and game
 
@@ -75,8 +79,8 @@ adb and compared against its mock (screenshots), commit on `main`. Okay reviews 
 
 ### 0 · Foundation
 Gradle project, tokens (colours, type, easing), app icon from the Skip app, edge-to-edge true black,
-five-tab shell with the bar and placeholder screens, back-to-Score. Fonts are bundled once Okay approves
-the download (Big Shoulders Display + Barlow, OFL); until then system condensed/sans stand in.
+five-tab shell with the bar and placeholder screens, back-to-Score. Fonts bundled: Big Shoulders Display + Barlow
+(OFL, from github.com/google/fonts, approved 2026-10-22), licence credited in Acknowledgments.
 
 ### 1 · Scoreboard (`ScoreFinal`)
 LightRail duel: opponent half rotated on top, glowing territory line moves 26 px per point of
@@ -107,7 +111,7 @@ export exactly as `DeckTextFormat`. iOS sources: `User/*Deck*`, `User/DeckBuilde
 
 ### 4 · Settings + onboarding (`SettingsHybrid`)
 Flip tiles (Haptics, Keep screen on, True black, Match mode, Sounds, Players), Scoreboard section
-(player colours, score on the lock screen = ongoing notification with + and −, shake to roll), Help
+(player colours, shake to roll), Help
 (tours, rules links), About (acknowledgments, PlayRiftbound log, bug report and wish by mail, share,
 rate, Ko-fi, privacy). Six-page main tour, Events tour, builder tip.
 
@@ -129,7 +133,6 @@ build with the same id and key, confirm everything is there. Release build (R8),
 emulator, `keystore.properties` signing like the Skip app. Okay signs and uploads.
 
 ## Open points
-- Font download approval (Big Shoulders Display, Barlow from github.com/google/fonts, OFL).
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build
   follows the mock and also keeps a manual end via Restart/Report.
