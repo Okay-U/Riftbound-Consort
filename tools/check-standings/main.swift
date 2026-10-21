@@ -117,7 +117,7 @@ let pending = try bracket([swiss, cut(final: "PENDING", from: 1)])
 precondition(pending.rounds.count == 3 && !pending.isFinished && pending.placement(teamID: "T3") == nil, "pending round shown")
 precondition(CompetePairing.resolve(in: pending, playerID: "p1")?.opponentName == "Gus & Hal", "pending: latest pairing")
 // Swiss only: the final standing waits for Riot's table of the last round, even when every
-// result is in; until the organiser starts a round, it takes no results.
+// result is in.
 func lastRound(_ status: String) -> [String: Any] {
     round(2, status, [match("m3", teams[0], teams[2], winner: "T1"), match("m4", teams[1], teams[4], winner: "T2")], byes: ["T4"])
 }
@@ -125,9 +125,15 @@ let unpublished = try bracket([[swiss[0], lastRound("IN_PROGRESS")]], structure:
 precondition(!unpublished.isFinished && unpublished.placement(teamID: "T1") == nil, "final standing before the last table")
 let published = try bracket([swiss], structure: "SWISS")
 precondition(published.isFinished && published.placement(teamID: "T1") == .rank(1), "final standing after the last table")
-let ready = try bracket([[swiss[0], lastRound("READY")]], structure: "SWISS")
-precondition(CompetePairing.resolve(in: ready, playerID: "p1")?.isRoundOpen == false, "report before the round starts")
-precondition(CompetePairing.resolve(in: unpublished, playerID: "p1")?.isRoundOpen == true, "report while the round runs")
-let unknown = try bracket([[swiss[0], lastRound("SOMETHING_NEW")]], structure: "SWISS")
-precondition(CompetePairing.resolve(in: unknown, playerID: "p1")?.isRoundOpen == true, "unknown round status closes Report")
+// Report never depends on how the app reads a published round's status (Riot decides on
+// submit); an unpublished (PENDING) round is not shown at all, as on the site.
+func openMatch(_ id: String, _ a: [String: Any], _ b: [String: Any]) -> [String: Any] {
+    ["esportsMatchId": id, "tableNumber": 1, "status": "IN_PROGRESS", "teams": [a, b], "teamOutcomes": [] as [Any],
+     "games": [["esportsGameId": id + "-g1", "number": 1, "teamOutcomes": [] as [Any]]]]
+}
+for status in ["READY", "IN_PROGRESS", "FINALIZED", "SOMETHING_NEW"] {
+    let live = try bracket([[swiss[0], round(2, status, [openMatch("m3", teams[0], teams[2]), openMatch("m4", teams[1], teams[4])],
+                                             byes: ["T4"])]], structure: "SWISS")
+    precondition(CompetePairing.resolve(in: live, playerID: "p1")?.isReportable == true, "round status \(status) hides Report")
+}
 print("bracket ok: section and continued numbering, 2v2 names, placements, pending round hidden, final waits for Riot")

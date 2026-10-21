@@ -107,9 +107,6 @@ struct PlayRiftboundMatchesTab: View {
                             .background(EventsTheme.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                } else if !pairing.isComplete && !pairing.isRoundOpen {
-                    Text("Results can be reported while the round is running.")
-                        .font(.system(size: 12)).foregroundStyle(EventsTheme.textSecondary)
                 }
             }
         }

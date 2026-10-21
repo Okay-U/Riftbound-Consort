@@ -56,7 +56,7 @@ struct PlayRiftboundReportSheet: View {
     }
     private var matchDecided: Bool { decidingGame != nil }
     private var canSubmit: Bool {
-        (myWins + oppWins + draws) > 0 && !submitting && !refreshing && !pairing.isComplete && pairing.isRoundOpen
+        (myWins + oppWins + draws) > 0 && !submitting && !refreshing && !pairing.isComplete
     }
     private var opponentName: String { pairing.opponentName ?? "Opponent" }
 
@@ -98,9 +98,6 @@ struct PlayRiftboundReportSheet: View {
                         Label("Already reported on PlayRiftbound" + (pairing.scoreText.map { ": You \($0) \(opponentName)" } ?? "."),
                               systemImage: "checkmark.seal.fill")
                             .foregroundStyle(.green).font(.footnote)
-                    } else if !pairing.isRoundOpen {
-                        Text("PlayRiftbound takes results only while the round is running.")
-                            .foregroundStyle(.secondary).font(.footnote)
                     }
                     if let errorMessage {
                         Text(errorMessage).foregroundStyle(.red).font(.footnote)

@@ -597,10 +597,6 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     let teammateName: String?
     let isBye: Bool
     let isComplete: Bool
-    /// Riot takes results only while the round runs: not before the organiser starts it
-    /// (PENDING, READY), not once it is finalised. Any other status counts as open; Riot
-    /// checks again on submit.
-    let isRoundOpen: Bool
     /// What a result report needs: game ids in play order, both participant ids, series length.
     let gameIDs: [String]
     let myParticipantID: String?
@@ -622,7 +618,9 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     var mySide: String { "You" + (teammateName.map { " & \($0)" } ?? "") }
 
     var isReportable: Bool {
-        !isBye && !isComplete && isRoundOpen && matchID != nil && !gameIDs.isEmpty
+        // Deliberately not tied to the round status: Riot decides on submit and its refusal
+        // ("round hasn't started yet") is shown, so a status we misread can never hide Report.
+        !isBye && !isComplete && matchID != nil && !gameIDs.isEmpty
             && myParticipantID != nil && opponentParticipantID != nil
     }
 
@@ -634,9 +632,8 @@ nonisolated struct CompetePairing: Sendable, Equatable {
     static func resolve(in tournament: CompeteTournament, playerID: String, round: CompeteTournament.Round) -> CompetePairing? {
         let myTeamID = tournament.teamID(playerID: playerID)
         let ordered = CompeteTournament.tableOrder(round.matches)
-        let open = !["PENDING", "READY", "FINALIZED"].contains(round.status?.uppercased() ?? "")
         let bye = CompetePairing(roundID: round.id, roundTitle: tournament.title(of: round), tableNumber: nil, matchID: nil,
-                                 opponentName: nil, teammateName: nil, isBye: true, isComplete: true, isRoundOpen: open,
+                                 opponentName: nil, teammateName: nil, isBye: true, isComplete: true,
                                  gameIDs: [], myParticipantID: nil, opponentParticipantID: nil, bestOf: 1,
                                  myTeamID: myTeamID, opponentTeamID: nil, myGameWins: 0, opponentGameWins: 0, result: .win)
         if let slot = ordered.first(where: { $0.match.teams.contains { $0.players.contains { $0.id == playerID } } }) {
@@ -665,7 +662,7 @@ nonisolated struct CompetePairing: Sendable, Equatable {
                                   matchID: match.esportsMatchId,
                                   opponentName: tournament.teamName(theirs),
                                   teammateName: teammates.isEmpty ? nil : teammates.joined(separator: " & "),
-                                  isBye: false, isComplete: match.isComplete, isRoundOpen: open,
+                                  isBye: false, isComplete: match.isComplete,
                                   gameIDs: sortedGames.map(\.esportsGameId),
                                   myParticipantID: (tournament.participant(playerID: playerID)
                                                     ?? mine.flatMap { tournament.participant(teamID: $0) })?.id,
