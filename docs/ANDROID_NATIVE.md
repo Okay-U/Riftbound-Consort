@@ -82,17 +82,26 @@ Gradle project, tokens (colours, type, easing), app icon from the Skip app, edge
 five-tab shell with the bar and placeholder screens, back-to-Score. Fonts bundled: Big Shoulders Display + Barlow
 (OFL, from github.com/google/fonts, approved 2026-10-22), licence credited in Acknowledgments.
 
-### 1 · Scoreboard (`ScoreFinal`)
-LightRail duel: opponent half rotated on top, glowing territory line moves 26 px per point of
-difference, blur-morph numbers, Conquer/Hold/Effect +1 and Fix −1, final point by conquering asks first
-(at 7 → 8), win at 8 → result + next game, series pips (best of 3), XP ± (auto-armed for Poppy and
-"Master Yi - Wuju Master"), seam: dice duel (D20/D6, ties reroll, winner picks first/second, "GOES FIRST"
-badge), undo (50 steps), game clock, restart with confirm, Report (match mode). 4 players: not mocked,
-derive a 2×2 layout in the same language. Game records written like iOS (deck, opponent, started first,
-events, duration) when a game is won or lost. Haptics, keep screen on, shake to roll the duel. Player
-colours from the 16 swatches. iOS sources: `ScoreboardView`, `ScoreTile`, `ScoreboardViewModel`,
-`GameTimer`, `User/GameSetupSheet`, `Palette`.
-Tests: score/undo/XP rules, win and series, record building, duel.
+### 1 · Scoreboard (`ScoreFinal`) · done 2026-10-22
+Built as mocked: opponent half rotated on top, territory fields and glowing line (26 dp per point of
+difference, sweeps to the loser on a win or after the duel), blur-morph numbers with the colour drop,
+Conquer/Hold/Effect +1 and Fix −1, the 8th point by conquering asks first, win at 8 → "Game n" + next game,
+best of three with series pips, XP ± on both halves, undo (50 steps incl. XP), restart with confirm,
+match summary with one chip per game on the light rail. Seam: dice duel (D20/D6, tap a half / Roll both /
+shake, ties reroll, the winner picks first or second, banner, "GOES FIRST" badge, `activeStartedFirst`),
+match clock. Decisions made while building, for Okay's review:
+- The match clock runs over the whole best of three (iOS: Won/Lost never reset it); it starts on the first
+  point or "Start the game", a tap pauses it, a new match resets it. The restart text says so.
+- "End" in the seam opens the mock's result picker ("End the match") for concessions and games nobody kept
+  score of; the conceded game is written to `games.json` like iOS Won/Lost. In match mode it becomes Report.
+- The status bar is hidden on Score (full screen like the mock, swipe to show); dialogs are real windows
+  above the tab bar.
+- 4 players (no mock): 2×2 table, far row turned, each corner tinted in its colour, actions as 2×2, no
+  target, a 4-way roll for who starts.
+- State (scores, series, clock) is saved on every change (`native.scoreboard` in `defaults.xml`).
+Open for later phases: deck and opponent pick (phase 3, needs decks and legends), player colour picker
+(phase 4), match strip and Report (phase 5).
+Tests: `ScoreRulesTest`, `DuelTest`, `ResultPickerTest`, `GamesTest` (Swift `games.json` round trip).
 
 ### 2 · Cards (`CardsFinal`)
 Feed `https://okay-u.github.io/cards.json` with ETag, snapshot first then refresh, 6 h / 15 min refresh,

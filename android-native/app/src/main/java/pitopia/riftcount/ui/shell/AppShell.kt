@@ -1,5 +1,6 @@
 package pitopia.riftcount.ui.shell
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -9,6 +10,9 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +21,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,8 +32,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import java.io.File
+import pitopia.riftcount.data.DecklistStore
+import pitopia.riftcount.data.Documents
+import pitopia.riftcount.data.GameRecordStore
 import pitopia.riftcount.data.Prefs
+import pitopia.riftcount.platform.haptic
+import pitopia.riftcount.score.ScoreController
+import pitopia.riftcount.score.ScoreScreen
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
@@ -36,6 +56,17 @@ fun AppShell() {
     var tab by rememberSaveable { mutableStateOf(Tab.fromKey(Prefs.string(TAB_KEY, Tab.Score.key))) }
     LaunchedEffect(tab) { Prefs.put(TAB_KEY, tab.key) }
     BackHandler(enabled = tab != Tab.Score) { tab = Tab.Score }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val score = remember {
+        val docs = Documents(File(context.filesDir, "Documents"))
+        ScoreController(scope, GameRecordStore(docs), DecklistStore(docs))
+    }
+    val view = LocalView.current
+    SideEffect { score.haptic = { view.haptic(it) } }
+    StatusBarHidden(tab == Tab.Score)
+    // The tab bar (66 + 14 margin) above the system navigation; the score halves end above it.
+    val barReserve = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 80.dp
     Box(Modifier.fillMaxSize().background(RiftColors.Black)) {
         AnimatedContent(
             targetState = tab,
@@ -44,12 +75,30 @@ fun AppShell() {
                     .togetherWith(fadeOut(tween(140)))
             },
             label = "tab",
-        ) { shown -> Placeholder(shown) }
+        ) { shown ->
+            when (shown) {
+                Tab.Score -> ScoreScreen(score, barReserve)
+                else -> Placeholder(shown)
+            }
+        }
         BottomNav(selected = tab, onSelect = { tab = it }, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 
 private const val TAB_KEY = "currentTab"
+
+/** The scoreboard is full screen like the mock; a swipe from the top brings the status bar back. */
+@Composable
+private fun StatusBarHidden(hidden: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(hidden) {
+        val window = (view.context as? Activity)?.window
+        val bars = window?.let { WindowCompat.getInsetsController(it, view) }
+        bars?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (hidden) bars?.hide(WindowInsetsCompat.Type.statusBars()) else bars?.show(WindowInsetsCompat.Type.statusBars())
+        onDispose {}
+    }
+}
 
 // ponytail: stand-in screens until each tab is built in its own phase
 @Composable
