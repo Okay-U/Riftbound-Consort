@@ -34,6 +34,7 @@ struct RiftDeckDetail: View {
     let onLog: () -> Void
     @AppStorage("deckByEnergy") private var byEnergy = false
     @AppStorage("deckAsList") private var asList = false
+    @Environment(\.riftPage) private var page
     @State private var appeared = false
     @State private var morph: CGFloat = 0
     @State private var atHero = false
@@ -51,7 +52,7 @@ struct RiftDeckDetail: View {
             let own = geo.frame(in: .named(decksSpace))
             let safeTop = geo.safeAreaInsets.top
             ZStack(alignment: .topLeading) {
-                Color.black
+                page
                     .opacity(shown ? 1 : 0)
                     .animation(.linear(duration: 0.42), value: shown)
                 if !atHero {

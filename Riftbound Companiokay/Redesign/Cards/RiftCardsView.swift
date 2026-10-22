@@ -16,6 +16,7 @@ struct RiftCardsView: View {
     @EnvironmentObject private var errata: ErrataStore
     @EnvironmentObject private var decks: DecklistStore
     @EnvironmentObject private var shortlist: ShortlistStore
+    @Environment(\.riftPage) private var page
 
     @State private var query = ""
     @State private var filters = CardFilters()
@@ -78,7 +79,7 @@ struct RiftCardsView: View {
                 }
             }
         }
-        .background(Color.black.ignoresSafeArea())
+        .background(page.ignoresSafeArea())
         .toolbar(open == nil ? .visible : .hidden, for: .tabBar)
         .onAppear {
             cards.loadIfNeeded()

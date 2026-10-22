@@ -24,6 +24,22 @@ enum RiftColor {
     static let hairline = Color.white.opacity(0.12)
 }
 
+/// The page background: pure black, or dark grey with Settings' True black off (Android `RiftColors.Page`).
+nonisolated private struct RiftPageKey: EnvironmentKey {
+    static let defaultValue = Color.black
+}
+
+extension EnvironmentValues {
+    var riftPage: Color {
+        get { self[RiftPageKey.self] }
+        set { self[RiftPageKey.self] = newValue }
+    }
+}
+
+extension RiftColor {
+    static func page(trueBlack: Bool) -> Color { trueBlack ? .black : Color(hex: "121212") }
+}
+
 extension Color {
     /// Text on a filled button of this colour (Android `inkOn`): black above a relative luminance of 0.35.
     var ink: Color {

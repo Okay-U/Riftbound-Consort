@@ -16,6 +16,12 @@ struct RedesignScoreView: View {
     @EnvironmentObject private var riftBrowser: PlayRiftboundBrowser
     @AppStorage("playerCount") private var playerCount = 2
     @AppStorage("matchModeEnabled") private var matchModeEnabled = true
+    /// The seats' colours from Settings: read here so the board redraws after a pick.
+    @AppStorage("colorIdx_0") private var color0 = -1
+    @AppStorage("colorIdx_1") private var color1 = -1
+    @AppStorage("colorIdx_2") private var color2 = -1
+    @AppStorage("colorIdx_3") private var color3 = -1
+    @Environment(\.riftPage) private var page
     @AppStorage("currentTab") private var currentTab = TabKey.score
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var c = ScoreController()
@@ -56,7 +62,7 @@ struct RedesignScoreView: View {
             }
             .frame(width: geo.size.width, height: area, alignment: .top)
         }
-        .background(Color.black.ignoresSafeArea())
+        .background(page.ignoresSafeArea())
         .statusBarHidden()
         .alert(restartTitle, isPresented: $c.confirmRestart) {
             Button("Keep playing", role: .cancel) {}

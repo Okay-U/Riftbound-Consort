@@ -14,6 +14,7 @@ struct RedesignRoot: View {
     @AppStorage("currentTab") private var currentTab: String = TabKey.score
     /// The deck being built: Cards' "New deck with this card" starts it, the Decks tab shows it.
     @StateObject private var builder = DeckBuilderModel()
+    @AppStorage("trueBlack") private var trueBlack = true
 
     var body: some View {
         TabView(selection: $currentTab) {
@@ -33,12 +34,13 @@ struct RedesignRoot: View {
                 .tabItem { Label("Decks", systemImage: "square.3.layers.3d") }
                 .tag(TabKey.user)
 
-            Settings()
+            RiftSettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
                 .tag(TabKey.settings)
         }
         .tint(RiftColor.you)
         .environmentObject(builder)
+        .environment(\.riftPage, RiftColor.page(trueBlack: trueBlack))
         .onAppear {
             // The classic Dice tab has no place here.
             if currentTab == TabKey.dice { currentTab = TabKey.score }

@@ -61,7 +61,7 @@ struct Riftbound_CompaniokayApp: App {
                     get: { !didOnboard },
                     set: { newValue in if !newValue { didOnboard = true } }
                 )) {
-                    OnboardingView()
+                    if classicDesign { OnboardingView() } else { RiftTour(kind: .main) }
                 }
                 .onAppear {
                     idleMgr.isDisabled = keepScreenOn

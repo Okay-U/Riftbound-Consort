@@ -17,6 +17,7 @@ struct RiftBuilderView: View {
     let onSave: (Draft) -> Void
     let onClose: () -> Void
     @AppStorage("didSeeBuilderTip") private var didSeeBuilderTip = false
+    @Environment(\.riftPage) private var page
     @State private var direction = SlideDirection()
 
     var body: some View {
@@ -59,7 +60,7 @@ struct RiftBuilderView: View {
             }
             buttons(step, champions: champions, issues: issues)
         }
-        .background(Color.black.ignoresSafeArea())
+        .background(page.ignoresSafeArea())
         .overlay {
             if !didSeeBuilderTip {
                 BuilderTip { withAnimation(.easeOut(duration: 0.3)) { didSeeBuilderTip = true } }

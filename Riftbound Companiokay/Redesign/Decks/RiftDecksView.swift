@@ -15,6 +15,7 @@ struct RiftDecksView: View {
     @EnvironmentObject private var cards: CardStore
     @EnvironmentObject private var shortlist: ShortlistStore
     @EnvironmentObject private var builder: DeckBuilderModel
+    @Environment(\.riftPage) private var page
 
     @State private var opened: OpenDeck?
     @State private var closingDeck = false
@@ -95,7 +96,7 @@ struct RiftDecksView: View {
                 }
             }
             .coordinateSpace(.named(decksSpace))
-            .background(Color.black.ignoresSafeArea())
+            .background(page.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .toolbar(opened == nil && log == nil && review == nil && builder.draft == nil ? .visible : .hidden, for: .tabBar)
         }

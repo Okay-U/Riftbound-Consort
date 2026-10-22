@@ -101,8 +101,16 @@ reviews in Xcode.
    (84 checks). For Okay's review: the import uses iOS's Paste button (no paste prompt) instead of reading the
    clipboard on open; tool sheets are native sheets; cached card images now show without a placeholder flash
    (shared image cache, both designs).
-5. **Settings + onboarding** (`SettingsHybrid`): flip tiles, player colours, help, about, the fonts in
-   Acknowledgments, both tours, the Classic design switch.
+5. **Settings + onboarding** (`SettingsHybrid`) · done 2026-10-22: "Most used" tiles that turn over to say
+   what they do (Haptics, Keep screen on, True black, Match mode, Players 2P / 4P with the morphing number),
+   Player colors (live preview of the table, 16 swatches per seat, taking a colour another seat has swaps the
+   two, `colorIdx_N` shared with classic), the Classic design switch, Help (both tours, Riot's rules
+   documents), About (acknowledgments with the two OFL licences to read in place, bug report and wish through
+   Mail, share, rate, Ko-fi, privacy), the version line. True black now really switches the redesign's page
+   colour (black or #121212, an environment value). The first launch shows the redesign's tour (classic tour
+   with Classic design on). For Okay's review: sub pages are native pushes (back button and swipe) with the
+   mock's big title in the page; the PlayRiftbound log row stays out (removed on iOS earlier); the haptics
+   default bug is still open (to fix on main).
 6. **Events** (`EventsMix`): Events · Stores · PlayRiftbound tabs, live card, event page with five tabs,
    search, stores week rail, store and month sheets; the PlayRiftbound tab keeps the existing browser. The
    Locator "Old" segment is not ported (it goes in November).
