@@ -225,9 +225,10 @@ Tests: `CompeteBracketTest` (the iOS test target: sections, titles, placements, 
 Swiss final, report vs status, live standings), `DrawCalcTest`, `CompeteDecodeTest`, `RiftPolicyTest`,
 `OperationIdsTest`. Emulator with fake data: every screen against the mock, report from the event page
 and from the scoreboard (SubmitGameResults with the right game ids and winners), drop, register,
-favourite toggle, store finder with real geocoding, the live site in the PlayRiftbound pane. Not done:
-the live test with Okay's Riot sign-in, and checking the standings against real public events
-(`tools/check-standings`), which needs Okay's OK to fetch public PlayRiftbound data.
+favourite toggle, store finder with real geocoding, the live site in the PlayRiftbound pane. Standings
+against Riot's official end-of-round tables of three finished public events (30, 8 and 16 players):
+192 rows, points, records and ranks equal, tiebreakers within 1e-16 (`StandingsCheckTest`;
+`sh tools/check-standings/run.sh` checks iOS and Android). Not done: the live test with Okay's Riot sign-in.
 
 ### 6 · Upgrade path + release prep · done 2026-10-22
 Upgrade test on a fresh emulator (Android 15): the Skip 3.4.0 (9) build of `pitopia.Riftcount` (its debug
