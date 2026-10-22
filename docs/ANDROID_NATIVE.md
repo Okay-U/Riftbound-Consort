@@ -255,6 +255,19 @@ Release, Okay's steps:
    `app/build/outputs/bundle/release/app-release.aab` to Play as the next release of the existing app.
 3. Every later release raises `versionCode` (now 10) and `versionName` in `app/build.gradle.kts`.
 
+## Okay's review rounds
+
+Scoreboard, round 1 (2026-10-22):
+- Every action pill and the XP buttons light up in the half's colour under the finger and fade out.
+- Number changes (score, dice, steppers) blur without the box they were cut to.
+- The dice winner's "I go first / second" starts the game; no Roll again / Start step.
+- Casual by default: every game stands alone (8 points, then Next game), still in the match log. A tap
+  on GAME n in the seam switches to best of three and back; a long press pauses the clock.
+- With a PlayRiftbound pairing the seam shows TABLE n · vs opponent and Start match. The live match
+  starts in the event's format; a tap on its round and table switches best of 1 ↔ 3 (organisers enter
+  best of 1 for best-of-three play), and a best-of-one summary offers "We play best of 3". Only the
+  started live series can be reported. After it the next match is casual again.
+
 ## Open points
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build
