@@ -2,6 +2,7 @@ package pitopia.riftcount.ui.shell
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -30,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -57,11 +59,15 @@ private val BarShape = RoundedCornerShape(33.dp)
 private val KnobShape = RoundedCornerShape(25.dp)
 private val BarInset = 6.dp
 
-/** Floating pill bar from the mocks; the green knob glides to the selected tab. */
+/** Floating pill bar from the mocks; the green knob glides to the selected tab. [hidden] fades it under an overlay. */
 @Composable
-fun BottomNav(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier) {
+fun BottomNav(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier, hidden: Boolean = false) {
+    val shown by animateFloatAsState(if (hidden) 0f else 1f, tween(420, easing = RiftEase), label = "nav")
+    // Faded out it would still catch taps meant for the overlay underneath.
+    if (shown == 0f) return
     BoxWithConstraints(
         modifier
+            .graphicsLayer { alpha = shown }
             .navigationBarsPadding()
             .padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
             .fillMaxWidth()
@@ -86,7 +92,7 @@ fun BottomNav(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modif
         )
         Row(Modifier.padding(horizontal = BarInset).fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) {
             Tab.entries.forEach { tab ->
-                NavItem(tab, tab == selected, Modifier.width(itemWidth)) { onSelect(tab) }
+                NavItem(tab, tab == selected, Modifier.width(itemWidth)) { if (!hidden) onSelect(tab) }
             }
         }
     }

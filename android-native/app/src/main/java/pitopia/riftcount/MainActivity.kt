@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import pitopia.riftcount.cards.CardImages
 import pitopia.riftcount.data.Prefs
 import pitopia.riftcount.ui.shell.AppShell
 
@@ -18,6 +19,7 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         Prefs.init(applicationContext)
+        CardImages.init(applicationContext)
         setContent { AppShell() }
     }
 

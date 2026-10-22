@@ -1,5 +1,8 @@
 package pitopia.riftcount.data
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -26,13 +29,27 @@ data class Decklist(
     val runes: List<DecklistEntry> = emptyList(),
 )
 
-// ponytail: read-only for the scoreboard's deck name; phase 3 grows this into the full deck store.
+/** `decklists_v2.json`; an unreadable file is kept aside by [Documents.read] before the next save. */
 class DecklistStore(private val docs: Documents) {
     private val serializer = ListSerializer(Decklist.serializer())
 
-    val lists: List<Decklist> = docs.read(FILE) { SwiftJson.decodeFromString(serializer, it) } ?: emptyList()
+    var lists by mutableStateOf(docs.read(FILE) { SwiftJson.decodeFromString(serializer, it) } ?: emptyList())
+        private set
 
     fun find(id: String): Decklist? = lists.firstOrNull { it.id.equals(id, ignoreCase = true) }
+
+    fun create(name: String, nowMs: Long = System.currentTimeMillis()): Decklist =
+        Decklist(name = name, createdAt = nowMs, updatedAt = nowMs).also { save(lists + it) }
+
+    /** Writes an edited deck back in one save, so an interrupted edit never leaves half a deck on disk. */
+    fun replace(deck: Decklist) = save(lists.map { if (it.id == deck.id) deck else it })
+
+    fun delete(id: String) = save(lists.filterNot { it.id == id })
+
+    private fun save(next: List<Decklist>) {
+        lists = next
+        docs.write(FILE, SwiftJson.encodeToString(serializer, next))
+    }
 
     companion object {
         const val FILE = "decklists_v2.json"

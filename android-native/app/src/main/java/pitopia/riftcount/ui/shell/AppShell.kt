@@ -39,6 +39,11 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import java.io.File
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import pitopia.riftcount.cards.CardStore
+import pitopia.riftcount.cards.CardsScreen
+import pitopia.riftcount.cards.CardsUi
+import pitopia.riftcount.cards.ErrataStore
 import pitopia.riftcount.data.DecklistStore
 import pitopia.riftcount.data.Documents
 import pitopia.riftcount.data.GameRecordStore
@@ -58,9 +63,20 @@ fun AppShell() {
     BackHandler(enabled = tab != Tab.Score) { tab = Tab.Score }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val score = remember {
-        val docs = Documents(File(context.filesDir, "Documents"))
-        ScoreController(scope, GameRecordStore(docs), DecklistStore(docs))
+    val docs = remember { Documents(File(context.filesDir, "Documents")) }
+    val decks = remember { DecklistStore(docs) }
+    val cards = remember { CardStore(docs, scope) }
+    val errata = remember { ErrataStore(docs, scope) }
+    val cardsUi = remember { CardsUi() }
+    val score = remember { ScoreController(scope, GameRecordStore(docs), decks) }
+    var overlay by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        cards.loadIfNeeded()
+        errata.load()
+    }
+    LifecycleResumeEffect(Unit) {
+        cards.refreshIfDue()
+        onPauseOrDispose {}
     }
     val view = LocalView.current
     SideEffect { score.haptic = { view.haptic(it) } }
@@ -78,10 +94,11 @@ fun AppShell() {
         ) { shown ->
             when (shown) {
                 Tab.Score -> ScoreScreen(score, barReserve)
+                Tab.Cards -> CardsScreen(cardsUi, cards, errata, decks, barReserve) { overlay = it }
                 else -> Placeholder(shown)
             }
         }
-        BottomNav(selected = tab, onSelect = { tab = it }, modifier = Modifier.align(Alignment.BottomCenter))
+        BottomNav(selected = tab, onSelect = { tab = it }, modifier = Modifier.align(Alignment.BottomCenter), hidden = overlay)
     }
 }
 

@@ -127,7 +127,7 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
             } else {
                 TopLine(c.legend(slot), accent, ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) }, wins[slot], seriesPips = true, shown = !s.gameOver && !s.showSummary)
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    ScoreNumber(s.players[slot].score, accent, won = s.winner == slot, label = "${c.shortName(slot)} has ${s.players[slot].score} of $TARGET points")
+                    ScoreNumber(s.players[slot].score, accent, won = s.winner == slot, label = "${haves(c.shortName(slot))} ${s.players[slot].score} of $TARGET points")
                 }
                 when {
                     s.showSummary -> Spacer(Modifier.height(54.dp))
@@ -199,7 +199,7 @@ private fun BoxScope.FourPlayers(c: ScoreController, swatches: List<Swatch>, are
                             } else {
                                 TopLine(c.legend(slot), sw.color, sw.ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) }, 0, seriesPips = false)
                                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                    ScoreNumber(s.players[slot].score, sw.color, won = false, label = s.players[slot].score.let { n -> "${c.legend(slot)} has $n ${if (n == 1) "point" else "points"}" }, showTarget = false, sizeDp = 112f)
+                                    ScoreNumber(s.players[slot].score, sw.color, won = false, label = s.players[slot].score.let { n -> "${haves(c.legend(slot))} $n ${if (n == 1) "point" else "points"}" }, showTarget = false, sizeDp = 112f)
                                 }
                                 ActionGrid(sw.color, sw.ink, { c.score(slot, PointKind.Conquer) }, { c.score(slot, PointKind.Hold) }, { c.score(slot, PointKind.Effect) }, { c.fix(slot) })
                             }
@@ -222,3 +222,6 @@ private fun BoxScope.FourPlayers(c: ScoreController, swatches: List<Swatch>, are
         )
     }
 }
+
+/** "You have", "Lee Sin has": the score labels read by TalkBack. */
+private fun haves(name: String) = if (name == "You") "You have" else "$name has"

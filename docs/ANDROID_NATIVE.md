@@ -103,12 +103,31 @@ Open for later phases: deck and opponent pick (phase 3, needs decks and legends)
 (phase 4), match strip and Report (phase 5).
 Tests: `ScoreRulesTest`, `DuelTest`, `ResultPickerTest`, `GamesTest` (Swift `games.json` round trip).
 
-### 2 · Cards (`CardsFinal`)
+### 2 · Cards (`CardsFinal`) · done 2026-10-22
 Feed `https://okay-u.github.io/cards.json` with ETag, snapshot first then refresh, 6 h / 15 min refresh,
-reject feeds below max(500, old/2), dedupe. Grid with search, sort (set/energy/type), filters (domains,
-types, energy/power/might caps 12/12/14), card grows into the detail (rules text with Riot glyphs, errata
-stamp from `errata.json`), add to deck. Image loader with memory + disk cache. iOS sources: `Cards/*`.
-Tests: filters, sort order, text parser (`:rb_…:` and bracket codes), feed acceptance, errata matching.
+reject feeds below max(500, old/2), dedupe; `errata.json` once a day. Built as mocked: header with the
+count, search with the green focus ring, All + six domain discs, Set · Energy · Type switch, Filter with
+its badge, three-column grid whose first 15 tiles rise in on every search/filter change, the tile flies
+up and grows into the detail (rules text with Riot's glyphs, keyword chips and italic reminders, stats,
+errata box with the printed text struck and the link, flavour, artist and code, tags), "Add to deck" sheet
+with a stepper per deck, filter sheet (type/series/rarity chips, energy/power/might two-thumb sliders,
+caps 12/12/14 = no limit, live "Show N cards"). Decisions made while building, for Okay's review:
+- Riot's real card art in the mock's frame (shade, name, type line with rarity gem, ERRATA and PREVIEW
+  stamps) instead of the mock's drawn art; the drawn art is the loading/offline placeholder. The CDN is
+  asked for a WebP at tile width (about 20 KB instead of the 780 KB PNG iOS loads). In the detail the frame
+  fades off the art, so the whole card shows. Battlefields turn -90° like iOS.
+- The domain discs use Riot's rune shapes in the mock's disc style.
+- Add to deck follows the builder rules (iOS's sheet had none): legend replaces the legend, a champion
+  matching the legend fills the chosen-champion slot first, copy limit 3 per card across printings,
+  signature limit 3, battlefields 3 and one each, runes 12, main deck 39; decks outside the legend's
+  domains are greyed out with the reason. "New deck with this card" asks for a name (iOS); the mock's
+  "open the builder" comes with phase 3.
+- Type sort is alphabetical like iOS. Grid columns grow with the width (3 on a phone, more in landscape);
+  the app rotates without restarting like the Skip app, the landscape layout itself is not designed.
+- Search and filters stay while another tab is open; the keyboard closes when the grid scrolls.
+Open: decks saved with riftcodex ids (Skip 3.4) show without their cards until the phase 3 migration.
+Tests: `CardQueryTest`, `CardTextTest`, `ErrataTest`, `DeckRulesTest`, `DecksTest` (Swift `decklists_v2.json`
+round trip). Emulator: debug grid scroll 17 ms median, staging 1.3 % janky frames.
 
 ### 3 · Decks (`DecksMix`)
 Playmat piles overview with the opening animation, all-decks win-rate tile and match-log tile that

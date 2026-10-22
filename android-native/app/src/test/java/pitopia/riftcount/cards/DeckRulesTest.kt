@@ -1,0 +1,89 @@
+package pitopia.riftcount.cards
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import pitopia.riftcount.data.DeckRules
+import pitopia.riftcount.data.Decklist
+import pitopia.riftcount.data.DecklistEntry
+
+class DeckRulesTest {
+    private val cards = Fixture.cards.associateBy { it.id }
+    private val darius = Fixture.named("Darius - Hand of Noxus")
+    private val trifarian = Fixture.named("Darius - Trifarian")
+    private val trifarianAlt = Fixture.named("Darius - Trifarian (Alternate Art)")
+    private val executioner = Fixture.named("Darius - Executioner")
+    private val kinkou = Fixture.named("Kinkou Monk")
+    private val furyRune = cards.getValue("ogn-007-298")
+
+    private fun empty() = Decklist(name = "Test", createdAt = 0, updatedAt = 0)
+    private fun Decklist.with(card: Card, times: Int = 1, pool: Map<String, Card> = cards) =
+        (1..times).fold(this) { d, _ -> DeckRules.add(card, d, pool, nowMs = 1) }
+
+    @Test
+    fun `printings of a card share one identity`() {
+        assertEquals("name:darius trifarian", DeckRules.identityKey(trifarian))
+        assertEquals(DeckRules.identityKey(trifarian), DeckRules.identityKey(trifarianAlt))
+    }
+
+    @Test
+    fun `a champion fills the chosen slot first, then the main deck, three copies in all`() {
+        var d = empty().with(darius).with(trifarian)
+        assertEquals(darius.id, d.legend?.cardId)
+        assertEquals(trifarian.id, d.champion?.cardId)
+        d = d.with(trifarianAlt).with(trifarian)
+        assertEquals(2, d.mainDeck.sumOf { it.count })
+        assertEquals(3, DeckRules.copies(d, trifarianAlt, cards))
+        assertEquals("3 copies already", DeckRules.blocker(trifarianAlt, d, cards))
+    }
+
+    @Test
+    fun `the legend's domains decide what fits, colourless always does`() {
+        val d = empty().with(darius)
+        assertEquals("Outside the legend's domains", DeckRules.blocker(kinkou, d, cards))
+        assertNull(DeckRules.blocker(executioner, d, cards))
+        assertNull(DeckRules.blocker(kinkou, empty(), cards))
+        assertTrue(DeckRules.eligible(Fixture.named("Buff"), setOf("fury", "order")))
+    }
+
+    @Test
+    fun `battlefields, runes, signatures and the main deck have their limits`() {
+        val battlefields = Fixture.cards.filter { it.isBattlefield }
+        var d = battlefields.fold(empty()) { acc, c -> acc.with(c) }
+        assertEquals(3, d.battlefields.size)
+        assertEquals("Already a battlefield", DeckRules.blocker(battlefields[0], d, cards))
+        d = d.with(furyRune, 12)
+        assertEquals(12, d.runes.single().count)
+        assertEquals("12 runes already", DeckRules.blocker(furyRune, d, cards))
+
+        val signature = Fixture.named("Blazing Scorcher").copy(id = "sig", metadata = Card.Metadata(signature = true))
+        val pool = cards + ("sig" to signature) + ("other" to signature.copy(id = "other", name = "Other"))
+        val signed = empty().copy(mainDeck = listOf(DecklistEntry("other", "Other", 3)))
+        assertEquals("3 signature cards already", DeckRules.blocker(signature, signed, pool))
+
+        val full = empty().copy(mainDeck = listOf(DecklistEntry("filler", "Filler", 39)))
+        assertEquals("Main deck is full", DeckRules.blocker(Fixture.named("Cleave"), full, cards))
+    }
+
+    @Test
+    fun `remove takes main deck copies before the chosen champion`() {
+        var d = empty().with(darius).with(trifarian, 2)
+        assertEquals(2, DeckRules.count(trifarian, d))
+        d = DeckRules.remove(trifarian, d, nowMs = 2)
+        assertTrue(d.mainDeck.isEmpty())
+        assertEquals(trifarian.id, d.champion?.cardId)
+        assertEquals(2L, d.updatedAt)
+        assertEquals(d, DeckRules.remove(kinkou, d, nowMs = 3))
+    }
+
+    @Test
+    fun `issues use the iOS wording`() {
+        assertEquals(
+            listOf("Missing champion", "Missing legend", "Battlefields: 0/3", "Main deck: 0/39", "Runes: 0/12"),
+            DeckRules.issues(empty()),
+        )
+        val side = empty().copy(sideDeck = listOf(DecklistEntry("x", "X", 4)))
+        assertTrue("Side deck: 4 (must be 0 or 10)" in DeckRules.issues(side))
+    }
+}
