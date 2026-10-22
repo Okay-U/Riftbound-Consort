@@ -2,7 +2,8 @@
 # Recomputes PlayRiftbound standings with the app's CompeteStandings and compares them
 # with Riot's official end-of-round tables of finished public events (no sign-in), then
 # checks the top-cut and 2v2 reading on a synthetic bracket.
-# Run after touching CompeteStandings.swift or CompeteModels.swift:  sh tools/check-standings/run.sh
+# Run after touching CompeteStandings.swift or CompeteModels.swift (or the Android Standings.kt / Compete.kt):
+#   sh tools/check-standings/run.sh
 set -e
 here="$(cd "$(dirname "$0")" && pwd)"
 events="$here/../../Riftbound Companiokay/User/Events"
@@ -20,4 +21,7 @@ for t in 117230601421798826 117303870491694585 117353827247396877; do
 done
 xcrun swiftc -O -o "$tmp/check" "$here/main.swift" "$events/CompeteModels.swift" "$events/CompeteStandings.swift"
 "$tmp/check" "$tmp"
+# The Android app's port of the same rules against the same tables (StandingsCheckTest).
+(cd "$here/../../android-native" && STANDINGS_DIR="$tmp" ./gradlew -q :app:testDebugUnitTest --tests 'pitopia.riftcount.events.StandingsCheckTest' --rerun)
+echo "android standings ok"
 rm -rf "$tmp"
