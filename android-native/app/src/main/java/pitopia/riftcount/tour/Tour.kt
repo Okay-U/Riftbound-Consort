@@ -214,7 +214,7 @@ private val MainPages = listOf(
         listOf(
             "Player colors" to "16 colors, one per seat",
             "Stay awake" to "The screen stays on during games",
-            "Haptics & sounds" to "Toggle feedback to taste",
+            "Haptics" to "Toggle feedback to taste",
             "True black" to "Pure black for OLED screens, or a dark grey",
         ),
     ),

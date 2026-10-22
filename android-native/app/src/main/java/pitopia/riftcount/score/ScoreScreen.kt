@@ -30,10 +30,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import pitopia.riftcount.data.AppSettings
 import pitopia.riftcount.cards.CardStore
 import pitopia.riftcount.data.Decklist
-import pitopia.riftcount.platform.ShakeEffect
 import pitopia.riftcount.ui.theme.RiftEase
 
 /** The Score tab. [bottomReserve] is the room the tab bar takes at the bottom; both halves end above it. */
@@ -47,7 +45,6 @@ fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, ca
             else -> c.closeDuel()
         }
     }
-    ShakeEffect(enabled = c.duel?.canRollAll == true && AppSettings.shakeToRoll.on) { c.rollAll() }
     val slots = c.state.players.size
     val swatches = List(slots) { PlayerColors.forSlot(it, slots) }
     BoxWithConstraints(Modifier.fillMaxSize()) {

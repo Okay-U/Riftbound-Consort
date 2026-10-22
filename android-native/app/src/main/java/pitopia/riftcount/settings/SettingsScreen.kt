@@ -51,7 +51,6 @@ import java.io.File
 import kotlinx.coroutines.delay
 import pitopia.riftcount.data.AppSettings
 import pitopia.riftcount.platform.Haptic
-import pitopia.riftcount.platform.Sounds
 import pitopia.riftcount.platform.haptic
 import pitopia.riftcount.score.ScoreController
 import pitopia.riftcount.tour.TourKind
@@ -139,9 +138,6 @@ private fun ColumnScope.MainList(score: ScoreController, colorsRev: Int, toaster
                 trailing = { ColorDots(players) },
             ) { open(SubPage.Colors) }
         }
-        ToggleRow("Shake to roll", SettingsIcons.Shake, "Shake the phone to roll the who-goes-first dice", AppSettings.shakeToRoll.on) {
-            AppSettings.shakeToRoll.on = it
-        }
     }
     Section("Help", 390) {
         LinkRow("Show the general tour", SettingsIcons.Tour, divider = false) { onTour(TourKind.Main) }
@@ -184,7 +180,6 @@ private val TileInfo = listOf(
     "The phone does not sleep while Riftcount is open.",
     "Pure #000 background. Saves battery on OLED screens and looks deepest.",
     "In a live tournament the scoreboard shows your table, opponent and a Report button.",
-    "Soft clicks for points and the dice. Off by default, tables are loud enough.",
     "2 is the face-to-face duel. 4 splits the table for free-for-all games.",
 )
 
@@ -195,10 +190,10 @@ private fun Tiles(players: Int, toaster: Toaster, onPlayers: () -> Unit, onHapti
         Triple("Keep screen on", SettingsIcons.Awake, AppSettings.keepScreenOn),
         Triple("True black", SettingsIcons.Black, AppSettings.trueBlack),
         Triple("Match mode", SettingsIcons.Match, AppSettings.matchMode),
-        Triple("Sounds", SettingsIcons.Sounds, AppSettings.sounds),
     )
     Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        (0 until 6).chunked(2).forEach { pair ->
+        // The switches, then Players; an odd one out takes the whole row.
+        (0..switches.size).chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 pair.forEach { i ->
                     Rise(true, 60 + i * 45, Modifier.weight(1f)) {
@@ -209,7 +204,6 @@ private fun Tiles(players: Int, toaster: Toaster, onPlayers: () -> Unit, onHapti
                                     flag.on = !flag.on
                                     when (flag) {
                                         AppSettings.haptics -> onHaptics(flag.on)
-                                        AppSettings.sounds -> Sounds.play(Haptic.Tick)
                                         AppSettings.trueBlack -> toaster.show(if (flag.on) "True black · pure #000 for OLED" else "Dark grey background")
                                     }
                                 }

@@ -3,7 +3,6 @@ package pitopia.riftcount.settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
@@ -55,7 +53,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -72,13 +69,11 @@ import pitopia.riftcount.ui.theme.RiftType
 /** Line icons of the SettingsHybrid mock (24 viewport, 2 stroke). */
 object SettingsIcons {
     val Haptics = lineIcon("M5 8v8M19 8v8M9 5h6a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z", 20.dp)
-    val Sounds = lineIcon("M4 10v4h4l5 4V6l-5 4zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11", 20.dp)
     val Awake = lineIcon(
         "M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3L4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4" +
             "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z",
         20.dp,
     )
-    val Shake = lineIcon("M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM2 8l1 4-1 4M22 8l-1 4 1 4", 20.dp)
     val Black = lineIcon("M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z", 20.dp)
     val Colors = lineIcon(
         "M12 3a9 9 0 0 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-1.1.9-2 2-2h2.4a4.6 4.6 0 0 0 4.6-4.6" +
@@ -143,14 +138,6 @@ fun LinkRow(
     RowShell(label, icon, sub, divider, false, source, Modifier.clickable(source, null, role = Role.Button, onClick = onClick), trailing)
 }
 
-@Composable
-fun ToggleRow(label: String, icon: ImageVector, sub: String?, on: Boolean, divider: Boolean = true, onChange: (Boolean) -> Unit) {
-    val source = remember { MutableInteractionSource() }
-    RowShell(label, icon, sub, divider, on, source, Modifier.toggleable(on, source, null, role = Role.Switch, onValueChange = onChange)) {
-        Toggle(on)
-    }
-}
-
 /** [modifier] carries the row's click or toggle; [source] its presses. */
 @Composable
 private fun RowShell(
@@ -197,19 +184,6 @@ private fun RowIcon(icon: ImageVector, on: Boolean) {
 @Composable
 fun Chevron(external: Boolean = false) {
     Image(if (external) SettingsIcons.External else SettingsIcons.Chevron, null, colorFilter = ColorFilter.tint(Color.White.copy(alpha = 0.45f)))
-}
-
-/** The mock's `.tg` switch: green track with a glow and a black knob when on. */
-@Composable
-fun Toggle(on: Boolean) {
-    val x = animateDpAsState(if (on) 22.dp else 0.dp, tween(520, easing = RiftEase), label = "knob")
-    val track by animateColorAsState(if (on) RiftColors.You else Color.White.copy(alpha = 0.14f), tween(360), label = "track")
-    val knob by animateColorAsState(if (on) Color.Black else Color.White, tween(300), label = "knobInk")
-    val glow by animateFloatAsState(if (on) 0.45f else 0f, tween(500), label = "glow")
-    val shape = RoundedCornerShape(16.dp)
-    Box(Modifier.size(54.dp, 32.dp).dropShadow(shape, Shadow(16.dp, RiftColors.You.copy(alpha = glow))).background(track, shape)) {
-        Box(Modifier.padding(3.dp).offset { IntOffset(x.value.roundToPx(), 0) }.size(26.dp).background(knob, CircleShape))
-    }
 }
 
 private val TileShape = RoundedCornerShape(24.dp)

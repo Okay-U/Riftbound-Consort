@@ -162,7 +162,10 @@ private fun AckLink(text: String, onClick: () -> Unit) {
     }
 }
 
-/** Acknowledgments (iOS): Riot, the rune icons, and the two OFL fonts with their licence texts. */
+/**
+ * Acknowledgments (iOS): Riot, the rune icons, the store search's geocoder (the Skip app's Photon credit), the two
+ * OFL fonts and the Apache-licensed libraries, each licence text to read in place.
+ */
 @Composable
 fun AckPage(onOpen: (String) -> Unit) {
     val context = LocalContext.current
@@ -177,15 +180,28 @@ fun AckPage(onOpen: (String) -> Unit) {
         AckLink("github.com/ChristianIvicevic/riftboundfaq") { onOpen("https://github.com/ChristianIvicevic/riftboundfaq") }
         AckLink("CC BY-SA 4.0") { onOpen("https://creativecommons.org/licenses/by-sa/4.0/") }
     }
-    AckCard("Fonts", "Big Shoulders Display and Barlow, used under the SIL Open Font License 1.1.", 180) {
-        listOf("Big Shoulders Display" to "OFL_big_shoulders_display.txt", "Barlow" to "OFL_barlow.txt").forEach { (name, file) ->
-            AckLink(if (license == file) "Hide the $name license" else "$name license") { license = if (license == file) null else file }
-            if (license == file) {
-                val text = remember(file) { runCatching { context.assets.open("licenses/$file").bufferedReader().use { reflow(it.readText()) } }.getOrDefault("") }
-                BasicText(text, Modifier.padding(vertical = 8.dp), style = AckText.copy(fontSize = 12.sp, lineHeight = 17.sp, color = Color.White.copy(alpha = 0.66f)))
-            }
+    AckCard("Photon / OpenStreetMap", "Store search locations by Photon (komoot), data © OpenStreetMap contributors.", 180) {
+        AckLink("photon.komoot.io") { onOpen("https://photon.komoot.io") }
+        AckLink("openstreetmap.org/copyright") { onOpen("https://www.openstreetmap.org/copyright") }
+    }
+    @Composable
+    fun LicenseLink(name: String, file: String) {
+        AckLink(if (license == file) "Hide the $name" else name) { license = if (license == file) null else file }
+        if (license == file) {
+            val text = remember(file) { runCatching { context.assets.open("licenses/$file").bufferedReader().use { reflow(it.readText()) } }.getOrDefault("") }
+            BasicText(text, Modifier.padding(vertical = 8.dp), style = AckText.copy(fontSize = 12.sp, lineHeight = 17.sp, color = Color.White.copy(alpha = 0.66f)))
         }
     }
+    AckCard("Fonts", "Big Shoulders Display and Barlow, used under the SIL Open Font License 1.1.", 240) {
+        LicenseLink("Big Shoulders Display license", "OFL_big_shoulders_display.txt")
+        LicenseLink("Barlow license", "OFL_barlow.txt")
+    }
+    AckCard(
+        "Open source",
+        "Built with Jetpack Compose and other AndroidX libraries (© The Android Open Source Project), Kotlin, " +
+            "kotlinx.coroutines and kotlinx.serialization (© JetBrains s.r.o. and contributors), under the Apache License 2.0.",
+        300,
+    ) { LicenseLink("Apache License 2.0", "Apache-2.0.txt") }
     BasicText(
         "Riftbound is a trademark of Riot Games. This app is an unofficial fan project and is not affiliated with Riot Games.",
         Modifier.padding(start = 6.dp, end = 6.dp, top = 16.dp),

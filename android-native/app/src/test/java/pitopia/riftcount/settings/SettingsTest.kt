@@ -54,6 +54,16 @@ class ReflowTest {
             reflow(license),
         )
     }
+
+    @Test
+    fun `every licence the acknowledgments open is bundled and reads as paragraphs`() {
+        listOf("OFL_big_shoulders_display.txt", "OFL_barlow.txt", "Apache-2.0.txt").forEach { name ->
+            val text = reflow(java.io.File("src/main/assets/licenses/$name").readText())
+            assertTrue(name, text.split("\n\n").size > 5)
+        }
+        val apache = reflow(java.io.File("src/main/assets/licenses/Apache-2.0.txt").readText())
+        assertTrue(apache.startsWith("Apache License Version 2.0, January 2004 http://www.apache.org/licenses/"))
+    }
 }
 
 class PickColorTest {

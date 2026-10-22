@@ -307,7 +307,16 @@ the marked cards back onto the pile before their replacements come off it. The t
 after New deck (the latest three kept cards fanned, or an empty frame); it opens the list, grouped like a deck,
 where the star takes a card off or puts it back.
 
+Settings, round 1 (2026-10-22): no sounds at all (the Sounds tile, its clicks and `Sounds.kt` are gone) and no
+shake to roll (the row and the shake listener; Roll both in the seam stays). Four switch tiles, Players takes the
+last row. Keep screen on checked: the window carries `KEEP_SCREEN_ON` while the switch is on. Report a bug / Wish
+a feature put address, subject and text into the mailto link like iOS (Gmail ignores them as SENDTO extras, the
+mail would have opened empty). Acknowledgments gained the Skip app's Photon / OpenStreetMap credit (store search
+geocodes with Photon) and the Apache 2.0 libraries (AndroidX/Compose, Kotlin, kotlinx) with the licence text.
+
 ## Open points
+- Before the final release: remove the PlayRiftbound log row from Settings (Okay 2026-10-22: kept while
+  testing the Events tab).
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build
   follows the mock and also keeps a manual end via Restart/Report.

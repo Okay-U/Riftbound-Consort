@@ -3,6 +3,7 @@ package pitopia.riftcount.settings
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.core.net.toUri
 import java.io.File
@@ -92,10 +93,14 @@ object Support {
         return start(context, Intent.createChooser(send, null))
     }
 
-    /** The mail app with the report filled in (iOS `BugReportView` / `FeatureRequestView`), read before sending. */
+    /**
+     * The mail app with the report filled in (iOS `BugReportView` / `FeatureRequestView`), read before sending.
+     * Address, subject and text ride in the mailto link as on iOS: Gmail ignores them as extras of SENDTO.
+     * The extras stay for apps that read only those.
+     */
     fun mail(context: Context, subject: String, body: String): Boolean {
-        val mail = Intent(Intent.ACTION_SENDTO, "mailto:".toUri())
-            .putExtra(Intent.EXTRA_EMAIL, arrayOf(EMAIL))
+        val link = "mailto:$EMAIL?subject=${Uri.encode(subject)}&body=${Uri.encode(body)}".toUri()
+        val mail = Intent(Intent.ACTION_SENDTO, link)
             .putExtra(Intent.EXTRA_SUBJECT, subject)
             .putExtra(Intent.EXTRA_TEXT, body)
         return start(context, mail)

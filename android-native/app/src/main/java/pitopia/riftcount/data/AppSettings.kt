@@ -19,11 +19,9 @@ class Flag(private val key: String, default: Boolean) {
 /** The switches of Settings and the tours, iOS defaults. First used after [Prefs.init]. */
 object AppSettings {
     val haptics = Flag("hapticsEnabled", true)
-    val sounds = Flag("soundsEnabled", false)
     val keepScreenOn = Flag("keepScreenOn", true)
     val trueBlack = Flag("trueBlack", true)
     val matchMode = Flag("matchModeEnabled", true)
-    val shakeToRoll = Flag("diceShakeToRoll", true)
     val didOnboard = Flag("didOnboard", false)
     val didOnboardEvents = Flag("didOnboardEvents", false)
     val didSeeBuilderTip = Flag("didSeeBuilderTip", false)

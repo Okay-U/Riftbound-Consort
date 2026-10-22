@@ -53,7 +53,6 @@ import pitopia.riftcount.data.Documents
 import pitopia.riftcount.data.GameRecordStore
 import pitopia.riftcount.data.AppSettings
 import pitopia.riftcount.data.Prefs
-import pitopia.riftcount.platform.Sounds
 import pitopia.riftcount.platform.haptic
 import pitopia.riftcount.score.ScoreController
 import pitopia.riftcount.score.ScoreScreen
@@ -125,12 +124,7 @@ fun AppShell() {
         onPauseOrDispose {}
     }
     val view = LocalView.current
-    SideEffect {
-        score.haptic = {
-            view.haptic(it)
-            Sounds.play(it)
-        }
-    }
+    SideEffect { score.haptic = { view.haptic(it) } }
     StatusBarHidden(tab == Tab.Score)
     KeepAwake(AppSettings.keepScreenOn.on)
     // The six-page tour on first launch; the Events tour the first time Events opens; both again from Settings.
