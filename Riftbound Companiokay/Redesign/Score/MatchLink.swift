@@ -40,6 +40,8 @@ struct MatchInfo: Equatable {
     /// The event's name while there is one; the seam's centre offers to open it.
     let event: String?
     let webURL: URL?
+    /// The event's id: "Open the event?" shows its native screen in Events.
+    let tournamentID: String?
 
     init(strip: PlayRiftboundStrip?) {
         let pairing = strip?.pairing
@@ -71,6 +73,7 @@ struct MatchInfo: Equatable {
         }
         event = strip?.eventName
         webURL = strip?.webURL
+        tournamentID = strip?.tournamentID
     }
 
     /// A manual check's answer, short enough for the board's toast.

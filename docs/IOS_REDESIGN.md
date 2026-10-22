@@ -111,9 +111,20 @@ reviews in Xcode.
    with Classic design on). For Okay's review: sub pages are native pushes (back button and swipe) with the
    mock's big title in the page; the PlayRiftbound log row stays out (removed on iOS earlier); the haptics
    default bug is still open (to fix on main).
-6. **Events** (`EventsMix`): Events · Stores · PlayRiftbound tabs, live card, event page with five tabs,
-   search, stores week rail, store and month sheets; the PlayRiftbound tab keeps the existing browser. The
-   Locator "Old" segment is not ported (it goes in November).
+6. **Events** (`EventsMix`) · done 2026-10-22: section tabs Events · Stores · PlayRiftbound with the glowing
+   bar, the sections sliding sideways. Events: the finder pill, the live card (round clock, table, Report),
+   upcoming cards with the player's status and past cards with the placement (each event's details are
+   fetched two at a time, cached 20 s, one request per event at a time). The event page: hero with the store
+   link, the five tabs (Matches with the final standing, the open pairing with both records and Report, the
+   round clock and the match history; Rounds with every table and the rounds to come; Standings with Riot's
+   tables or the live preview, the player's line, tiebreakers and "Can I draw?"; Roster; Info with register /
+   cancel / drop confirmed first). Report: one row per game, nothing after the deciding game, pairing fetched
+   again on open and before sending. The finder (place, radius, type / format / players, favourites only,
+   date or distance, load more). Stores: the 14-day light rail with the day's events, favourite store cards,
+   the store finder with the radius rail; the store sheet (contact rows, heart, its events) and the month.
+   PlayRiftbound keeps the existing browser and loads the first time it shows. The scoreboard's "Open the
+   event?" now opens the native event page. For Okay's review: pages are native pushes and sheets; the
+   Locator "Old" segment is not in the new design (Classic design still has it until November).
 7. **Release prep:** iPad pass (same screens, wider), App Store screenshots, What's new, version.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the

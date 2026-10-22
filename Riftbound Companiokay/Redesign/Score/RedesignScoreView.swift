@@ -72,7 +72,9 @@ struct RedesignScoreView: View {
         }
         .alert("Open the event?", isPresented: $askingEvent) {
             Button("Stay here", role: .cancel) {}
-            Button("Open event") { if let url = match?.webURL { riftBrowser.open(url) } }
+            Button("Open event") {
+                if let id = match?.tournamentID { riftBrowser.openEvent(id) } else if let url = match?.webURL { riftBrowser.open(url) }
+            }
         } message: {
             Text("\(match?.event ?? "The event") opens in Events. Your scoreboard stays as it is.")
         }

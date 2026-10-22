@@ -240,7 +240,8 @@ struct RiftDecksView: View {
     }
 }
 
-/// The mock's cellIn: up 16pt out of a blur of 8, 70ms apart.
+/// The mock's cellIn: up 16pt out of a blur of 8, 70ms apart. Capped: a lazy cell scrolled to late would
+/// otherwise wait for its whole index.
 private struct CellIn: ViewModifier {
     let index: Int
     @State private var shown = false
@@ -250,7 +251,7 @@ private struct CellIn: ViewModifier {
             .opacity(shown ? 1 : 0)
             .offset(y: shown ? 0 : 16)
             .blur(radius: shown ? 0 : 8)
-            .onAppear { withAnimation(.rift(0.76).delay(Double(index) * 0.07)) { shown = true } }
+            .onAppear { withAnimation(.rift(0.76).delay(Double(min(index, 6)) * 0.07)) { shown = true } }
     }
 }
 

@@ -18,6 +18,8 @@ final class PlayRiftboundBrowser: ObservableObject {
     @Published private(set) var model: PlayRiftboundWebModel?
     /// Set by `open(_:)`; EventsHomeView consumes it by switching to New Events and loading it.
     @Published var pendingURL: URL?
+    /// Set by `openEvent(_:)`; the redesign's Events tab pushes its native event screen.
+    @Published var pendingEventID: String?
 
     @AppStorage("currentTab") private var currentTab: String = "score"
 
@@ -33,6 +35,12 @@ final class PlayRiftboundBrowser: ObservableObject {
     /// Show a PlayRiftbound page inside the app: switch to the Events tab, New Events segment.
     func open(_ url: URL) {
         pendingURL = url
+        currentTab = "events"
+    }
+
+    /// Show an event's native screen (redesign): switch to the Events tab, which pushes it.
+    func openEvent(_ id: String) {
+        pendingEventID = id
         currentTab = "events"
     }
 
