@@ -132,6 +132,9 @@ class ScoreController(
         if (state.bestOf == 3) show("Best of 3 · first to two games")
     }
 
+    /** Whose half asks who starts, or -1 (the question goes stale after a while). */
+    fun startChooser(): Int = state.startChooser(now())
+
     /** The last game's loser goes first or second. */
     fun pickStart(first: Boolean) {
         val chooser = state.chooser

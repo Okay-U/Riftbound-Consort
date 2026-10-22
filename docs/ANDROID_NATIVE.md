@@ -329,6 +329,11 @@ for five hits and takes the largest place among them when the best hit is a plac
 The rail and the month showed a new registration only after the store events reloaded (10 min): the calendar now
 reads registrations from the player's event list each time (`mergeCalendar`), so register / cancel / drop show at once.
 
+Scoreboard and tab bar, round 6 (2026-10-22): "Go first or second?" stayed on the loser's half until someone
+picked or scored, so it greeted the board hours (or a restart) later. It is asked for 10 minutes after the game
+(`chooserSinceMs`); older saved states never ask. Tab bar icons: Score upright like the board (two halves, a score
+in each; the lying one read as a football pitch), Decks with three layers, Settings a gear (was a sun).
+
 ## Open points
 - Before the final release: remove the PlayRiftbound log row from Settings (Okay 2026-10-22: kept while
   testing the Events tab).

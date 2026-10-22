@@ -105,6 +105,10 @@ class ScoreRulesTest {
         assertEquals(-1, next.withStarter(OPPONENT, t0).chooser)
         assertEquals(-1, next.points(OPPONENT, 1).chooser) // playing on without picking closes the question
         assertEquals(-1, ScoreState().chooser)
+        // Asked right after the game, not when the board is opened again much later (or from a state saved before).
+        assertEquals(YOU, next.startChooser(t0 + 60_000))
+        assertEquals(-1, next.startChooser(t0 + START_CHOICE_MS))
+        assertEquals(-1, next.copy(chooserSinceMs = 0).startChooser(t0))
     }
 
     @Test

@@ -5,6 +5,8 @@ import pitopia.riftcount.data.ScoreEvent
 
 /** Points to win a game in a duel. */
 const val TARGET = 8
+/** How long after a game its loser is asked who starts the next one; later the question is stale. */
+const val START_CHOICE_MS = 10 * 60_000L
 private const val UNDO_DEPTH = 50
 private const val XP_MAX = 99
 
@@ -50,6 +52,8 @@ data class ScoreState(
     val liveTag: String? = null,
     /** The last game's loser, who picks who starts this one (Riftbound's rule); -1 once picked or played. */
     val chooser: Int = -1,
+    /** When [chooser] was asked (wall clock); a state saved without it never asks again. */
+    val chooserSinceMs: Long = 0,
 ) {
     val isDuel get() = players.size == 2
     val isSeries get() = isDuel && bestOf > 0
@@ -59,6 +63,12 @@ data class ScoreState(
     val matchOver get() = isSeries && seriesWins().any { it >= winsNeeded }
     val canUndo get() = history.isNotEmpty() && !gameOver && !ended
     val showSummary get() = matchOver || ended
+
+    /**
+     * Who is asked who starts, or -1: only within [START_CHOICE_MS] of the last game, so coming back to the
+     * board hours later does not find the question still open (Okay, 2026-10-22).
+     */
+    fun startChooser(nowMs: Long): Int = if (chooser >= 0 && nowMs - chooserSinceMs < START_CHOICE_MS) chooser else -1
 
     fun seriesWins(): List<Int> = List(players.size) { slot -> log.count { it.winner == slot } }
 
@@ -125,7 +135,7 @@ data class ScoreState(
         return copy(
             players = players.map { Player() }, events = emptyList(), history = emptyList(),
             log = if (isSeries) log else emptyList(),
-            gameNo = gameNo + 1, winner = -1, asking = -1, starter = -1, chooser = if (isDuel) 1 - winner else -1,
+            gameNo = gameNo + 1, winner = -1, asking = -1, starter = -1, chooser = if (isDuel) 1 - winner else -1, chooserSinceMs = nowMs,
             lastGameEndSeconds = clock.elapsedSeconds(nowMs),
         )
     }
