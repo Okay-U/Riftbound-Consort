@@ -15,7 +15,7 @@ struct RedesignRoot: View {
 
     var body: some View {
         TabView(selection: $currentTab) {
-            ScoreboardView()
+            RedesignScoreView()
                 .tabItem { Label("Score", systemImage: "rectangle.portrait.bottomhalf.filled") }
                 .tag(TabKey.score)
 

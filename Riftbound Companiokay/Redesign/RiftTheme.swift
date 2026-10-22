@@ -24,13 +24,26 @@ enum RiftColor {
     static let hairline = Color.white.opacity(0.12)
 }
 
+extension Color {
+    /// Text on a filled button of this colour (Android `inkOn`): black above a relative luminance of 0.35.
+    var ink: Color {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a)
+        func linear(_ v: CGFloat) -> CGFloat { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+        return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b) > 0.35 ? .black : .white
+    }
+}
+
 enum RiftFont {
     /// Big Shoulders Display ships as one variable file (default instance Thin); the weight goes on its
-    /// wght axis. Fixed size: it sets the big numbers and titles.
+    /// wght axis, digits are tabular. Fixed size: it sets the big numbers and titles.
     static func display(_ size: CGFloat, weight: CGFloat = 900) -> Font {
         let wght = 0x7767_6874 // "wght"
-        let descriptor = UIFontDescriptor(name: "BigShouldersDisplay-Thin", size: size)
-            .addingAttributes([UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): [wght: weight]])
+        let tabular: [UIFontDescriptor.FeatureKey: Int] = [.type: kNumberSpacingType, .selector: kMonospacedNumbersSelector]
+        let descriptor = UIFontDescriptor(name: "BigShouldersDisplay-Thin", size: size).addingAttributes([
+            UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): [wght: weight],
+            .featureSettings: [tabular],
+        ])
         return Font(UIFont(descriptor: descriptor, size: size))
     }
 
@@ -54,4 +67,9 @@ extension Animation {
     static func rift(_ duration: TimeInterval) -> Animation {
         .timingCurve(0.16, 1, 0.3, 1, duration: duration)
     }
+}
+
+extension UnitCurve {
+    /// `Animation.rift` for keyframes.
+    static let rift = UnitCurve.bezier(startControlPoint: UnitPoint(x: 0.16, y: 1), endControlPoint: UnitPoint(x: 0.3, y: 1))
 }

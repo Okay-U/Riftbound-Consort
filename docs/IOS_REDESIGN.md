@@ -56,8 +56,15 @@ reviews in Xcode.
    line, blur-morph numbers, Conquer/Hold/Effect/Fix −1, XP chips, the final-point prompt, best of three
    with pips, undo, restart, seam (dice duel, clock, match line, trophy, Report), summary with the light
    rail, result picker, match mode report, game setup (deck, opponent, turn order), 4 players. Rules ported
-   from `ScoreRules.kt`, `Duel.kt` and `ResultPicker`; open: what a running classic game does when the
-   design switches.
+   from `ScoreRules.kt`, `Duel.kt` and `ResultPicker` (`tools/check-scoreboard/run.sh` runs the Android tests
+   on the Mac). In three steps:
+   - 2a · done 2026-10-22: casual board, the roll for who goes first, 4 players. For Okay's review: the
+     restart question is the native alert (the mock's dialog elsewhere); the seam is Liquid Glass on iOS 26;
+     the board keeps its own game (`redesign.scoreboard`), so switching designs mid-game shows the other
+     design's score; the player count still comes from the classic quick settings until phase 5.
+   - 2b: game setup (your deck and turn order, the opponent's legend) by tapping a half's name.
+   - 2c: match mode (seam with table and Start match, round clock, Report / End, summary with the light
+     rail, result picker, report to PlayRiftbound).
 3. **Cards** (`CardsFinal`): grid with the rising tiles, tile grows into the detail, filter sheet with the
    sliders, Add to deck with the builder rules, shortlist.
 4. **Decks** (`DecksMix`): table of piles, the pile opening into the deck, test hand, odds, stats, match log
