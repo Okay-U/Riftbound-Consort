@@ -237,7 +237,9 @@ struct RoundsTab: View {
         let t = tournament
         let rounds = t.rounds
         if let round = rounds.first(where: { $0.id == chosen }) ?? rounds.last {
-            let upcoming = rounds.contains { t.isElimination($0) } ? [] : Array(Swift.max(t.swissRounds.count + 1, 1)...Swift.max(t.plannedSwissRounds, t.swissRounds.count)).filter { $0 > t.swissRounds.count }
+            // Swiss rounds still to come; none once a top cut started or every planned round is out.
+            let published = t.swissRounds.count
+            let upcoming = rounds.contains { t.isElimination($0) } || t.plannedSwissRounds <= published ? [] : Array((published + 1)...t.plannedSwissRounds)
             VStack(alignment: .leading, spacing: 0) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
