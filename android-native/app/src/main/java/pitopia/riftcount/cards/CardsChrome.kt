@@ -61,6 +61,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -98,7 +99,7 @@ fun CardsHeader(count: Int?) {
 }
 
 @Composable
-fun SearchField(value: String, onChange: (String) -> Unit) {
+fun SearchField(value: String, placeholder: String = "Search cards", inset: Dp = 16.dp, onChange: (String) -> Unit) {
     val focus = LocalFocusManager.current
     val source = remember { MutableInteractionSource() }
     val focused by source.collectIsFocusedAsState()
@@ -107,7 +108,7 @@ fun SearchField(value: String, onChange: (String) -> Unit) {
     BasicTextField(
         value = value,
         onValueChange = onChange,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp).fillMaxWidth().height(50.dp)
+        modifier = Modifier.padding(start = inset, end = inset, top = 16.dp).fillMaxWidth().height(50.dp)
             .drawBehind {
                 val grow = 4.dp.toPx()
                 drawRoundRect(
@@ -117,7 +118,7 @@ fun SearchField(value: String, onChange: (String) -> Unit) {
             }
             .background(Color.White.copy(alpha = 0.07f), shape)
             .border(1.dp, lerp(Color.White.copy(alpha = 0.12f), RiftColors.You.copy(alpha = 0.6f), ring), shape)
-            .semantics { contentDescription = "Search cards by name" },
+            .semantics { contentDescription = "$placeholder by name" },
         textStyle = RiftType.Body.copy(fontSize = 16.sp, color = Color.White),
         singleLine = true,
         cursorBrush = SolidColor(RiftColors.You),
@@ -129,7 +130,7 @@ fun SearchField(value: String, onChange: (String) -> Unit) {
                 Image(CardIcons.Search, null, colorFilter = ColorFilter.tint(Color.White.copy(alpha = 0.7f)))
                 Spacer(Modifier.width(10.dp))
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                    if (value.isEmpty()) BasicText("Search cards", style = RiftType.Body.copy(fontSize = 16.sp, color = Color.White.copy(alpha = 0.5f)))
+                    if (value.isEmpty()) BasicText(placeholder, style = RiftType.Body.copy(fontSize = 16.sp, color = Color.White.copy(alpha = 0.5f)))
                     field()
                 }
                 if (value.isNotEmpty()) {

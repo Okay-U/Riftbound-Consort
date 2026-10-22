@@ -38,8 +38,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.dropShadow
@@ -74,31 +74,25 @@ import pitopia.riftcount.platform.haptic
 import pitopia.riftcount.ui.common.Pill
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.Sheet
+import pitopia.riftcount.ui.common.Stepper
+import pitopia.riftcount.ui.common.ToastHost
+import pitopia.riftcount.ui.common.Toaster
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
-private class SheetToast(val id: Int, val text: String)
-
 /** Copies of [card] per deck with a stepper; decks it cannot join are greyed out with the reason. */
 @Composable
-fun AddToDeckSheet(card: Card, decks: DecklistStore, index: Map<String, Card>, onDismiss: () -> Unit) {
-    var toast by remember { mutableStateOf<SheetToast?>(null) }
-    var naming by remember { mutableStateOf(false) }
+fun AddToDeckSheet(card: Card, decks: DecklistStore, index: Map<String, Card>, onNewDeck: () -> Unit, onDismiss: () -> Unit) {
+    val toaster = remember { Toaster() }
     val view = LocalView.current
-    fun say(text: String) {
-        toast = SheetToast((toast?.id ?: 0) + 1, text)
-    }
     fun plus(deck: Decklist) {
         val next = DeckRules.add(card, deck, index, System.currentTimeMillis())
         decks.replace(next)
         view.haptic(Haptic.Tick)
-        say("Added to ${deck.name} · ${DeckRules.count(card, next)} of ${maxCopies(card)}")
+        toaster.show("Added to ${deck.name} · ${DeckRules.count(card, next)} of ${maxCopies(card)}")
     }
-    Sheet(
-        "Add to deck", onDismiss,
-        overlay = { toast?.let { t -> DeckToast(t) { if (toast?.id == t.id) toast = null } } },
-    ) {
+    Sheet("Add to deck", onDismiss, overlay = { ToastHost(toaster) }) { close ->
         BasicText("Add ${card.title}", style = RiftType.Body.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White))
         BasicText(
             when {
@@ -115,13 +109,13 @@ fun AddToDeckSheet(card: Card, decks: DecklistStore, index: Map<String, Card>, o
                 view.haptic(Haptic.Undo)
             })
         }
-        if (naming) {
-            NewDeckField { name ->
-                plus(decks.create(name))
-                naming = false
+        // The mock's flow: the builder opens with this card (a legend starts it, any other card joins the main deck).
+        // Battlefields and runes are picked on their own builder steps.
+        if (card.isLegend || card.isChampion || DeckRules.eligible(card, emptySet())) {
+            NewDeckButton {
+                close()
+                onNewDeck()
             }
-        } else {
-            NewDeckButton { naming = true }
         }
     }
 }
@@ -179,47 +173,7 @@ private fun DeckRow(card: Card, deck: Decklist, index: Map<String, Card>, onPlus
             BasicText(sub, style = RiftType.Body.copy(fontSize = 12.5.sp, lineHeight = 16.sp, color = Color.White.copy(alpha = 0.66f)))
         }
         if (!off) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                StepButton("−", "Remove one copy from ${deck.name}", count > 0, onMinus)
-                StepCount(count, maxCopies(card))
-                StepButton("+", "Add one copy to ${deck.name}", canAdd, onPlus)
-            }
-        }
-    }
-}
-
-@Composable
-private fun StepButton(text: String, label: String, enabled: Boolean, onClick: () -> Unit) {
-    Pressable(
-        onClick,
-        Modifier.size(38.dp).semantics { contentDescription = label }.graphicsLayer { alpha = if (enabled) 1f else 0.3f }
-            .background(Color.White.copy(alpha = 0.06f), CircleShape).border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
-        enabled = enabled,
-        pressedScale = 0.9f,
-    ) {
-        BasicText(text, style = RiftType.Body.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White))
-    }
-}
-
-private val StepOut = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
-
-/** The count morphs like the scoreboard's numbers: old one blurs up and out, new one rises in. */
-@Composable
-private fun StepCount(count: Int, max: Int) {
-    val style = TextStyle(fontFamily = RiftType.Display, fontWeight = FontWeight.Black, fontSize = 24.sp, lineHeight = 24.sp, color = Color.White, textAlign = TextAlign.Center)
-    AnimatedContent(
-        targetState = count,
-        modifier = Modifier.size(30.dp, 38.dp).semantics { contentDescription = "$count of $max copies" },
-        transitionSpec = {
-            (fadeIn(tween(620, easing = RiftEase)) + slideInVertically(tween(620, easing = RiftEase)) { (it * 0.4f).toInt() })
-                .togetherWith(fadeOut(tween(420, easing = StepOut)) + slideOutVertically(tween(420, easing = StepOut)) { -(it * 0.4f).toInt() })
-        },
-        contentAlignment = Alignment.Center,
-        label = "copies",
-    ) { n ->
-        val blur by transition.animateDp(label = "blur") { if (it == EnterExitState.Visible) 0.dp else 8.dp }
-        Box(Modifier.size(30.dp, 38.dp), contentAlignment = Alignment.Center) {
-            BasicText("$n", Modifier.blur(blur, BlurredEdgeTreatment.Unbounded), style = style)
+            Stepper(count, onMinus, onPlus, "copy", plus = canAdd)
         }
     }
 }
@@ -239,67 +193,4 @@ private fun NewDeckButton(onClick: () -> Unit) {
     ) {
         BasicText("+ New deck with this card", style = RiftType.Body.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White))
     }
-}
-
-/** iOS asks for the new deck's name in the sheet; the card goes in as its first card. */
-@Composable
-private fun NewDeckField(onCreate: (String) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
-    val ok = name.isNotBlank()
-    val shape = RoundedCornerShape(25.dp)
-    Row(Modifier.padding(top = 10.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        BasicTextField(
-            value = name,
-            onValueChange = { name = it.take(40) },
-            modifier = Modifier.weight(1f).height(50.dp).focusRequester(focus)
-                .background(Color.White.copy(alpha = 0.07f), shape).border(1.dp, RiftColors.You.copy(alpha = 0.6f), shape)
-                .semantics { contentDescription = "Deck name" },
-            textStyle = RiftType.Body.copy(fontSize = 16.sp, color = Color.White),
-            singleLine = true,
-            cursorBrush = SolidColor(RiftColors.You),
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { if (ok) onCreate(name.trim()) }),
-            decorationBox = { field ->
-                Box(Modifier.padding(horizontal = 18.dp), contentAlignment = Alignment.CenterStart) {
-                    if (name.isEmpty()) BasicText("Deck name", style = RiftType.Body.copy(fontSize = 16.sp, color = Color.White.copy(alpha = 0.5f)))
-                    field()
-                }
-            },
-        )
-        Spacer(Modifier.width(8.dp))
-        Pill(
-            "Create", { onCreate(name.trim()) }, Modifier.height(50.dp), enabled = ok, fill = RiftColors.You, ink = Color.Black,
-            style = RiftType.Body.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
-        )
-    }
-}
-
-/** "Added to Void Tempo · 2 of 3" at the top, over the scrim. */
-@Composable
-private fun BoxScope.DeckToast(toast: SheetToast, onDone: () -> Unit) {
-    val t = remember(toast.id) { Animatable(0f) }
-    LaunchedEffect(toast.id) {
-        t.animateTo(1f, tween(520, easing = RiftEase))
-        delay(1700)
-        t.animateTo(0f, tween(260))
-        onDone()
-    }
-    val shape = RoundedCornerShape(50)
-    BasicText(
-        toast.text,
-        Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 22.dp, start = 16.dp, end = 16.dp)
-            .graphicsLayer {
-                alpha = t.value
-                translationY = -10.dp.toPx() * (1f - t.value)
-                scaleX = 0.95f + 0.05f * t.value
-                scaleY = scaleX
-            }
-            .dropShadow(shape, Shadow(radius = 22.dp, color = RiftColors.You.copy(alpha = 0.2f)))
-            .background(Color(0xF7101010), shape).border(1.dp, RiftColors.You.copy(alpha = 0.45f), shape)
-            .padding(horizontal = 18.dp, vertical = 11.dp),
-        style = RiftType.Body.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White),
-        maxLines = 1,
-    )
 }

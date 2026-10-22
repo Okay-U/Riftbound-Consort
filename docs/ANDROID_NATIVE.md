@@ -99,8 +99,8 @@ match clock. Decisions made while building, for Okay's review:
 - 4 players (no mock): 2×2 table, far row turned, each corner tinted in its colour, actions as 2×2, no
   target, a 4-way roll for who starts.
 - State (scores, series, clock) is saved on every change (`native.scoreboard` in `defaults.xml`).
-Open for later phases: deck and opponent pick (phase 3, needs decks and legends), player colour picker
-(phase 4), match strip and Report (phase 5).
+Open for later phases: player colour picker (phase 4), match strip and Report (phase 5). The deck and
+opponent pick came with phase 3.
 Tests: `ScoreRulesTest`, `DuelTest`, `ResultPickerTest`, `GamesTest` (Swift `games.json` round trip).
 
 ### 2 · Cards (`CardsFinal`) · done 2026-10-22
@@ -120,22 +120,44 @@ caps 12/12/14 = no limit, live "Show N cards"). Decisions made while building, f
 - Add to deck follows the builder rules (iOS's sheet had none): legend replaces the legend, a champion
   matching the legend fills the chosen-champion slot first, copy limit 3 per card across printings,
   signature limit 3, battlefields 3 and one each, runes 12, main deck 39; decks outside the legend's
-  domains are greyed out with the reason. "New deck with this card" asks for a name (iOS); the mock's
-  "open the builder" comes with phase 3.
+  domains are greyed out with the reason. "New deck with this card" opens the builder (phase 3).
 - Type sort is alphabetical like iOS. Grid columns grow with the width (3 on a phone, more in landscape);
   the app rotates without restarting like the Skip app, the landscape layout itself is not designed.
 - Search and filters stay while another tab is open; the keyboard closes when the grid scrolls.
-Open: decks saved with riftcodex ids (Skip 3.4) show without their cards until the phase 3 migration.
 Tests: `CardQueryTest`, `CardTextTest`, `ErrataTest`, `DeckRulesTest`, `DecksTest` (Swift `decklists_v2.json`
 round trip). Emulator: debug grid scroll 17 ms median, staging 1.3 % janky frames.
 
-### 3 · Decks (`DecksMix`)
-Playmat piles overview with the opening animation, all-decks win-rate tile and match-log tile that
-expand into the log (filters, review race to 8, edit game), open deck = detail (tools, champion, fields,
-Main/Side/Runes steppers, hand fan with mulligan, draw odds, stats, export), 7-step builder rail, import
-from text. Legality, copy limit 3, signature limit 3, legend domains, runes split, text format import and
-export exactly as `DeckTextFormat`. iOS sources: `User/*Deck*`, `User/DeckBuilder/*`, `Cards/Deck*`,
-`User/Game*`. Tests: legality, builder rules, import/export round trip, hypergeometric odds, stats, log.
+### 3 · Decks (`DecksMix`) · done 2026-10-22
+Built as mocked: the table of piles (legend on top, record, Legal/Draft/n issues chip) rising in, the
+new-deck spot, the all-decks win-rate ring and the last games, both growing into the match log (deck
+chips, record, win rate, average game, first/second, games); a game opens its review (race to 8 in two
+lanes, point by point) and the edit dialog (result, turn order, deck, opponent, delete). A pile opens into
+the deck: the legend card grows into the banner, the champion and the battlefields fly out of the pile,
+tools (test hand fan with mulligan, odds, stats, match log), champion swap, battlefield picker,
+Main/Side/Runes steppers with the 12 pips, export sheet. The builder is the seven-stop light rail
+(legend, champion, three battlefields, main, side, runes, name and save). Decisions, for Okay's review:
+- Riot's art everywhere the mock draws cards (piles, banner, champion, battlefields, legend tiles, hand).
+- iOS functions the mock has no place for: the pencil in the banner (rename, edit in the builder, delete
+  with a second tap) and "Delete game" in the edit dialog; search on the legend, battlefield and card
+  pages and Unit/Spell/Gear chips (iOS pool picker); runes start split evenly (iOS).
+- The mock's "Fill with a starter list" is left out: it fills the 39 cheapest cards, not a real list.
+- Mulligan by the game rule: up to two of the opening four, once, to the bottom (iOS shuffles back).
+  Odds take several picked cards (iOS), defaults as the mock (6 cards seen, most copies picked).
+- Text import/export = iOS `DeckTextFormat`; the import prefers the plain printing over alternate art,
+  overnumbered or signature reprints of the same name and names the deck "Imported · <legend>".
+- A champion already in the deck trades places with the chosen one (iOS); another one replaces it.
+  Issues add the copy and signature limits, which a pasted list can break. Tokens and token
+  battlefields stay out of deck building.
+- "New deck with this card" (Cards) opens the builder: a legend starts it, another card joins the main
+  deck (or the champion slot) once a legend it fits is picked.
+- Scoreboard: a half's name opens the game setup (iOS `GameSetupSheet`): your deck and turn order, or
+  the opponent's legend; finished games carry them into the match log.
+- Riftcodex ids of Skip 3.4 decks are mapped on every card publish (iOS); a rune printing the feed lacks
+  (promo) becomes its domain's rune card, then the old snapshot goes. Checked on the emulator with the
+  Skip app's real `cards_cache_v1.json`.
+Tests: `DeckTextTest` (export/import round trip, migration), `BuilderTest` (builder rules, edit
+round trip, kept unknown cards), `DeckMathTest` (odds, stats, hand), `DeckEditsTest`, `MatchLogTest`.
+Emulator: builder pool scroll 0.7 % janky frames (debug).
 
 ### 4 · Settings + onboarding (`SettingsHybrid`)
 Flip tiles (Haptics, Keep screen on, True black, Match mode, Sounds, Players), Scoreboard section

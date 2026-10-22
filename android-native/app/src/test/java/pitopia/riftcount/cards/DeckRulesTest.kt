@@ -1,6 +1,7 @@
 package pitopia.riftcount.cards
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -39,12 +40,14 @@ class DeckRulesTest {
     }
 
     @Test
-    fun `the legend's domains decide what fits, colourless always does`() {
+    fun `the legend's domains decide what fits, colourless always does, tokens never`() {
         val d = empty().with(darius)
         assertEquals("Outside the legend's domains", DeckRules.blocker(kinkou, d, cards))
         assertNull(DeckRules.blocker(executioner, d, cards))
         assertNull(DeckRules.blocker(kinkou, empty(), cards))
-        assertTrue(DeckRules.eligible(Fixture.named("Buff"), setOf("fury", "order")))
+        val colourless = Fixture.named("Iron Ballista").copy(classification = Card.Classification(type = "Gear", domain = listOf("Colorless")))
+        assertTrue(DeckRules.eligible(colourless, setOf("fury", "order")))
+        assertFalse(DeckRules.eligible(Fixture.named("Buff"), setOf("fury", "order")))
     }
 
     @Test
@@ -85,5 +88,8 @@ class DeckRulesTest {
         )
         val side = empty().copy(sideDeck = listOf(DecklistEntry("x", "X", 4)))
         assertTrue("Side deck: 4 (must be 0 or 10)" in DeckRules.issues(side))
+        val wrong = empty().with(darius).copy(mainDeck = listOf(DecklistEntry(kinkou.id, kinkou.name, 4)))
+        val issues = DeckRules.issues(wrong, cards)
+        assertTrue(issues.toString(), "Kinkou Monk: 4 copies (max 3)" in issues && "Kinkou Monk: outside Darius's domains" in issues)
     }
 }

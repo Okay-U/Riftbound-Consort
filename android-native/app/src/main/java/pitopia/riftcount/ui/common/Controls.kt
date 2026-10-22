@@ -28,9 +28,11 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
@@ -106,4 +108,18 @@ fun RoundIcon(
         label = label,
         content = content,
     )
+}
+
+/** The mocks' green underlined text button. */
+@Composable
+fun LinkButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, color: Color = RiftColors.You) {
+    Pressable(onClick, modifier.padding(6.dp)) {
+        BasicText(
+            text,
+            style = RiftType.Body.copy(
+                fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = color,
+                textDecoration = TextDecoration.Underline,
+            ),
+        )
+    }
 }

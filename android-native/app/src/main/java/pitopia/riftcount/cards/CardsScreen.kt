@@ -39,8 +39,8 @@ import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -59,6 +59,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pitopia.riftcount.data.DeckRules
 import pitopia.riftcount.data.DecklistStore
+import pitopia.riftcount.ui.common.LinkButton
 import pitopia.riftcount.ui.common.Pill
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.theme.RiftColors
@@ -90,7 +91,15 @@ private class OpenCard(val card: Card, val from: Rect)
 private val CloseEase = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
 @Composable
-fun CardsScreen(ui: CardsUi, store: CardStore, errata: ErrataStore, decks: DecklistStore, bottomReserve: Dp, onOverlay: (Boolean) -> Unit) {
+fun CardsScreen(
+    ui: CardsUi,
+    store: CardStore,
+    errata: ErrataStore,
+    decks: DecklistStore,
+    bottomReserve: Dp,
+    onOverlay: (Boolean) -> Unit,
+    onNewDeck: (Card) -> Unit,
+) {
     var open by remember { mutableStateOf<OpenCard?>(null) }
     var detailShown by remember { mutableStateOf(false) }
     var filtering by remember { mutableStateOf(false) }
@@ -199,7 +208,7 @@ fun CardsScreen(ui: CardsUi, store: CardStore, errata: ErrataStore, decks: Deckl
     }
     val adding0 = open
     if (adding && adding0 != null && detailShown) {
-        AddToDeckSheet(adding0.card, decks, store.index) { adding = false }
+        AddToDeckSheet(adding0.card, decks, store.index, onNewDeck = { onNewDeck(adding0.card) }) { adding = false }
     }
 }
 
@@ -281,19 +290,5 @@ private fun NoMatches(onReset: () -> Unit) {
         BasicText("No cards match.", style = RiftType.Body.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.8f)))
         Spacer(Modifier.height(6.dp))
         LinkButton("Clear search and filters", onReset)
-    }
-}
-
-/** The mocks' green underlined text button. */
-@Composable
-fun LinkButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, color: Color = RiftColors.You) {
-    Pressable(onClick, modifier.padding(6.dp)) {
-        BasicText(
-            text,
-            style = RiftType.Body.copy(
-                fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = color,
-                textDecoration = TextDecoration.Underline,
-            ),
-        )
     }
 }

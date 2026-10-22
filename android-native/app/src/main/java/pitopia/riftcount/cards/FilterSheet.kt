@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import pitopia.riftcount.ui.common.LinkButton
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.Sheet
 import pitopia.riftcount.ui.theme.RiftColors

@@ -31,12 +31,14 @@ import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import pitopia.riftcount.data.Prefs
+import pitopia.riftcount.cards.CardStore
+import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.platform.ShakeEffect
 import pitopia.riftcount.ui.theme.RiftEase
 
 /** The Score tab. [bottomReserve] is the room the tab bar takes at the bottom; both halves end above it. */
 @Composable
-fun ScoreScreen(c: ScoreController, bottomReserve: Dp) {
+fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, cards: CardStore) {
     BackHandler(enabled = c.duel != null || c.picker != null || c.confirmRestart || c.state.asking >= 0) {
         when {
             c.picker != null -> c.closePicker()
@@ -55,6 +57,10 @@ fun ScoreScreen(c: ScoreController, bottomReserve: Dp) {
         BoardToast(c.toast, c::clearToast, Modifier.align(Alignment.TopCenter).offset(y = area / 2 - 20.dp))
         if (c.confirmRestart) RestartDialog(c.state.gameNo, c::cancelRestart, c::restart)
         c.picker?.let { ResultPickerDialog(c, it, swatches.map { s -> s.color }) }
+    }
+    when (c.setupSlot) {
+        YOU -> DeckPickSheet(c, decks, cards.index, c::closeSetup)
+        OPPONENT -> OpponentPickSheet(c, cards.legendNames, cards.cards, c::closeSetup)
     }
 }
 
@@ -125,7 +131,10 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
             if (d != null) {
                 DuelSide(c, d, slot, accent, ink, Modifier.fillMaxSize())
             } else {
-                TopLine(c.legend(slot), accent, ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) }, wins[slot], seriesPips = true, shown = !s.gameOver && !s.showSummary)
+                TopLine(
+                    c.legend(slot), accent, ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) }, wins[slot], seriesPips = true,
+                    shown = !s.gameOver && !s.showSummary, onName = { c.openSetup(slot) },
+                )
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     ScoreNumber(s.players[slot].score, accent, won = s.winner == slot, label = "${haves(c.shortName(slot))} ${s.players[slot].score} of $TARGET points")
                 }

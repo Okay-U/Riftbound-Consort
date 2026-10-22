@@ -1,5 +1,8 @@
 package pitopia.riftcount.data
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -32,7 +35,8 @@ data class GameRecord(
 class GameRecordStore(private val docs: Documents) {
     private val serializer = ListSerializer(GameRecord.serializer())
 
-    var records: List<GameRecord> = load()
+    /** Observable: the scoreboard records, the Decks tab shows them at once. */
+    var records by mutableStateOf(load())
         private set
 
     private fun load(): List<GameRecord> =

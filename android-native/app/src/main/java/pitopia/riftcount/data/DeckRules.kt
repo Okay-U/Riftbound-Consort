@@ -25,9 +25,9 @@ object DeckRules {
         return "name:" + t.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
     }
 
-    /** Main deck cards: no legend, battlefield or rune; colourless always, else all domains in the legend's. */
+    /** Main deck cards: no legend, battlefield, rune or token; colourless always, else all domains in the legend's. */
     fun eligible(card: Card, legendDomains: Set<String>): Boolean {
-        if (card.isLegend || card.isBattlefield || card.isRune) return false
+        if (card.isLegend || card.isBattlefield || card.isRune || card.isToken) return false
         // The feed writes "Colorless" as a domain; it is the absence of one (iOS only knew the empty list).
         val mine = card.domains.map { it.lowercase() }.filter { it != "colorless" }.toSet()
         return mine.isEmpty() || legendDomains.isEmpty() || legendDomains.containsAll(mine)
@@ -66,7 +66,7 @@ object DeckRules {
         return listed + champion
     }
 
-    private fun signatures(deck: Decklist, cards: Map<String, Card>) =
+    fun signatures(deck: Decklist, cards: Map<String, Card>) =
         (deck.mainDeck + deck.sideDeck).filter { cards[it.cardId]?.isSignature == true }.sumOf { it.count }
 
     /** Why another copy cannot go in, or null when it can. */
@@ -118,13 +118,39 @@ object DeckRules {
         (deck.mainDeck + deck.sideDeck + deck.battlefields + deck.runes).filter { it.cardId == card.id }.sumOf { it.count } +
             listOfNotNull(deck.champion, deck.legend).count { it.cardId == card.id }
 
-    /** iOS `DeckLegality` issue texts, verbatim. */
-    fun issues(deck: Decklist): List<String> = buildList {
+    /**
+     * iOS `DeckLegality` issue texts, verbatim; with [cards] also the copy and signature limits and cards outside
+     * the legend's domains, which an imported or re-legended list can break (iOS only enforces them while adding).
+     */
+    fun issues(deck: Decklist, cards: Map<String, Card> = emptyMap()): List<String> = buildList {
         if (deck.champion == null) add("Missing champion")
         if (deck.legend == null) add("Missing legend")
         deck.battlefields.sumOf { it.count }.let { if (it != BATTLEFIELDS) add("Battlefields: $it/$BATTLEFIELDS") }
         deck.mainDeck.sumOf { it.count }.let { if (it != MAIN) add("Main deck: $it/$MAIN") }
         deck.sideDeck.sumOf { it.count }.let { if (it !in SIDE_SIZES) add("Side deck: $it (must be 0 or 10)") }
         deck.runes.sumOf { it.count }.let { if (it != RUNES) add("Runes: $it/$RUNES") }
+        if (cards.isEmpty()) return@buildList
+        val listed = (deck.mainDeck + deck.sideDeck).mapNotNull { e -> cards[e.cardId]?.let { it to e.count } } +
+            listOfNotNull(deck.champion?.let { cards[it.cardId] }?.let { it to 1 })
+        listed.groupBy { identityKey(it.first) }.values.forEach { rows ->
+            val n = rows.sumOf { it.second }
+            if (n > COPY_LIMIT) add("${rows.first().first.title}: $n copies (max $COPY_LIMIT)")
+        }
+        signatures(deck, cards).let { if (it > SIGNATURE_LIMIT) add("Signature cards: $it/$SIGNATURE_LIMIT") }
+        val legend = deck.legend?.let { cards[it.cardId] } ?: return@buildList
+        (deck.mainDeck + deck.sideDeck).mapNotNull { cards[it.cardId] }.distinctBy { it.id }
+            .filterNot { eligible(it, legendDomains(deck, cards)) }
+            .forEach { add("${it.name}: outside ${legend.title}'s domains") }
+    }
+
+    /** The pile's chip: Legal, Draft while the main deck is under 30 cards, else the number of issues (mock). */
+    fun status(deck: Decklist, cards: Map<String, Card>): String {
+        val n = issues(deck, cards).size
+        return when {
+            n == 0 -> "Legal"
+            deck.mainDeck.sumOf { it.count } < 30 -> "Draft"
+            n == 1 -> "1 issue"
+            else -> "$n issues"
+        }
     }
 }

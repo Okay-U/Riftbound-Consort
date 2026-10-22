@@ -40,11 +40,19 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import java.io.File
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.builtins.ListSerializer
+import pitopia.riftcount.cards.Card
 import pitopia.riftcount.cards.CardStore
 import pitopia.riftcount.cards.CardsScreen
 import pitopia.riftcount.cards.CardsUi
 import pitopia.riftcount.cards.ErrataStore
 import pitopia.riftcount.data.DecklistStore
+import pitopia.riftcount.data.LegacyIds
+import pitopia.riftcount.data.SwiftJson
+import pitopia.riftcount.decks.DecksScreen
+import pitopia.riftcount.decks.DecksUi
 import pitopia.riftcount.data.Documents
 import pitopia.riftcount.data.GameRecordStore
 import pitopia.riftcount.data.Prefs
@@ -67,12 +75,26 @@ fun AppShell() {
     val decks = remember { DecklistStore(docs) }
     val cards = remember { CardStore(docs, scope) }
     val errata = remember { ErrataStore(docs, scope) }
+    val games = remember { GameRecordStore(docs) }
     val cardsUi = remember { CardsUi() }
-    val score = remember { ScoreController(scope, GameRecordStore(docs), decks) }
-    var overlay by remember { mutableStateOf(false) }
+    val decksUi = remember { DecksUi() }
+    val score = remember { ScoreController(scope, games, decks) }
+    // Per tab: a screen leaving reports "no overlay" after the next one reported its own.
+    var overlays by remember { mutableStateOf(emptySet<Tab>()) }
+    fun overlay(t: Tab, on: Boolean) {
+        overlays = if (on) overlays + t else overlays - t
+    }
     LaunchedEffect(Unit) {
         cards.loadIfNeeded()
         errata.load()
+    }
+    // Decks of Skip 3.4 and iOS before 3.5 point at riftcodex ids; every card publish maps what it can (iOS).
+    LaunchedEffect(cards.revision) {
+        val legacy = docs.file(LegacyIds.LEGACY_SNAPSHOT).takeIf { it.exists() && cards.cards.isNotEmpty() } ?: return@LaunchedEffect
+        val old = withContext(Dispatchers.IO) {
+            runCatching { SwiftJson.decodeFromString(ListSerializer(Card.serializer()), legacy.readText()) }.getOrDefault(emptyList())
+        }
+        if (decks.migrateLegacyIds(cards.cards, old)) withContext(Dispatchers.IO) { legacy.delete() }
     }
     LifecycleResumeEffect(Unit) {
         cards.refreshIfDue()
@@ -93,12 +115,16 @@ fun AppShell() {
             label = "tab",
         ) { shown ->
             when (shown) {
-                Tab.Score -> ScoreScreen(score, barReserve)
-                Tab.Cards -> CardsScreen(cardsUi, cards, errata, decks, barReserve) { overlay = it }
+                Tab.Score -> ScoreScreen(score, barReserve, decks.lists, cards)
+                Tab.Cards -> CardsScreen(cardsUi, cards, errata, decks, barReserve, onOverlay = { overlay(Tab.Cards, it) }) { card ->
+                    decksUi.startBuilder(card)
+                    tab = Tab.Decks
+                }
+                Tab.Decks -> DecksScreen(decksUi, decks, games, cards, barReserve) { overlay(Tab.Decks, it) }
                 else -> Placeholder(shown)
             }
         }
-        BottomNav(selected = tab, onSelect = { tab = it }, modifier = Modifier.align(Alignment.BottomCenter), hidden = overlay)
+        BottomNav(selected = tab, onSelect = { tab = it }, modifier = Modifier.align(Alignment.BottomCenter), hidden = tab in overlays)
     }
 }
 

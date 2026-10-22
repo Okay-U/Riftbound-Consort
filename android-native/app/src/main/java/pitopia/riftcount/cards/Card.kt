@@ -65,6 +65,13 @@ data class Card(
     val isSignature get() = metadata?.signature == true
     val isPreview get() = unreleased == true
 
+    /** The plain rules text without bracket codes, for one-line summaries ("[Reaction][>] Kill" → "Reaction → Kill"). */
+    val summary: String?
+        get() = text?.plain?.replace("[>]", " →")?.replace(Regex("\\[([^\\]]+)]"), "$1")?.replace(Regex("\\s+"), " ")?.trim()?.ifEmpty { null }
+
+    /** The printing in the name's brackets: "Overnumbered", "Alternate Art", "Signature". */
+    val printing: String? get() = Regex("\\(([^)]*)\\)\\s*$").find(name)?.groupValues?.get(1)
+
     /** "Darius - Hand of Noxus" → "Darius", the legend part before the comma or dash. */
     val title: String get() = name.substringBefore(" - ").substringBefore(",").trim()
 

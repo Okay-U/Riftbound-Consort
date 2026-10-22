@@ -1,6 +1,7 @@
 package pitopia.riftcount.score
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlin.random.Random
@@ -65,10 +66,46 @@ class ScoreController(
 
     // --- names from the active deck and the opponent's legend ---------------------------------
 
+    /** The game setup (iOS `GameSetupSheet`), kept in the Skip app's keys; state so the halves rename at once. */
+    var deckId by mutableStateOf(Prefs.string("activeDeckId", ""))
+        private set
+    var opponent by mutableStateOf(Prefs.string("activeOpponent", ""))
+        private set
+    /** "first", "second" or "" (unknown); the dice duel sets it too. */
+    var turnOrder by mutableStateOf(Prefs.string("activeStartedFirst", ""))
+        private set
+
+    /** The half whose setup sheet is open (tap its name), -1 when none. */
+    var setupSlot by mutableIntStateOf(-1)
+        private set
+
+    fun openSetup(slot: Int) {
+        if (state.isDuel) setupSlot = slot
+    }
+
+    fun closeSetup() {
+        setupSlot = -1
+    }
+
+    fun pickDeck(id: String) {
+        deckId = id
+        Prefs.put("activeDeckId", id)
+    }
+
+    fun pickOpponent(name: String) {
+        opponent = name
+        Prefs.put("activeOpponent", name)
+    }
+
+    fun pickTurnOrder(value: String) {
+        turnOrder = value
+        Prefs.put("activeStartedFirst", value)
+    }
+
     fun legend(slot: Int): String = when {
         !state.isDuel -> "Player ${slot + 1}"
-        slot == YOU -> decks.find(Prefs.string("activeDeckId", ""))?.legend?.cardName?.let(::displayName) ?: "You"
-        else -> Prefs.string("activeOpponent", "").trim().takeIf { it.isNotEmpty() }?.let(::displayName) ?: "Opponent"
+        slot == YOU -> decks.find(deckId)?.legend?.cardName?.let(::displayName) ?: "You"
+        else -> opponent.trim().takeIf { it.isNotEmpty() }?.let(::displayName) ?: "Opponent"
     }
 
     /** First name for sentences: "Darius starts", "You start". */
@@ -177,7 +214,7 @@ class ScoreController(
         if (starter < 0) return
         stopTumbles()
         duel = null
-        if (state.isDuel) Prefs.put("activeStartedFirst", if (starter == YOU) "first" else "second")
+        if (state.isDuel) pickTurnOrder(if (starter == YOU) "first" else "second")
         apply(state.withStarter(starter, now()), Haptic.Success)
         show(if (state.isDuel && starter == YOU && legend(YOU) == "You") "You start · good game" else "${shortName(starter)} starts · good game")
     }
@@ -200,8 +237,8 @@ class ScoreController(
     /** The finished game into `games.json`, from your side (slot 1), like iOS Won/Lost. */
     private fun record(winner: Int, s: ScoreState) {
         if (!s.isDuel) return
-        val deck = decks.find(Prefs.string("activeDeckId", ""))
-        val startedFirst = if (s.starter >= 0) s.starter == YOU else when (Prefs.string("activeStartedFirst", "")) {
+        val deck = decks.find(deckId)
+        val startedFirst = if (s.starter >= 0) s.starter == YOU else when (turnOrder) {
             "first" -> true
             "second" -> false
             else -> null
@@ -209,7 +246,7 @@ class ScoreController(
         games.record(
             GameRecord(
                 date = now(), deckId = deck?.id, deckName = deck?.name,
-                opponent = Prefs.string("activeOpponent", "").trim(),
+                opponent = opponent.trim(),
                 result = if (winner == YOU) "won" else "lost",
                 durationSeconds = s.gameSeconds(now()), events = s.events, startedFirst = startedFirst,
             ),

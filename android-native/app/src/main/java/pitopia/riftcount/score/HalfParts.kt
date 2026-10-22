@@ -62,12 +62,25 @@ private val Standard = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
 private val Caps = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, letterSpacing = 0.14.em)
 
 @Composable
-fun TopLine(legend: String, accent: Color, ink: Color, starter: Boolean, xp: Int, onXp: (Int) -> Unit, gamesWon: Int, seriesPips: Boolean, shown: Boolean = true) {
+fun TopLine(
+    legend: String,
+    accent: Color,
+    ink: Color,
+    starter: Boolean,
+    xp: Int,
+    onXp: (Int) -> Unit,
+    gamesWon: Int,
+    seriesPips: Boolean,
+    shown: Boolean = true,
+    onName: (() -> Unit)? = null,
+) {
     // Fades out once the game is decided, like the mock's `.ended .topline`.
     val alpha by animateFloatAsState(if (shown) 1f else 0f, tween(500), label = "topline")
     Row(Modifier.fillMaxWidth().graphicsLayer { this.alpha = alpha }, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f, fill = false), verticalAlignment = Alignment.CenterVertically) {
-            BasicText(legend.uppercase(), style = Caps.copy(color = Color.White.copy(alpha = 0.78f)), maxLines = 1)
+            val name = @Composable { BasicText(legend.uppercase(), style = Caps.copy(color = Color.White.copy(alpha = 0.78f)), maxLines = 1) }
+            // The name opens the game setup (deck, opponent), like iOS's deck pill.
+            if (onName != null) Pressable(onName, Modifier.padding(vertical = 6.dp), label = "Change $legend", pressedScale = 0.96f) { name() } else name()
             if (starter) {
                 Spacer(Modifier.width(8.dp))
                 BasicText(

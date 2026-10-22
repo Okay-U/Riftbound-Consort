@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import kotlin.math.min
+import pitopia.riftcount.ui.common.LinkButton
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.RoundIcon
 import pitopia.riftcount.ui.theme.RiftColors
@@ -146,8 +147,11 @@ fun CardDetail(
             card.text?.flavour?.takeIf { it.isNotBlank() }?.let { Reveal(shown, 3, Modifier.padding(top = 16.dp)) { Flavour(it, color) } }
             Reveal(shown, 4, Modifier.padding(top = 18.dp)) { Meta(card) }
         }
-        Reveal(shown, 2, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 18.dp)) {
-            DetailBar(inDecks, onAdd)
+        // Tokens are made during a game and never go in a deck.
+        if (!card.isToken) {
+            Reveal(shown, 2, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 18.dp)) {
+                DetailBar(inDecks, onAdd)
+            }
         }
     }
 }
