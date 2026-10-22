@@ -9,7 +9,7 @@
 - **iOS** (App Store, version 3.5): SwiftUI app in `Riftbound Companiokay/`, built via `Riftbound Companiokay.xcodeproj`. Zero external package dependencies.
 - **Android** (3.4.0, versionCode 9): [Skip](https://skip.dev) native Fuse app in `android/` (module `Riftcount`, appid `pitopia.Riftcount`). Compiled Swift + SkipUI→Compose bridging. Deps: skip, skip-fuse-ui, skip-keychain, skip-web.
 
-Plans and audits live in `docs/`: `PLAYRIFTBOUND.md` (Riot platform migration, in-app browser, approved session client, site map), `TAKEOVER_ASSESSMENT.md` (security / code / design tickets), `coach-companion.md` (design draft). Keep it to these; ask before adding a doc.
+Plans and audits live in `docs/`: `PLAYRIFTBOUND.md` (Riot platform migration, in-app browser, approved session client, site map), `TAKEOVER_ASSESSMENT.md` (security / code / design tickets), `coach-companion.md` (design draft), `ANDROID_NATIVE.md` (native Kotlin/Compose app: plan, phases, review rounds), `IOS_REDESIGN.md` (Android design on iOS, branch `feature/ios-redesign`). Keep it to these; ask before adding a doc.
 
 **iOS-first policy: the shipped iOS app must never regress for the sake of Android.** Feature requests target BOTH platforms by default (iOS first, then Android port with full design parity) unless the user scopes to one platform. See memory `dual-platform-workflow.md`.
 
