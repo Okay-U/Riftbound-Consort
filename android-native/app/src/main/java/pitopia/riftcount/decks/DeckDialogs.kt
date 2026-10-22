@@ -39,7 +39,7 @@ import pitopia.riftcount.cards.SearchField
 import pitopia.riftcount.data.DeckText
 import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.data.GameRecord
-import pitopia.riftcount.score.DialogFrame
+import pitopia.riftcount.ui.common.DialogFrame
 import pitopia.riftcount.ui.common.LinkButton
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftType

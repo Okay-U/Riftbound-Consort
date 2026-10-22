@@ -186,17 +186,48 @@ Okay's review:
 Tests: `PlayRiftboundLogTest` (iOS file, export), `ReflowTest` (licence text), `PickColorTest`,
 `SeatColorsTest`, `SoundsTest`.
 
-### 5 · Events (`EventsMix`)
-Section tabs Events · Stores · PlayRiftbound. PlayRiftbound = domain-locked WebView with the iOS policy
-(hosts, iframe hosts, external links, social sign-in blocked, sign out clears site data). Session from the
-WebView cookies (`__Secure-access_token`, expiry, identity from `__Secure-id_hint`), silent renewal,
-GraphQL persisted queries with the iOS op ids + remote override, headers and error mapping as iOS.
-Native: my events (live card, upcoming, past), event page with five tabs (Matches with Report, Rounds,
-Standings with live preview and Can I draw, Roster, Info with register/cancel/drop), search page,
-Stores pane (week rail, favourite cards, finder with radius rail, store sheet, month sheet), scoreboard
-match strip. Standings and DrawCalc ported 1:1 and checked against the three public events in
-`tools/check-standings`. Live data needs Okay's Riot sign-in, so the agent verifies with recorded and
-fake data; Okay does the live test.
+### 5 · Events (`EventsMix`) · done 2026-10-22
+Built as mocked, section tabs Events · Stores · PlayRiftbound:
+- Events: find pill, live card (round clock, your pairing, Report / Open event), upcoming, past with
+  placement and record. Event page: hero, five tabs (Matches with the current round, its clock and the
+  history; Rounds; Standings with the live preview, your standing and Can I draw; Roster; Info with
+  register / cancel / drop behind a confirm). Search page: place (Photon geocoding, as the Skip app),
+  distance, type, format and player chips, date or distance order, favourite stores only.
+- Stores: next two weeks of favourites and yours on a day rail, favourite store cards, store finder with
+  the radius rail, store sheet (directions, website, mail and phone leave the app; heart), month sheet.
+- PlayRiftbound: the WebView with the iOS policy. Top-level pages only on playriftbound.com,
+  riftbound.leagueoflegends.com and Riot's two sign-in hosts over https, frames load as the site needs
+  them, web/mail/phone links leave the app, a social sign-in hop from Riot's page is blocked with a
+  notice, Sign out clears cookies and web storage. Default WebView profile, so the Skip app's sign-in
+  should carry over (checked in phase 6).
+- Session and API as iOS: credentials read from the WebView cookies at call time and never stored,
+  expiry the sooner of the session expiry and the token's `exp` minus a minute, one silent renewal by an
+  off-screen page load (callers fail at once for 20 s after a failed one), persisted queries with the
+  built-in ids and the okay-u.github.io feed (one fetch shared by all callers, waited for 10 s at most).
+  Every call lands in the PlayRiftbound log, mutations with their body; never cookies or headers.
+- Scoreboard match mode (Settings switch, 2 players): with a pairing still to report the seam shows
+  "R3 · T5" and Report (End otherwise). Report opens the result picker, then the summary's light rail sends
+  the games (the pairing is fetched again first; a re-paired or already reported match is refused). The
+  rail says Reported only for the series it sent: a new match never inherits it. The pairing is asked for
+  again when a series ends and when a new match starts, so the next round shows up.
+Decisions, for Okay's review:
+- Mock flow over iOS: the current round card stays after a report (with the result), history lists
+  every round, a drop hides the current card and clock; the confirm's cancel says "Keep" for every action.
+- Lists refresh each time their section shows and on resume (at most every 30 s), so signing in on the
+  PlayRiftbound section counts at once; no pull-to-refresh (not in the mock). Status and placement on the
+  cards come from loading each event (two at a time, again after 20 s).
+- Times in the phone language's format (24 h in German). Rules links stay in the browser (their PDF host
+  is outside the allowlist).
+- The slide-to-report knob starts at the left edge, so it is excluded from Android's back gesture.
+- Debuggable builds answer from recorded data while `files/Documents/fake_compete/` exists
+  (`DebugEvents`); release and staging builds always use the network.
+Tests: `CompeteBracketTest` (the iOS test target: sections, titles, placements, 2v2 names, pending round,
+Swiss final, report vs status, live standings), `DrawCalcTest`, `CompeteDecodeTest`, `RiftPolicyTest`,
+`OperationIdsTest`. Emulator with fake data: every screen against the mock, report from the event page
+and from the scoreboard (SubmitGameResults with the right game ids and winners), drop, register,
+favourite toggle, store finder with real geocoding, the live site in the PlayRiftbound pane. Not done:
+the live test with Okay's Riot sign-in, and checking the standings against real public events
+(`tools/check-standings`), which needs Okay's OK to fetch public PlayRiftbound data.
 
 ### 6 · Upgrade path + release prep
 Install the old Skip release over a fresh emulator, create decks/games/settings, install the native

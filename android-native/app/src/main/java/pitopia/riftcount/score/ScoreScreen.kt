@@ -38,7 +38,7 @@ import pitopia.riftcount.ui.theme.RiftEase
 
 /** The Score tab. [bottomReserve] is the room the tab bar takes at the bottom; both halves end above it. */
 @Composable
-fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, cards: CardStore) {
+fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, cards: CardStore, link: TableLink?) {
     BackHandler(enabled = c.duel != null || c.picker != null || c.confirmRestart || c.state.asking >= 0) {
         when {
             c.picker != null -> c.closePicker()
@@ -52,7 +52,7 @@ fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, ca
     val swatches = List(slots) { PlayerColors.forSlot(it, slots) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val area = maxHeight - bottomReserve
-        if (c.state.isDuel) Duel(c, swatches, area, maxHeight) else FourPlayers(c, swatches, area)
+        if (c.state.isDuel) Duel(c, swatches, area, maxHeight, link) else FourPlayers(c, swatches, area)
         // Centred on the seam like the mock, so it never covers a player's own controls.
         BoardToast(c.toast, c::clearToast, Modifier.align(Alignment.TopCenter).offset(y = area / 2 - 20.dp))
         if (c.confirmRestart) RestartDialog(c.state.gameNo, c::cancelRestart, c::restart)
@@ -65,7 +65,7 @@ fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, ca
 }
 
 @Composable
-private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, screen: Dp) {
+private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, screen: Dp, link: TableLink?) {
     val s = c.state
     val d = c.duel
     val colors = swatches.map { it.color }
@@ -101,7 +101,7 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
         Half(c, OPPONENT, swatches, Modifier.weight(1f).graphicsLayer { rotationZ = 180f })
         Half(c, YOU, swatches, Modifier.weight(1f))
     }
-    Seam(c, Modifier.align(Alignment.TopCenter).offset(y = center - 27.dp))
+    Seam(c, link, Modifier.align(Alignment.TopCenter).offset(y = center - 27.dp))
     if (d != null && d.winner >= 0 && d.choice != null) {
         val starter = d.starter()
         val roll = { slot: Int -> d.dice[slot].value ?: 0 }
@@ -113,7 +113,7 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
             modifier = Modifier.align(Alignment.TopCenter).offset(y = center - 80.dp).padding(horizontal = 16.dp),
         )
     }
-    if (s.showSummary) MatchSummary(c, colors, center)
+    if (s.showSummary) MatchSummary(c, colors, center, link)
 }
 
 @Composable
@@ -219,7 +219,7 @@ private fun BoxScope.FourPlayers(c: ScoreController, swatches: List<Swatch>, are
         }
     }
     Box(Modifier.width(1.dp).height(area).align(Alignment.TopCenter).background(Color.White.copy(alpha = 0.08f)))
-    Seam(c, Modifier.align(Alignment.TopCenter).offset(y = area / 2 - 27.dp))
+    Seam(c, null, Modifier.align(Alignment.TopCenter).offset(y = area / 2 - 27.dp))
     if (d != null && d.winner >= 0) {
         val starter = d.starter()
         DuelBanner(

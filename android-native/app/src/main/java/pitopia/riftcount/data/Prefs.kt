@@ -18,6 +18,13 @@ object Prefs {
     fun bool(key: String, default: Boolean): Boolean = sp.getBoolean(key, default)
     fun int(key: String, default: Int): Int = sp.getInt(key, default)
 
+    /** Skip's encoding of a Swift Double: the IEEE bits as a long, flagged `__unrepresentable__:<key>`. */
+    fun double(key: String, default: Double): Double =
+        if (sp.getInt("__unrepresentable__:$key", 0) == 1) Double.fromBits(sp.getLong(key, default.toRawBits())) else default
+
+    fun put(key: String, value: Double) =
+        sp.edit().putLong(key, value.toRawBits()).putInt("__unrepresentable__:$key", 1).apply()
+
     fun put(key: String, value: String) = sp.edit().putString(key, value).apply()
     fun put(key: String, value: Boolean) = sp.edit().putBoolean(key, value).apply()
     fun put(key: String, value: Int) = sp.edit().putInt(key, value).apply()

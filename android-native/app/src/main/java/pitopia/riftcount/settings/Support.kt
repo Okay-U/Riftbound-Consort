@@ -9,6 +9,11 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import pitopia.riftcount.data.SwiftDateSerializer
@@ -136,8 +141,28 @@ class PlayRiftboundLog(private val file: File) {
         file.delete()
     }
 
+    /** iOS `record`: one call, the last [LIMIT] kept; the detail is cut to 600 characters. */
+    suspend fun record(operation: String, method: String, outcome: String, detail: String?, startedMs: Long) = withContext(Dispatchers.IO) {
+        lock.withLock {
+            val now = System.currentTimeMillis()
+            val entry = LogEntry(
+                UUID.randomUUID().toString().uppercase(), now, operation, method, outcome.take(120),
+                detail?.take(600), (now - startedMs).toInt(),
+            )
+            val all = (runCatching { SwiftJson.decodeFromString(ListSerializer(LogEntry.serializer()), file.readText()) }.getOrDefault(emptyList()) + entry).takeLast(LIMIT)
+            runCatching {
+                file.parentFile?.mkdirs()
+                val tmp = File(file.parentFile, file.name + ".tmp")
+                tmp.writeText(SwiftJson.encodeToString(ListSerializer(LogEntry.serializer()), all))
+                tmp.renameTo(file)
+            }
+        }
+    }
+
     companion object {
         const val FILE = "playriftbound_log.json"
+        private const val LIMIT = 150
+        private val lock = Mutex()
 
         /** iOS `exportText`: a header, then one line per call, newest first. */
         fun export(entries: List<LogEntry>, version: String): String {

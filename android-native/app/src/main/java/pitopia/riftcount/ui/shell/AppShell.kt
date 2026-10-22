@@ -14,13 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
@@ -42,6 +36,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import java.io.File
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import pitopia.riftcount.cards.Card
@@ -62,13 +57,20 @@ import pitopia.riftcount.platform.Sounds
 import pitopia.riftcount.platform.haptic
 import pitopia.riftcount.score.ScoreController
 import pitopia.riftcount.score.ScoreScreen
+import pitopia.riftcount.events.DebugEvents
+import pitopia.riftcount.events.EventsData
+import pitopia.riftcount.events.EventsScreen
+import pitopia.riftcount.events.EventsUi
+import pitopia.riftcount.events.RiftApi
+import pitopia.riftcount.events.RiftBrowser
+import pitopia.riftcount.events.tableLink
+import pitopia.riftcount.settings.Support
 import pitopia.riftcount.settings.PlayRiftboundLog
 import pitopia.riftcount.settings.SettingsScreen
 import pitopia.riftcount.tour.Tour
 import pitopia.riftcount.tour.TourKind
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
-import pitopia.riftcount.ui.theme.RiftType
 
 /** Five tabs on true black, reopening on the last tab like iOS. Back on another tab returns to Score. */
 @Composable
@@ -86,6 +88,15 @@ fun AppShell() {
     val cardsUi = remember { CardsUi() }
     val decksUi = remember { DecksUi() }
     val score = remember { ScoreController(scope, games, decks) }
+    val browser = remember { RiftBrowser(context) }
+    val events = remember {
+        val dir = File(context.filesDir, "Documents")
+        EventsData(RiftApi(DebugEvents.transport(context, dir), PlayRiftboundLog(File(dir, PlayRiftboundLog.FILE)), Support.version(context).substringBefore(' ')), browser)
+    }
+    val eventsUi = remember { EventsUi() }
+    DisposableEffect(Unit) { onDispose { browser.destroy() } }
+    // "Open on PlayRiftbound" from anywhere lands in the Events tab's browser.
+    LaunchedEffect(browser.pending) { if (browser.pending != null) tab = Tab.Events }
     // Per tab: a screen leaving reports "no overlay" after the next one reported its own.
     var overlays by remember { mutableStateOf(emptySet<Tab>()) }
     fun overlay(t: Tab, on: Boolean) {
@@ -105,6 +116,11 @@ fun AppShell() {
     }
     LifecycleResumeEffect(Unit) {
         cards.refreshIfDue()
+        onPauseOrDispose {}
+    }
+    // Match mode: the scoreboard's pairing, fetched when the Score tab shows (iOS, at most every 45 s).
+    LifecycleResumeEffect(tab) {
+        if (tab == Tab.Score && AppSettings.matchMode.on) scope.launch { events.refreshStrip() }
         onPauseOrDispose {}
     }
     val view = LocalView.current
@@ -142,7 +158,7 @@ fun AppShell() {
             label = "tab",
         ) { shown ->
             when (shown) {
-                Tab.Score -> ScoreScreen(score, barReserve, decks.lists, cards)
+                Tab.Score -> ScoreScreen(score, barReserve, decks.lists, cards, if (AppSettings.matchMode.on && score.state.isDuel) events.tableLink(scope) else null)
                 Tab.Cards -> CardsScreen(cardsUi, cards, errata, decks, barReserve, onOverlay = { overlay(Tab.Cards, it) }) { card ->
                     decksUi.startBuilder(card)
                     tab = Tab.Decks
@@ -151,7 +167,7 @@ fun AppShell() {
                 Tab.Settings -> SettingsScreen(score, docs.file(PlayRiftboundLog.FILE), barReserve, onTour = { tour = it }) {
                     overlay(Tab.Settings, it)
                 }
-                Tab.Events -> Placeholder(shown)
+                Tab.Events -> EventsScreen(events, eventsUi, barReserve) { overlay(Tab.Events, it) }
             }
         }
         BottomNav(selected = tab, onSelect = { tab = it }, modifier = Modifier.align(Alignment.BottomCenter), hidden = tab in overlays)
@@ -189,13 +205,3 @@ private fun StatusBarHidden(hidden: Boolean) {
     }
 }
 
-// ponytail: stand-in screens until each tab is built in its own phase
-@Composable
-private fun Placeholder(tab: Tab) {
-    val phase = "Phase 5 · events"
-    Column(Modifier.fillMaxSize().statusBarsPadding().padding(start = 20.dp, top = 30.dp, end = 20.dp)) {
-        BasicText(tab.label, style = RiftType.Title.copy(color = RiftColors.Ink))
-        Spacer(Modifier.height(10.dp))
-        BasicText(phase.uppercase(), style = RiftType.Caption.copy(color = RiftColors.InkMuted))
-    }
-}

@@ -4,8 +4,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,13 +17,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,7 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -43,27 +38,28 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import kotlinx.coroutines.delay
+import pitopia.riftcount.ui.common.DialogFrame
 import pitopia.riftcount.ui.common.Pill
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
-/** After the last game (or "End"): who won the series, one chip per game on the light rail. */
+/**
+ * After the last game (or "End"): who won the series, one chip per game on the light rail. In match mode the
+ * rail reports the series to PlayRiftbound ([ReportRail]).
+ */
 @Composable
-fun MatchSummary(c: ScoreController, colors: List<Color>, centerY: Dp) {
+fun MatchSummary(c: ScoreController, colors: List<Color>, centerY: Dp, link: TableLink?) {
     val s = c.state
     val wins = s.seriesWins()
     val lead = when { wins[YOU] > wins[OPPONENT] -> YOU; wins[OPPONENT] > wins[YOU] -> OPPONENT; else -> -1 }
     val series = "${maxOf(wins[0], wins[1])}–${minOf(wins[0], wins[1])}"
     val accent = if (lead < 0) Color.White else colors[lead]
     val headline = if (lead < 0) "Match drawn $series" else "${c.shortName(lead)} ${if (lead == YOU && c.shortName(YOU) == "You") "win" else "wins"} $series"
+    // The pairing as Riot has it now: reported meanwhile, or a newer round.
+    LaunchedEffect(Unit) { link?.refresh() }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val railLeft = 28.dp
         val railWidth = maxWidth - 56.dp
@@ -74,10 +70,15 @@ fun MatchSummary(c: ScoreController, colors: List<Color>, centerY: Dp) {
                 BasicText(headline, style = TextStyle(fontFamily = RiftType.Display, fontWeight = FontWeight.Black, fontSize = 36.sp, lineHeight = 36.sp, letterSpacing = 0.06.em, color = accent))
             }
         }
-        RailIn(Modifier.offset(x = railLeft, y = centerY - 2.dp).size(railWidth, 4.dp), Color.White.copy(alpha = 0.18f), null)
-        RailIn(Modifier.offset(x = railLeft, y = centerY - 2.dp).size(railWidth, 4.dp), accent, accent, delayMs = 1300)
+        val reporting = c.reportedSeries() != null || link?.reportable == true
+        if (reporting) SoftIn(Modifier.fillMaxSize(), delayMs = 900, durationMs = 700) {
+            Box(Modifier.fillMaxSize()) { ReportRail(c, colors, accent, railLeft, railWidth, centerY, link) }
+        } else {
+            RailIn(Modifier.offset(x = railLeft, y = centerY - 2.dp).size(railWidth, 4.dp), Color.White.copy(alpha = 0.18f), null)
+            RailIn(Modifier.offset(x = railLeft, y = centerY - 2.dp).size(railWidth, 4.dp), accent, accent, delayMs = 1300)
+        }
         val n = s.log.size
-        s.log.forEachIndexed { i, g ->
+        if (!reporting) s.log.forEachIndexed { i, g ->
             val x = railLeft + railWidth * ((i + 1f) / (n + 1f))
             val color = if (g.winner < 0) Color.White else colors[g.winner]
             val text = "G${i + 1} · " + (g.scores?.let { "${it.max()}–${it.min()}" } ?: if (g.winner < 0) "Draw" else c.shortName(g.winner))
@@ -92,10 +93,10 @@ fun MatchSummary(c: ScoreController, colors: List<Color>, centerY: Dp) {
                 }
             }
         }
-        Column(Modifier.fillMaxWidth().offset(y = centerY + 37.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.fillMaxWidth().offset(y = centerY + if (reporting) 52.dp else 37.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             SoftIn(delayMs = 1700, durationMs = 600) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Pill("Start a new match", { c.newMatch() }, Modifier.height(46.dp), fill = accent, ink = inkOn(accent))
+                    Pill("Start a new match", { link?.refresh(); c.newMatch() }, Modifier.height(46.dp), fill = accent, ink = inkOn(accent))
                     Spacer(Modifier.height(4.dp))
                     LinkText("Wrong results? Set them yourself") { c.openPicker(ending = false) }
                 }
@@ -120,38 +121,6 @@ private fun RailIn(modifier: Modifier, color: Color, glow: Color?, delayMs: Int 
 fun LinkText(text: String, onClick: () -> Unit) {
     Pressable(onClick, Modifier.padding(6.dp)) {
         BasicText(text, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White.copy(alpha = 0.82f), textDecoration = TextDecoration.Underline))
-    }
-}
-
-/**
- * Shared dialog: its own window above the tab bar (back closes it via [onDismiss]), our dim scrim instead
- * of the platform's, and a centred card that pops in. Taps on the scrim do nothing, like the mock.
- */
-@Composable
-fun DialogFrame(onDismiss: () -> Unit, fullScreen: Boolean = true, content: @Composable () -> Unit) = Dialog(
-    onDismissRequest = onDismiss,
-    properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-) {
-    val view = LocalView.current
-    val window = (view.parent as? DialogWindowProvider)?.window
-    SideEffect {
-        window?.setDimAmount(0f)
-        // A dialog is its own window: keep the status bar hidden like the screen below it.
-        if (fullScreen && window != null) WindowCompat.getInsetsController(window, view).hide(WindowInsetsCompat.Type.statusBars())
-    }
-    val t = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { t.animateTo(1f, tween(460, easing = RiftEase)) }
-    Box(
-        Modifier.fillMaxSize().graphicsLayer { alpha = t.value }.background(Color.Black.copy(alpha = 0.66f))
-            .clickable(remember { MutableInteractionSource() }, indication = null) {},
-        contentAlignment = Alignment.Center,
-    ) {
-        val shape = RoundedCornerShape(26.dp)
-        Column(
-            Modifier.padding(horizontal = 24.dp).widthIn(max = 352.dp)
-                .graphicsLayer { translationY = 10.dp.toPx() * (1f - t.value); scaleX = 0.95f + 0.05f * t.value; scaleY = 0.95f + 0.05f * t.value }
-                .background(Color(0xFF121212), shape).border(1.dp, Color.White.copy(alpha = 0.14f), shape).padding(20.dp),
-        ) { content() }
     }
 }
 

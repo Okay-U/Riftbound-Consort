@@ -57,6 +57,9 @@ class ScoreController(
         private set
     var confirmRestart by mutableStateOf(false)
         private set
+    /** The series this scoreboard reported to PlayRiftbound; in memory only, any other series is not it. */
+    var sentReport by mutableStateOf<SentReport?>(null)
+        private set
 
     /** Set by the screen so actions can buzz through the current view. */
     var haptic: (Haptic) -> Unit = {}
@@ -229,6 +232,9 @@ class ScoreController(
     // --- plumbing ----------------------------------------------------------------------------------
 
     fun show(text: String) { toast = Toast(text) }
+    fun reported(r: SentReport) { sentReport = r }
+    /** Only while the games on the board are the ones sent. */
+    fun reportedSeries(): SentReport? = sentReport?.takeIf { it.log == state.log }
     fun clearToast(id: Long) { if (toast?.id == id) toast = null }
 
     private fun apply(next: ScoreState, buzz: Haptic?) {

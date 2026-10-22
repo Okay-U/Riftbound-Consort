@@ -47,9 +47,12 @@ import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
-/** The pill on the territory line: dice, undo, match clock, restart, end. In the duel: die type, roll, close. */
+/**
+ * The pill on the territory line: dice, undo, match clock, restart, end. In the duel: die type, roll, close.
+ * In match mode ([link]) the clock's tag is the round and table and End becomes Report.
+ */
 @Composable
-fun Seam(c: ScoreController, modifier: Modifier = Modifier) {
+fun Seam(c: ScoreController, link: TableLink?, modifier: Modifier = Modifier) {
     val s = c.state
     val d = c.duel
     val gone = s.showSummary || (d != null && d.winner >= 0 && (d.choice != null || !s.isDuel))
@@ -77,11 +80,11 @@ fun Seam(c: ScoreController, modifier: Modifier = Modifier) {
                         SeamIcon(ScoreIcons.Dice, RiftColors.You)
                     }
                     RoundIcon({ c.undo() }, "Undo last point", enabled = s.canUndo && !gone) { SeamIcon(ScoreIcons.Undo) }
-                    ClockBox(s, onToggle = { c.toggleClock() })
+                    ClockBox(s, link?.tag, onToggle = { c.toggleClock() })
                     RoundIcon({ c.askRestart() }, "Restart this game", enabled = !s.gameOver && !gone) { SeamIcon(ScoreIcons.Restart) }
                     if (s.isDuel) {
                         Box(Modifier.size(1.dp, 26.dp).background(Color.White.copy(alpha = 0.16f)))
-                        Pill("End", { c.openPicker(ending = true) }, Modifier.height(42.dp), fill = Color.White.copy(alpha = 0.13f), enabled = !gone)
+                        Pill(if (link?.reportable == true) "Report" else "End", { c.openPicker(ending = true) }, Modifier.height(42.dp), fill = Color.White.copy(alpha = 0.13f), enabled = !gone)
                     }
                 }
             }
@@ -93,9 +96,9 @@ fun Seam(c: ScoreController, modifier: Modifier = Modifier) {
 private fun SeamIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color = Color.White) =
     Image(icon, contentDescription = null, colorFilter = ColorFilter.tint(tint))
 
-/** Game number and the match clock; tap pauses and resumes it (the iOS play/pause). */
+/** Game number (or round and table in match mode) and the match clock; tap pauses and resumes it (iOS). */
 @Composable
-private fun ClockBox(s: ScoreState, onToggle: () -> Unit) {
+private fun ClockBox(s: ScoreState, tag: String?, onToggle: () -> Unit) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     // Redraw exactly when the shown second changes, not on a fixed tick (as iOS does).
     LaunchedEffect(s.clock) {
@@ -110,7 +113,7 @@ private fun ClockBox(s: ScoreState, onToggle: () -> Unit) {
     Pressable(onToggle, Modifier.widthIn(min = 72.dp).semantics { contentDescription = "Match clock $text" + if (paused) ", paused" else "" }, label = if (s.clock.isRunning) "Pause the clock" else "Start the clock") {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             BasicText(
-                if (paused) "PAUSED" else if (s.isDuel) "GAME ${s.gameNo}" else "${s.players.size} PLAYERS",
+                if (paused) "PAUSED" else tag?.uppercase() ?: if (s.isDuel) "GAME ${s.gameNo}" else "${s.players.size} PLAYERS",
                 style = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, letterSpacing = 0.14.em, color = if (paused) RiftColors.Gold else Color.White.copy(alpha = 0.72f)),
             )
             BasicText(text, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 18.sp, fontFeatureSettings = "tnum", color = Color.White))
