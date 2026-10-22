@@ -39,8 +39,6 @@ enum DieType: Int, CaseIterable, Identifiable {
 
 struct DiceView: View {
     // Settings
-    @AppStorage("diceShakeToRoll") private var diceShakeToRoll: Bool = true
-    @AppStorage("currentTab")      private var currentTab: String = "score"
     @AppStorage("diceType")        private var diceTypeRaw: Int = 6
 
     // State
@@ -88,15 +86,6 @@ struct DiceView: View {
         }
         .padding()
         .navigationTitle("Dice")
-        // Invisible first-responder that turns motionShake into the
-        // notification ShakeManager republishes — without it in the tree,
-        // shake-to-roll never fires (regressed in the dice redesign).
-        .background(ShakeDetector().frame(width: 1, height: 1))
-        .onReceive(ShakeManager.shared.publisher) { _ in
-            if diceShakeToRoll && currentTab == "dice" {
-                roll()
-            }
-        }
         .onAppear {
             // Migrate legacy D4/D10 selections to D6.
             if DieType(rawValue: diceTypeRaw) == nil {

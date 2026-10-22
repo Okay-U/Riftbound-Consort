@@ -13,7 +13,6 @@ import ActivityKit
 struct Settings: View {
     @AppStorage("hapticsEnabled") private var hapticsEnabled: Bool = true
     @AppStorage("soundsEnabled") private var soundsEnabled: Bool = false
-    @AppStorage("diceShakeToRoll") private var diceShakeToRoll: Bool = true
     @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
     @AppStorage("matchModeEnabled") private var matchModeEnabled: Bool = true
     @AppStorage("didOnboard") private var didOnboard: Bool = false
@@ -33,7 +32,6 @@ struct Settings: View {
             Form {
                 Section("Interaction") {
                     Toggle("Haptics", isOn: $hapticsEnabled)
-                    Toggle("Shake to roll dice", isOn: $diceShakeToRoll)
                 }
 
                 Section {

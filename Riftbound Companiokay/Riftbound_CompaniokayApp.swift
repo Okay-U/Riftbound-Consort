@@ -106,10 +106,5 @@ struct RootTabView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape") }
                 .tag(TabKey.settings)
         }
-        .background(
-            ShakeDetector()
-                .frame(width: 1, height: 1)
-                .allowsHitTesting(false)
-        )
     }
 }
