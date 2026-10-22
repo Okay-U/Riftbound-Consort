@@ -37,9 +37,9 @@ enum RulesLibrary {
         RulesLink("Rules Hub", "Riot's index of current rules documents",
                   "https://playriftbound.com/en-us/rules-hub/"),
         RulesLink("Core Rules", "The full rulebook",
-                  "https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/e9ac8e3d33e0f78cef296f5945aba7bc1313b086.pdf", pdf: true),
+                  "https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/5c7946f7c3b8c6e0faff85ab6dadc6d2e721ea94.pdf", pdf: true),
         RulesLink("Tournament Rules", "Event procedure and penalties",
-                  "https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/503da65669ced10598d62925a6f6bc15111af726.pdf", pdf: true),
+                  "https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/861752822d217edf37d9febaeaf77a7d924c1bb6.pdf", pdf: true),
         RulesLink("Bans & Restrictions", "Announcing Riftbound's first bans",
                   "https://playriftbound.com/en-us/news/announcements/announcing-riftbounds-first-bans/"),
     ]
@@ -66,10 +66,12 @@ enum RulesLibrary {
                   "https://playriftbound.com/en-us/news/rules-and-releases/riftbound-core-rules-unleashed-patch-notes/"),
         RulesLink("Vendetta", nil,
                   "https://playriftbound.com/en-us/news/announcements/core-rules-vendetta-patch-notes/"),
+        RulesLink("Radiance", nil,
+                  "https://playriftbound.com/en-us/news/announcements/core-rules-radiance-patch-notes-effective-october-16-2026/"),
     ]
 
     static let errata: [RulesLink] = [
-        RulesLink("Origins", "33 cards",
+        RulesLink("Origins", "31 cards",
                   "https://playriftbound.com/en-us/news/rules-and-releases/riftbound-origins-card-errata/"),
         RulesLink("Spiritforged", "16 cards",
                   "https://playriftbound.com/en-us/news/rules-and-releases/riftbound-spiritforged-errata/"),
@@ -77,6 +79,8 @@ enum RulesLibrary {
                   "https://playriftbound.com/en-us/news/rules-and-releases/unleashed-errata-updates/"),
         RulesLink("Vendetta", "8 cards",
                   "https://playriftbound.com/en-us/news/announcements/vendetta-errata-updates/"),
+        RulesLink("Radiance", "4 cards",
+                  "https://playriftbound.com/en-us/news/announcements/radiance-errata-updates/"),
     ]
 }
 
