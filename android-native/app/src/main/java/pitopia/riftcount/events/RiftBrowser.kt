@@ -161,6 +161,9 @@ class RiftBrowser(private val context: Context) {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun create(onScreen: Boolean): WebView = WebView(context).apply {
+        // Compose adds a view without its own params as wrap_content, and a wrap_content WebView lays pages out at
+        // zero height: 100vh is 0, so Riot's sign-in form (in a 100vh scroller) collapsed under its background.
+        layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         setBackgroundColor(Color.BLACK)
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true

@@ -314,6 +314,14 @@ a feature put address, subject and text into the mailto link like iOS (Gmail ign
 mail would have opened empty). Acknowledgments gained the Skip app's Photon / OpenStreetMap credit (store search
 geocodes with Photon) and the Apache 2.0 libraries (AndroidX/Compose, Kotlin, kotlinx) with the licence text.
 
+Events, round 1 (2026-10-22): the PlayRiftbound browser rendered Riot's sign-in see-through (no white panel,
+faint fields, buttons without colour) and the site's 100vh parts empty (home hero, My events). Cause: Compose
+adds a view without layout params as wrap_content, and a wrap_content WebView lays pages out at zero height,
+so `100vh` was 0 (checked over DevTools: Riot's form sits in a `height: 100vh` scroller). The web view now has
+MATCH_PARENT params; `vh` is the pane height again and the sign-in looks like Chrome's. Scrolling the site on
+the emulator stays slow (same with and without the rounded clip): its WebView/Chrome are 124 from 2024 on GPU
+emulation; judge smoothness on a phone.
+
 ## Open points
 - Before the final release: remove the PlayRiftbound log row from Settings (Okay 2026-10-22: kept while
   testing the Events tab).
