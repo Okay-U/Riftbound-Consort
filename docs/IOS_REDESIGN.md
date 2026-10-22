@@ -36,6 +36,9 @@ checkout is on it to build in Xcode); it reaches `main` only when Okay says so. 
 - Liquid Glass: the system chrome (native `TabView` tinted green, sheets, navigation) and the seam pill on
   iOS 26; iOS 18.6 shows materials instead. The playfield (territory fields, glowing line, light rail)
   stays drawn as mocked.
+- A tab left behind starts fresh the next time, so its entrance plays again (Okay, 2026-10-23; Android
+  builds a tab's screen anew each time): Decks and Settings are rebuilt, in Events only the two lists, so the
+  section, its pushed pages and the browser stay. The builder's draft and all data live in the models.
 - No packages; SwiftUI only.
 - Accessibility: Dynamic Type for text styles; slide-to-report also works as a VoiceOver button.
 

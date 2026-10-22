@@ -27,6 +27,9 @@ enum EventsSheet: Identifiable {
 }
 
 struct RiftEventsView: View {
+    /// Bumped each time the tab is left: the sections' lists start fresh and rise in again, the section and the
+    /// pushed pages stay (Android keeps them in `EventsUi`).
+    var visit = 0
     @EnvironmentObject private var events: PlayRiftboundEventsStore
     @EnvironmentObject private var browser: PlayRiftboundBrowser
     @AppStorage("didOnboardEvents") private var didOnboardEvents = false
@@ -102,9 +105,11 @@ struct RiftEventsView: View {
         GeometryReader { geo in
             HStack(spacing: 0) {
                 MyEventsPane(active: section == 0, onOpen: open, onSite: toSite, onToast: show)
+                    .id(visit)
                     .frame(width: geo.size.width)
                     .accessibilityHidden(section != 0)
                 StoresPane(active: section == 1, onSheet: { sheet = $0 }, onOpen: open, onToast: show)
+                    .id(visit)
                     .frame(width: geo.size.width)
                     .accessibilityHidden(section != 1)
                 Group {
