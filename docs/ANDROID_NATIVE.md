@@ -301,6 +301,12 @@ instead of ending in a box. Shortlist (Okay's "Merkliste"): Save on a card's Add
 main and side show a Shortlist chip with the kept cards the legend may play, the Cards filter has
 "My shortlist".
 
+Decks, round 3 (2026-10-22): a test-hand card now leaves the pile from the pile itself (pile size, upright,
+fading in as it moves) and at once; before, it waited its turn as a small card under the pile. A mulligan sends
+the marked cards back onto the pile before their replacements come off it. The table has a Shortlist spot right
+after New deck (the latest three kept cards fanned, or an empty frame); it opens the list, grouped like a deck,
+where the star takes a card off or puts it back.
+
 ## Open points
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build

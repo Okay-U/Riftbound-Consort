@@ -152,7 +152,7 @@ fun FieldPick(card: Card, on: Boolean, tilePx: Int, onToggle: () -> Unit, modifi
 
 /** One card in the Cards tab's frame, with whatever the caller lays over it. */
 @Composable
-private fun CardTile(card: Card, tilePx: Int, modifier: Modifier, over: @Composable BoxScope.() -> Unit) {
+fun CardTile(card: Card, tilePx: Int, modifier: Modifier, over: @Composable BoxScope.() -> Unit) {
     val art by rememberCardArt(card, tilePx)
     Box(modifier.aspectRatio(CARD_ASPECT)) {
         CardFace(card, errata = false, art = art, modifier = Modifier.fillMaxSize())
@@ -185,5 +185,5 @@ private fun BoxScope.ChampTag() {
 }
 
 @Composable
-private fun GroupLabel(text: String) =
+fun GroupLabel(text: String) =
     BasicText(text.uppercase(), style = RiftType.Caption.copy(letterSpacing = 0.14.em, color = Color.White.copy(alpha = 0.62f)))

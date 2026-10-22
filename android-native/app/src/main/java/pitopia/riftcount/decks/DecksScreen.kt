@@ -61,6 +61,7 @@ fun DecksScreen(ui: DecksUi, decks: DecklistStore, games: GameRecordStore, cards
     var editing by remember { mutableStateOf<GameRecord?>(null) }
     var importing by remember { mutableStateOf(false) }
     var builderShown by remember { mutableStateOf(false) }
+    var shortlistShown by remember { mutableStateOf(false) }
 
     LaunchedEffect(ui.draft != null) { builderShown = ui.draft != null }
     val overlay = detailShown || logShown || builderShown
@@ -138,6 +139,7 @@ fun DecksScreen(ui: DecksUi, decks: DecklistStore, games: GameRecordStore, cards
             bottomReserve = bottomReserve,
             onOpenDeck = ::openDeck,
             onNewDeck = { ui.startBuilder() },
+            onShortlist = { shortlistShown = true },
             onImport = { importing = true },
             onOpenLog = { tile, from -> openLog(null, from, tile) },
             modifier = Modifier.graphicsLayer { alpha = awayAlpha; scaleX = awayScale; scaleY = awayScale },
@@ -231,6 +233,7 @@ fun DecksScreen(ui: DecksUi, decks: DecklistStore, games: GameRecordStore, cards
             },
         ) { editing = null }
     }
+    if (shortlistShown) ShortlistSheet(index) { shortlistShown = false }
     if (importing) {
         ImportDialog(pool, onImport = { parsed ->
             val name = parsed.legend?.let { "Imported · ${it.title}" } ?: "Imported deck"

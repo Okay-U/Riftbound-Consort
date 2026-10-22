@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
@@ -72,6 +73,8 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
 import pitopia.riftcount.cards.Card
+import pitopia.riftcount.cards.CardIcons
+import pitopia.riftcount.cards.Shortlist
 import pitopia.riftcount.data.DeckRules
 import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.data.GameRecord
@@ -124,7 +127,7 @@ fun LegalChip(status: String, modifier: Modifier = Modifier, onDark: Boolean = f
     )
 }
 
-/** The table of piles, the new-deck spot, then the all-decks win rate and the last games. */
+/** The table of piles, the new-deck spot and the shortlist, then the all-decks win rate and the last games. */
 @Composable
 fun DecksHome(
     decks: List<Decklist>,
@@ -135,6 +138,7 @@ fun DecksHome(
     bottomReserve: Dp,
     onOpenDeck: (Decklist, Rect) -> Unit,
     onNewDeck: () -> Unit,
+    onShortlist: () -> Unit,
     onImport: () -> Unit,
     onOpenLog: (String, Rect) -> Unit,
     modifier: Modifier = Modifier,
@@ -153,7 +157,7 @@ fun DecksHome(
             }
         }
         Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            val cells = decks.size + 1
+            val cells = decks.size + 2
             for (row in 0 until (cells + 1) / 2) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     for (col in 0..1) {
@@ -162,6 +166,7 @@ fun DecksHome(
                             when {
                                 i < decks.size -> PileCell(decks[i], games, index, i, hidden = decks[i].id == hiddenDeck, onOpenDeck)
                                 i == decks.size -> NewDeckCell(i, onNewDeck)
+                                i == decks.size + 1 -> ShortlistCell(i, index, onShortlist)
                             }
                         }
                     }
@@ -285,23 +290,72 @@ private fun NewDeckCell(i: Int, onClick: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Column(
-            Modifier.size(120.dp, 168.dp).drawBehind {
-                drawRoundRect(
-                    Color.White.copy(alpha = 0.3f), cornerRadius = CornerRadius(12.dp.toPx()),
-                    style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx()))),
-                )
-            },
+            Modifier.size(120.dp, 168.dp).dashedFrame(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
             Image(DeckIcons.Plus, null, colorFilter = ColorFilter.tint(Color.White.copy(alpha = 0.75f)))
-            BasicText("New deck", Modifier.padding(top = 8.dp), style = RiftType.Body.copy(fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.75f)))
+            BasicText("New deck", Modifier.padding(top = 8.dp), style = FrameCaption)
         }
         Spacer(Modifier.height(10.dp))
-        BasicText("Build", style = RiftType.Title.copy(fontSize = 21.sp, lineHeight = 21.sp, color = Color.White))
-        BasicText("Seven steps on a light rail", Modifier.padding(top = 4.dp), style = RiftType.Body.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.62f)))
+        BasicText("Build", style = CellTitle)
+        BasicText("Seven steps on a light rail", Modifier.padding(top = 4.dp), style = CellLine)
     }
 }
+
+/** After New deck: the cards kept in mind, the latest three fanned like a hand (not a pile); a tap lists them all. */
+@Composable
+private fun ShortlistCell(i: Int, index: Map<String, Card>, onClick: () -> Unit) {
+    val t = rememberCellIn(i)
+    val kept = Shortlist.ids.mapNotNull { index[it] }
+    Column(
+        Modifier.fillMaxWidth().height(262.dp).cellIn(t).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = "Shortlist, ${kept.size} cards kept in mind" }.padding(top = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.size(120.dp, 168.dp), contentAlignment = Alignment.Center) {
+            if (kept.isEmpty()) {
+                Column(Modifier.fillMaxSize().dashedFrame(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Image(CardIcons.Star, null, colorFilter = ColorFilter.tint(Color.White.copy(alpha = 0.75f)))
+                    BasicText("No cards yet", Modifier.padding(top = 8.dp), style = FrameCaption)
+                }
+            } else {
+                val fan = kept.takeLast(3)
+                val tilePx = with(LocalDensity.current) { 84.dp.roundToPx() }
+                fan.forEachIndexed { k, card ->
+                    val off = k - (fan.size - 1) / 2f
+                    CardTile(
+                        card, tilePx,
+                        Modifier.width(84.dp)
+                            .graphicsLayer {
+                                translationX = 18.dp.toPx() * off
+                                rotationZ = 9f * off
+                                transformOrigin = TransformOrigin(0.5f, 1f)
+                            }
+                            .dropShadow(RoundedCornerShape(10.dp), Shadow(radius = 14.dp, color = Color.Black.copy(alpha = 0.6f))),
+                    ) {}
+                }
+                Box(Modifier.align(Alignment.TopEnd).size(28.dp).background(RiftColors.You, CircleShape), contentAlignment = Alignment.Center) {
+                    Image(CardIcons.StarFilled, null, Modifier.size(15.dp), colorFilter = ColorFilter.tint(Color.Black))
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        BasicText("Shortlist", style = CellTitle)
+        BasicText(if (kept.isEmpty()) "Save cards in the Cards tab" else "${kept.size} kept in mind", Modifier.padding(top = 4.dp), style = CellLine)
+    }
+}
+
+private fun Modifier.dashedFrame() = drawBehind {
+    drawRoundRect(
+        Color.White.copy(alpha = 0.3f), cornerRadius = CornerRadius(12.dp.toPx()),
+        style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx()))),
+    )
+}
+
+private val FrameCaption = RiftType.Body.copy(fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.75f))
+private val CellTitle = RiftType.Title.copy(fontSize = 21.sp, lineHeight = 21.sp, color = Color.White)
+private val CellLine = RiftType.Body.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.62f))
 
 private val TileShape = RoundedCornerShape(24.dp)
 
