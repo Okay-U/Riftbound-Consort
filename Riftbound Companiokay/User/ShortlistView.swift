@@ -11,7 +11,7 @@ struct ShortlistView: View {
     @EnvironmentObject var shortlist: ShortlistStore
     @EnvironmentObject var cardStore: CardStore
     @EnvironmentObject var decklistStore: DecklistStore
-    /// Taken when the screen opens, so taking a card off does not pull it out from under the finger.
+    /// Taken when the screen opens, so a card taken off stays (dimmed) instead of jumping out from under the finger.
     @State private var shown: [String]?
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
@@ -19,7 +19,9 @@ struct ShortlistView: View {
 
     private var groups: [(label: String, cards: [Card])] {
         let byId = Dictionary(cardStore.allCards.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let cards = (shown ?? shortlist.ids).compactMap { byId[$0] }
+        // The snapshot keeps taken-off cards; cards saved meanwhile (from the Cards tab) still show.
+        let kept = shown ?? []
+        let cards = (kept + shortlist.ids.filter { !kept.contains($0) }).compactMap { byId[$0] }
         let grouped = Dictionary(grouping: cards) { $0.classification?.type?.lowercased() ?? "" }
         func rank(_ type: String) -> Int { Self.typeOrder.firstIndex(of: type) ?? Self.typeOrder.count }
         return grouped.keys.sorted { (rank($0), $0) < (rank($1), $1) }.map { type in

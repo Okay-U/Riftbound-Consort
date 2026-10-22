@@ -58,9 +58,9 @@ struct OnboardingView: View {
                 OnboardingBullet(symbol: "die.face.6.fill",
                                  title: "D6 / D8 / D12 / D20",
                                  detail: "Switch dice on the fly"),
-                OnboardingBullet(symbol: "iphone.radiowaves.left.and.right",
-                                 title: "Shake to roll",
-                                 detail: "Optional gesture, toggle in Settings")
+                OnboardingBullet(symbol: "hand.tap.fill",
+                                 title: "Tap to roll",
+                                 detail: "Tap the die or the Roll button")
             ]
         ),
         OnboardingPage(
