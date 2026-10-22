@@ -334,6 +334,16 @@ picked or scored, so it greeted the board hours (or a restart) later. It is aske
 (`chooserSinceMs`); older saved states never ask. Tab bar icons: Score upright like the board (two halves, a score
 in each; the lying one read as a football pitch), Decks with three layers, Settings a gear (was a sun).
 
+## Code review before release (2026-10-22)
+One pass, five reviewers in parallel (Android by area, plus the new iOS commits), every finding checked against
+the code before fixing; no second full round (fd73591, efe9349, df62e13). Fixed: a later round with the same games
+showed REPORTED and was never sent; dice pills squeezed on 360 × 800 phones; a crash in very short windows; casual
+game durations counting the wait since the last game; card images after a cache clear; the soft keyboard over
+Riot's sign-in; the calendar after a favourite change; and, on both platforms, the deck rules: Signature cards are
+the Signature supertype (not the signed printing), at most three of the legend's champion, champions by the
+legend's champion tag, a sideboard of up to 10. Clean areas: domain lock, cookies, report/register paths,
+standings, the old app's preferences, the card feed and image cache.
+
 ## Open points
 - Before the final release: remove the PlayRiftbound log row from Settings (Okay 2026-10-22: kept while
   testing the Events tab).
