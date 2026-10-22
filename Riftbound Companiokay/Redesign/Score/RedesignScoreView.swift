@@ -45,6 +45,12 @@ struct RedesignScoreView: View {
         } message: {
             Text(restartText)
         }
+        .sheet(item: $c.setup) { sheet in
+            switch sheet {
+            case .deck: DeckPickSheet(c: c)
+            case .opponent: OpponentPickSheet(c: c)
+            }
+        }
         .onAppear { c.attach(games: games, decks: decks) }
         .onChange(of: playerCount, initial: true) { _, count in c.setPlayers(count) }
     }
@@ -166,7 +172,7 @@ private struct Half: View {
                         TopLine(
                             legend: c.legend(slot), accent: accent, starter: s.starter == slot, xp: s.players[slot].xp,
                             onXp: { c.xp(slot, $0) }, gamesWon: wins[slot], pips: s.isSeries ? s.winsNeeded : 0,
-                            shown: !s.gameOver && !s.showSummary, onName: nil
+                            shown: !s.gameOver && !s.showSummary, onName: { c.openSetup(slot) }
                         )
                         GeometryReader { box in
                             ScoreNumber(

@@ -28,6 +28,8 @@ final class ScoreController: ObservableObject {
     @Published private(set) var opponent: String
     /// "first", "second" or "" (unknown); the roll sets it too.
     @Published private(set) var turnOrder: String
+    /// The game setup sheet a half's name opened.
+    @Published var setup: SetupSheet?
 
     private weak var games: GameRecordStore?
     private weak var decks: DecklistStore?
@@ -133,6 +135,12 @@ final class ScoreController: ObservableObject {
     }
 
     // MARK: Game setup
+
+    /// Your half's name opens your deck, the opponent's their legend; four players have no setup.
+    func openSetup(_ slot: Int) {
+        guard state.isDuel else { return }
+        setup = slot == Seat.you ? .deck : .opponent
+    }
 
     func pickDeck(_ id: String) {
         deckId = id
