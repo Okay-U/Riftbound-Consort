@@ -229,10 +229,30 @@ favourite toggle, store finder with real geocoding, the live site in the PlayRif
 the live test with Okay's Riot sign-in, and checking the standings against real public events
 (`tools/check-standings`), which needs Okay's OK to fetch public PlayRiftbound data.
 
-### 6 · Upgrade path + release prep
-Install the old Skip release over a fresh emulator, create decks/games/settings, install the native
-build with the same id and key, confirm everything is there. Release build (R8), arm64 + x86_64 for the
-emulator, `keystore.properties` signing like the Skip app. Okay signs and uploads.
+### 6 · Upgrade path + release prep · done 2026-10-22
+Upgrade test on a fresh emulator (Android 15): the Skip 3.4.0 (9) build of `pitopia.Riftcount` (its debug
+build, so the same code signed with the public debug key), in it a scored and won game, a deck imported
+from text (Darius, alt-art champion with riftcodex ids), haptics and match mode off, both player colours,
+the PlayRiftbound site opened once. Then the native release build (R8, same id, signed with the same
+debug key) installed over it as an update, 3.5.0 (10). Everything was there: the deck with its cards,
+the game in the match log and win rate, the colours on the scoreboard, the switches in Settings, the
+1408-card cache, no tour again, and the site's cookies (the Events tab tried the silent sign-in, which it
+only does with cookies of the site). On the same release build, the store finder and a store sheet loaded
+real PlayRiftbound data and the PlayRiftbound log recorded the calls, so R8 keeps the GraphQL models.
+Frames on the emulator (release, busy host): card grid scroll 1.9 % janky, scoring 2.6 %, section switch
+2.7 %, 99th percentile 20 ms.
+
+Sizes: APK 3.9 MB, AAB 5.2 MB (Skip 3.4: 156 MB / 58 MB). Pure Kotlin, no native libraries, so one
+bundle serves every ABI. The launcher entry keeps the Skip app's component name
+(`riftcount.module.MainActivity`, now an alias of the new activity): home-screen icons survive the update
+(checked: after the update the launcher component is the old one and opens the new app).
+
+Release, Okay's steps:
+1. Copy the Skip app's `android/Android/app/keystore.properties` to `android-native/app/` and point its
+   `storeFile` at the same `.jks` (both stay out of git).
+2. From `android-native/`: `./gradlew :app:bundleRelease`, then upload
+   `app/build/outputs/bundle/release/app-release.aab` to Play as the next release of the existing app.
+3. Every later release raises `versionCode` (now 10) and `versionName` in `app/build.gradle.kts`.
 
 ## Open points
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.

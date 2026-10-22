@@ -171,7 +171,7 @@ fun DecksHome(
         val record = Tally.of(games)
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             BasicText("ALL DECKS", style = SectionLabel)
-            BasicText("${record.games} GAMES", style = SectionLabel)
+            BasicText("${record.games} ${if (record.games == 1) "GAME" else "GAMES"}", style = SectionLabel)
         }
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             WinRateTile(games, hidden = hiddenTile == "win") { onOpenLog("win", it) }
@@ -343,7 +343,7 @@ private fun WinRateTile(games: List<GameRecord>, hidden: Boolean, onClick: (Rect
     val all = Tally.of(games)
     val (first, second) = MatchLog.firstSecond(games)
     Tile(260, hidden, "Win rate across all decks, open the match log", onClick) {
-        TileHead("WIN RATE", "${all.games} GAMES")
+        TileHead("WIN RATE", "${all.games} ${if (all.games == 1) "GAME" else "GAMES"}")
         Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             WinRing(all.rate.toFloat(), if (all.games > 0) "${Math.round(all.rate * 100)}%" else "–")
             Spacer(Modifier.width(16.dp))
