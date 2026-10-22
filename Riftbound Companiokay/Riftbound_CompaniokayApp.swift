@@ -12,6 +12,7 @@ struct Riftbound_CompaniokayApp: App {
     @AppStorage("keepScreenOn") private var keepScreenOn: Bool = true
     @AppStorage("trueBlack")    private var trueBlack: Bool = true
     @AppStorage("didOnboard")   private var didOnboard: Bool = false
+    @AppStorage("classicDesign") private var classicDesign: Bool = false
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var idleMgr = IdleTimerManager()
     @StateObject private var scoreboard = ScoreboardViewModel()
@@ -30,7 +31,9 @@ struct Riftbound_CompaniokayApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            Group {
+                if classicDesign { RootTabView() } else { RedesignRoot() }
+            }
                 .environmentObject(scoreboard)
                 .environmentObject(idleMgr)
                 .environmentObject(gameTimer)
@@ -70,7 +73,7 @@ struct Riftbound_CompaniokayApp: App {
     }
 }
 
-private enum TabKey {
+enum TabKey {
     static let score    = "score"
     static let dice     = "dice"
     static let cards    = "cards"

@@ -16,6 +16,7 @@ struct Settings: View {
     @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
     @AppStorage("matchModeEnabled") private var matchModeEnabled: Bool = true
     @AppStorage("didOnboard") private var didOnboard: Bool = false
+    @AppStorage("classicDesign") private var classicDesign: Bool = false
 
     private var systemLiveActivitiesAuthorized: Bool {
         #if os(iOS)
@@ -30,6 +31,14 @@ struct Settings: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Toggle("Classic design", isOn: $classicDesign)
+                } header: {
+                    Text("Design")
+                } footer: {
+                    Text("Brings back the look from before this update. It stays for a few updates.")
+                }
+
                 Section("Interaction") {
                     Toggle("Haptics", isOn: $hapticsEnabled)
                 }
