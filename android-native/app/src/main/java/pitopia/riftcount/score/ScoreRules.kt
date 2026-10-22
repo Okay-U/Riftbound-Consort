@@ -93,7 +93,14 @@ data class ScoreState(
         val old = players[slot].score
         val new = maxOf(0, old + delta)
         if (new == old) return this
-        val clockNow = if (clock.isRunning || clock.elapsedSeconds(nowMs) > 0) clock else clock.start(nowMs)
+        // A casual game is timed from its own first point: the board (and its clock) is saved, so a game played
+        // a day after the last one would count the wait. A live match keeps one clock for all its games.
+        val fresh = !isSeries && events.isEmpty()
+        val clockNow = when {
+            fresh -> MatchClock(runningSinceMs = nowMs)
+            clock.isRunning || clock.elapsedSeconds(nowMs) > 0 -> clock
+            else -> clock.start(nowMs)
+        }
         val event = ScoreEvent(elapsedSeconds = clockNow.elapsedSeconds(nowMs), slot = slot, type = type, delta = new - old)
         val next = copy(
             players = players.mapIndexed { i, p -> if (i == slot) p.copy(score = new) else p },
@@ -102,6 +109,7 @@ data class ScoreState(
             asking = -1,
             chooser = -1,
             clock = clockNow,
+            lastGameEndSeconds = if (fresh) 0 else lastGameEndSeconds,
         )
         return if (isDuel && new >= TARGET && !gameOver) next.copy(winner = slot, log = log + GameResult(slot, next.players.map { it.score })) else next
     }

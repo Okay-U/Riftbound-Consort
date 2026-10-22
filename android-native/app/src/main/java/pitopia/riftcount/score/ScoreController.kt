@@ -148,6 +148,7 @@ class ScoreController(
     /** "Start match" in the seam: a fresh match for the PlayRiftbound pairing, in its event's format. */
     fun startLive(link: TableLink) {
         picker = null
+        sentReport = null
         closeDuel()
         apply(state.startLive(link.tag, link.bestOf), Haptic.Success)
         show("Live match · ${link.tag} · best of ${state.bestOf}")
@@ -169,6 +170,8 @@ class ScoreController(
 
     fun newMatch() {
         picker = null
+        // The next series may end with the same games; it is not reported until it is sent.
+        sentReport = null
         apply(state.newMatch(), Haptic.Warning)
     }
 

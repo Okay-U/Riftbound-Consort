@@ -63,7 +63,9 @@ object CardImages {
             conn.connectTimeout = 15_000
             conn.readTimeout = 30_000
             if (conn.responseCode != HttpURLConnection.HTTP_OK) return
-            // Own temp file: the tile and the detail hero can fetch the same image at once.
+            // Own temp file: the tile and the detail hero can fetch the same image at once. The folder may have
+            // been cleared with the app's cache while it ran.
+            dir.mkdirs()
             val tmp = File.createTempFile(file.name, ".part", dir)
             conn.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
             if (!tmp.renameTo(file)) tmp.delete()

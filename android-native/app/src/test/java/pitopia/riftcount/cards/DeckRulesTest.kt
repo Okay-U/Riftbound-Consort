@@ -60,13 +60,39 @@ class DeckRulesTest {
         assertEquals(12, d.runes.single().count)
         assertEquals("12 runes already", DeckRules.blocker(furyRune, d, cards))
 
-        val signature = Fixture.named("Blazing Scorcher").copy(id = "sig", metadata = Card.Metadata(signature = true))
+        // No clean name: "Other" below must be a card of its own, not a copy of this one.
+        val signature = Fixture.named("Blazing Scorcher").let { it.copy(id = "sig", metadata = null, classification = it.classification?.copy(supertype = "Signature")) }
         val pool = cards + ("sig" to signature) + ("other" to signature.copy(id = "other", name = "Other"))
         val signed = empty().copy(mainDeck = listOf(DecklistEntry("other", "Other", 3)))
         assertEquals("3 signature cards already", DeckRules.blocker(signature, signed, pool))
 
         val full = empty().copy(mainDeck = listOf(DecklistEntry("filler", "Filler", 39)))
         assertEquals("Main deck is full", DeckRules.blocker(Fixture.named("Cleave"), full, cards))
+    }
+
+    @Test
+    fun `the legend's champion tag decides champions and signature cards, not a shared tag`() {
+        fun card(name: String, type: String, supertype: String?, vararg tags: String) =
+            Card(id = name, name = name, classification = Card.Classification(type = type, supertype = supertype), tags = tags.toList())
+        val kennen = card("Kennen - Heart of the Tempest", "Legend", null, "Yordle", "Kennen")
+        assertTrue(DeckRules.matchesLegend(card("Kennen - Thunder", "Unit", "Champion", "Yordle", "Kennen"), kennen))
+        // Teemo is a Yordle too, but not Kennen.
+        assertFalse(DeckRules.matchesLegend(card("Teemo - Scout", "Unit", "Champion", "Yordle", "Teemo"), kennen))
+        val own = card("Lightning Rush - Kennen", "Spell", "Signature", "Kennen")
+        val jinxs = card("Super Mega Death Rocket! - Jinx", "Spell", "Signature", "Jinx")
+        assertTrue(DeckRules.signatureFits(own, kennen))
+        assertFalse(DeckRules.signatureFits(jinxs, kennen))
+        assertTrue(DeckRules.signatureFits(jinxs, null))
+        // The signed printing of a legend is not a Signature card.
+        assertFalse(kennen.copy(name = "Kennen - Heart of the Tempest (Signature)", metadata = Card.Metadata(signature = true)).isSignature)
+    }
+
+    @Test
+    fun `a sideboard holds up to ten cards`() {
+        fun side(n: Int) = empty().copy(sideDeck = if (n == 0) emptyList() else listOf(DecklistEntry("s", "S", n)))
+        assertTrue(DeckRules.issues(side(8)).none { it.startsWith("Side deck") })
+        assertTrue(DeckRules.issues(side(10)).none { it.startsWith("Side deck") })
+        assertTrue("Side deck: 11 (max 10)" in DeckRules.issues(side(11)))
     }
 
     @Test
@@ -86,8 +112,6 @@ class DeckRulesTest {
             listOf("Missing champion", "Missing legend", "Battlefields: 0/3", "Main deck: 0/39", "Runes: 0/12"),
             DeckRules.issues(empty()),
         )
-        val side = empty().copy(sideDeck = listOf(DecklistEntry("x", "X", 4)))
-        assertTrue("Side deck: 4 (must be 0 or 10)" in DeckRules.issues(side))
         val wrong = empty().with(darius).copy(mainDeck = listOf(DecklistEntry(kinkou.id, kinkou.name, 4)))
         val issues = DeckRules.issues(wrong, cards)
         assertTrue(issues.toString(), "Kinkou Monk: 4 copies (max 3)" in issues && "Kinkou Monk: outside Darius's domains" in issues)

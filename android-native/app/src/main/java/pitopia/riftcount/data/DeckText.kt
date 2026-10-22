@@ -128,7 +128,7 @@ object DeckText {
      * imported as its Overnumbered reprint.
      */
     private fun preferred(cards: List<Card>): Card? = cards.minWithOrNull(
-        compareBy<Card>({ it.metadata?.alternateArt == true || it.metadata?.overnumbered == true || it.isSignature }, { it.collectorNumber ?: Int.MAX_VALUE }),
+        compareBy<Card>({ it.metadata?.alternateArt == true || it.metadata?.overnumbered == true || it.metadata?.signature == true }, { it.collectorNumber ?: Int.MAX_VALUE }),
     )
 
     private fun fits(card: Card, section: Section) = when (section) {

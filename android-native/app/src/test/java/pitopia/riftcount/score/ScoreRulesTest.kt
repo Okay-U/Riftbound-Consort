@@ -153,7 +153,13 @@ class ScoreRulesTest {
         assertEquals(190, won.gameSeconds(t0 + 600_000))
         val next = won.nextGame(t0 + 600_000)
         assertTrue(next.clock.isRunning)
-        assertEquals(60, next.points(OPPONENT, 8, at = t0 + 660_000).gameSeconds(t0 + 660_000))
+        // A casual game counts from its own first point: the minute before it (or a day) is not its time.
+        val started = next.points(OPPONENT, 1, at = t0 + 660_000)
+        assertEquals(0, started.events.single().elapsedSeconds)
+        assertEquals(60, started.points(OPPONENT, 7, at = t0 + 720_000).gameSeconds(t0 + 720_000))
+        // A live match keeps one clock: its next game counts from the end of the last one.
+        val live = ScoreState(bestOf = 3).points(YOU, 8, at = t0 + 60_000).nextGame(t0 + 60_000)
+        assertEquals(120, live.points(OPPONENT, 8, at = t0 + 180_000).gameSeconds(t0 + 180_000))
     }
 
     @Test

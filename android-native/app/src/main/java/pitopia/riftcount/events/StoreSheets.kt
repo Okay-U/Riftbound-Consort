@@ -104,6 +104,8 @@ fun StoreSheet(data: EventsData, store: Organizer, toaster: Toaster, onOpen: (Ev
                         try {
                             data.toggleFavorite(store)
                             toaster.show(if (data.isFavorite(store.id)) "${store.name} is a favourite" else "${store.name} removed from favourites")
+                            // A new favourite's events join the rail and the month.
+                            if (data.isFavorite(store.id)) data.loadCalendar()
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {

@@ -13,9 +13,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -93,7 +96,9 @@ fun StoresPane(data: EventsData, active: Boolean, bottomReserve: Dp, toaster: To
     }
     val today = dayStart(System.currentTimeMillis())
     var picked by remember { mutableLongStateOf(today) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = bottomReserve + 30.dp)) {
+    // The finder's place field sits low: the column ends above the keyboard so it can scroll into view.
+    val keyboard = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = maxOf(bottomReserve, keyboard) + 30.dp)) {
         Caption("Next two weeks · favourites and yours", top = 4.dp) {
             Pressable({ onSheet(EvSheet.Month) }, pressedScale = 0.95f, label = "Open the month") {
                 BasicText("MONTH", style = RiftType.Body.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.16.em, color = Ev.Green))

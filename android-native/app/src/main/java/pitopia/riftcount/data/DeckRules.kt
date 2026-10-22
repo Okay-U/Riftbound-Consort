@@ -9,7 +9,8 @@ object DeckRules {
     const val SIGNATURE_LIMIT = 3
     const val BATTLEFIELDS = 3
     const val RUNES = 12
-    val SIDE_SIZES = listOf(0, 10)
+    /** Tournament Rules 601.1.c.1: a sideboard of 10 or fewer cards. */
+    const val SIDE_MAX = 10
 
     private val variantSuffixes = listOf(" showcase", " promo", " foil", " alt art", " alternate art", " overnumbered", " signature")
 
@@ -33,12 +34,17 @@ object DeckRules {
         return mine.isEmpty() || legendDomains.isEmpty() || legendDomains.containsAll(mine)
     }
 
-    /** Shares a tag with the legend, else the same name before the first comma or dash. */
+    /**
+     * Carries the legend's champion tag (Core Rules 103.2): the champion's name, Jinx for "Jinx - Loose Cannon".
+     * A tag the legend shares with others is not one: Kennen's "Yordle" would offer every Yordle champion.
+     */
     fun matchesLegend(card: Card, legend: Card): Boolean {
-        val tags = card.tags.orEmpty().map { it.lowercase() }.toSet()
-        if (tags.isNotEmpty() && legend.tags.orEmpty().any { it.lowercase() in tags }) return true
-        return legend.title.isNotEmpty() && card.title.equals(legend.title, ignoreCase = true)
+        val champion = legend.title
+        return champion.isNotEmpty() && (card.title.equals(champion, true) || card.tags.orEmpty().any { it.equals(champion, true) })
     }
+
+    /** A Signature card only goes with its own champion's legend (Core Rules 103.2.d); without a legend yet, any. */
+    fun signatureFits(card: Card, legend: Card?): Boolean = !card.isSignature || legend == null || matchesLegend(card, legend)
 
     /** The rune card of a domain: the lowest collector number. */
     fun runeCard(domain: String, pool: List<Card>): Card? =
@@ -76,6 +82,7 @@ object DeckRules {
         Slot.Rune -> if (deck.runes.sumOf { it.count } >= RUNES) "12 runes already" else null
         Slot.Main, Slot.Side -> when {
             !eligible(card, legendDomains(deck, cards)) -> "Outside the legend's domains"
+            !signatureFits(card, deck.legend?.let { cards[it.cardId] }) -> "Signature card of another champion"
             copies(deck, card, cards) >= COPY_LIMIT -> "3 copies already"
             card.isSignature && signatures(deck, cards) >= SIGNATURE_LIMIT -> "3 signature cards already"
             deck.mainDeck.sumOf { it.count } >= MAIN -> "Main deck is full"
@@ -127,7 +134,7 @@ object DeckRules {
         if (deck.legend == null) add("Missing legend")
         deck.battlefields.sumOf { it.count }.let { if (it != BATTLEFIELDS) add("Battlefields: $it/$BATTLEFIELDS") }
         deck.mainDeck.sumOf { it.count }.let { if (it != MAIN) add("Main deck: $it/$MAIN") }
-        deck.sideDeck.sumOf { it.count }.let { if (it !in SIDE_SIZES) add("Side deck: $it (must be 0 or 10)") }
+        deck.sideDeck.sumOf { it.count }.let { if (it > SIDE_MAX) add("Side deck: $it (max $SIDE_MAX)") }
         deck.runes.sumOf { it.count }.let { if (it != RUNES) add("Runes: $it/$RUNES") }
         if (cards.isEmpty()) return@buildList
         val listed = (deck.mainDeck + deck.sideDeck).mapNotNull { e -> cards[e.cardId]?.let { it to e.count } } +
@@ -138,9 +145,9 @@ object DeckRules {
         }
         signatures(deck, cards).let { if (it > SIGNATURE_LIMIT) add("Signature cards: $it/$SIGNATURE_LIMIT") }
         val legend = deck.legend?.let { cards[it.cardId] } ?: return@buildList
-        (deck.mainDeck + deck.sideDeck).mapNotNull { cards[it.cardId] }.distinctBy { it.id }
-            .filterNot { eligible(it, legendDomains(deck, cards)) }
-            .forEach { add("${it.name}: outside ${legend.title}'s domains") }
+        val listedCards = (deck.mainDeck + deck.sideDeck).mapNotNull { cards[it.cardId] }.distinctBy { it.id }
+        listedCards.filterNot { eligible(it, legendDomains(deck, cards)) }.forEach { add("${it.name}: outside ${legend.title}'s domains") }
+        listedCards.filterNot { signatureFits(it, legend) }.forEach { add("${it.name}: signature card of another champion") }
     }
 
     /** The pile's chip: Legal, Draft while the main deck is under 30 cards, else the number of issues (mock). */

@@ -70,7 +70,11 @@ data class Card(
     val isBattlefield get() = type.equals("battlefield", true)
     val isRune get() = type.equals("rune", true)
     val isToken get() = supertype.equals("token", true)
-    val isSignature get() = metadata?.signature == true
+    /**
+     * A Signature card (Core Rules 103.2.d: at most three, all of the legend's champion). Not the signed
+     * "(Signature)" printing of a legend or champion, which the feed marks in metadata.signature.
+     */
+    val isSignature get() = supertype.equals("signature", true)
     val isPreview get() = unreleased == true
 
     /** The plain rules text without bracket codes, for one-line summaries ("[Reaction][>] Kill" → "Reaction → Kill"). */

@@ -373,7 +373,7 @@ private fun PileTabs(deck: Decklist, legend: Card?, index: Map<String, Card>, sh
                 val rows = DeckEdits.entries(deck, pile).sortedWith(compareBy({ index[it.cardId]?.attributes?.energy ?: 99 }, { it.cardName.lowercase() }))
                 if (rows.isEmpty()) {
                     BasicText(
-                        if (tab == 0) "No cards yet. Add them in the builder (pencil above) or from the Cards tab." else "No sideboard. It holds 0 or 10 cards.",
+                        if (tab == 0) "No cards yet. Add them in the builder (pencil above) or from the Cards tab." else "No sideboard. It holds up to 10 cards.",
                         Modifier.padding(vertical = 18.dp),
                         style = RiftType.Body.copy(fontSize = 13.5.sp, lineHeight = 19.sp, color = Color.White.copy(alpha = 0.66f)),
                     )

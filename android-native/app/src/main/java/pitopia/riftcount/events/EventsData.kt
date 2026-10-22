@@ -70,6 +70,7 @@ class EventsData(val api: RiftApi, val browser: RiftBrowser) {
                 past = emptyList()
                 me = null
                 state = State.SignedOut
+                calendarAt = 0L
                 return
             }
             credentials.gameName?.let { me = it to credentials.tagLine }
@@ -140,6 +141,7 @@ class EventsData(val api: RiftApi, val browser: RiftBrowser) {
         if (credentials == null) {
             favoritesSignedIn = false
             favorites = emptyList()
+            calendarAt = 0L
             return
         }
         val before = favoriteChanges
@@ -160,6 +162,8 @@ class EventsData(val api: RiftApi, val browser: RiftBrowser) {
             favorites = if (on) favorites + store else favorites.filter { it.id != store.id }
             try {
                 api.setFavorite(store.id, on, credentials)
+                // A new favourite's events are not loaded yet; the next look at the calendar loads them.
+                calendarAt = 0L
             } catch (e: Exception) {
                 favorites = if (on) favorites.filter { it.id != store.id } else favorites + store
                 throw e
@@ -182,7 +186,10 @@ class EventsData(val api: RiftApi, val browser: RiftBrowser) {
      * Registered events (always shown), then the favourite stores' others. Read from [upcoming] each time, so a
      * registration or a drop shows on the rail and in the month at once (they kept the state of the last load).
      */
-    val calendar: List<CalEvent> by derivedStateOf { mergeCalendar(upcoming, storeEvents) }
+    val calendar: List<CalEvent> by derivedStateOf {
+        // Only the stores that are favourites now: a heart taken back (or signing out) clears theirs at once.
+        mergeCalendar(upcoming, storeEvents.filter { e -> favorites.any { it.id == e.organizer?.id } })
+    }
     var calendarLoading by mutableStateOf(false)
         private set
     var calendarError by mutableStateOf<String?>(null)

@@ -360,7 +360,7 @@ private fun PoolPage(d: Draft, pile: Pile, pool: List<Card>, index: Map<String, 
     PoolGrid {
         header {
             if (main) CountHead(d.mainCount, DeckRules.MAIN, "SIG ${Builder.signatures(d, index)} / ${DeckRules.SIGNATURE_LIMIT}", rightTag = true)
-            else CountHead(d.sideCount, Builder.SIDE, "Optional · 0 or 10")
+            else CountHead(d.sideCount, Builder.SIDE, "Optional · up to 10")
             Progress(if (main) d.mainCount / DeckRules.MAIN.toFloat() else d.sideCount / Builder.SIDE.toFloat())
             SearchField(query, inset = 0.dp) { query = it }
             Row(Modifier.padding(top = 10.dp, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

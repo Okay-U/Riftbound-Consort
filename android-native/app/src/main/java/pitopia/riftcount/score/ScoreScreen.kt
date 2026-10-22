@@ -73,7 +73,7 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
         d != null -> center
         s.showSummary -> s.seriesWins().let { w -> if (w[YOU] > w[OPPONENT]) 64.dp else if (w[OPPONENT] > w[YOU]) area - 64.dp else center }
         s.gameOver -> if (s.winner == YOU) 64.dp else area - 64.dp
-        else -> (center + 26.dp * (s.players[OPPONENT].score - s.players[YOU].score)).coerceIn(130.dp, area - 130.dp)
+        else -> (center + 26.dp * (s.players[OPPONENT].score - s.players[YOU].score)).coerceIn(130.dp, maxOf(130.dp, area - 130.dp))
     }
     val line by animateDpAsState(target, tween(1100, easing = RiftEase), label = "territory")
     val leader = when {

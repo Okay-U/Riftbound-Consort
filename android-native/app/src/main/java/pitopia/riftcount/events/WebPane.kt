@@ -14,9 +14,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -71,7 +74,10 @@ fun WebPane(browser: RiftBrowser, bottomReserve: Dp, toaster: Toaster, active: B
     }
     var menu by remember { mutableStateOf(false) }
     val onRiot = RiftPolicy.isRiotDomain(browser.url)
-    Column(Modifier.fillMaxSize().padding(top = 10.dp, bottom = bottomReserve)) {
+    // Edge to edge the window does not shrink for the keyboard: the page ends above it, so Riot's sign-in can
+    // scroll its fields into view.
+    val keyboard = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    Column(Modifier.fillMaxSize().padding(top = 10.dp, bottom = maxOf(bottomReserve, keyboard))) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ToolIcon("Back", browser.canGoBack, browser::goBack) { Image(EvIcons.ChevronLeft, null, colorFilter = ColorFilter.tint(Color.White)) }
             ToolIcon("Forward", browser.canGoForward, browser::goForward) { Image(EvIcons.ChevronRight, null, colorFilter = ColorFilter.tint(Color.White)) }

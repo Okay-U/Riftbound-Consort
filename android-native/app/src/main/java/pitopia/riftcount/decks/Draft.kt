@@ -52,7 +52,7 @@ data class Draft(
 }
 
 object Builder {
-    const val SIDE = 10
+    const val SIDE = DeckRules.SIDE_MAX
 
     fun legends(pool: List<Card>): List<Card> = pool.filter { it.isRareLegend }.distinctBy { it.id }.sortedBy { it.name.lowercase() }
 
@@ -69,7 +69,7 @@ object Builder {
         val q = query.trim()
         fun rank(c: Card) = c.domains.map { it.lowercase() }.mapNotNull { d -> domains.indexOf(d).takeIf { it >= 0 } }.minOrNull() ?: Int.MAX_VALUE
         return pool.asSequence()
-            .filter { DeckRules.eligible(it, domains.toSet()) }
+            .filter { DeckRules.eligible(it, domains.toSet()) && DeckRules.signatureFits(it, draft.legend) }
             .filter { q.isEmpty() || it.name.contains(q, ignoreCase = true) }
             .filter { types.isEmpty() || types.any { t -> t.equals(it.type, true) } }
             .distinctBy { it.id }

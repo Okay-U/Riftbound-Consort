@@ -18,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,10 +42,10 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -153,30 +154,35 @@ fun DuelHalf(
     dieSize: Float = 190f,
 ) {
     Pressable(onRoll, modifier.fillMaxSize(), pressedScale = 0.98f, label = "$name, tap to roll") {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            BasicText(name.uppercase(), style = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, letterSpacing = 0.16.em, color = Color.White.copy(alpha = 0.78f)))
-            Spacer(Modifier.height(14.dp))
-            DieGraphic(type, die, accent, highlight, dieSize)
-            if (hint != null) {
-                Spacer(Modifier.height(16.dp))
-                BasicText(hint, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White.copy(alpha = 0.72f)))
-            }
-            if (head != null) {
-                Spacer(Modifier.height(12.dp))
-                SoftIn(durationMs = 900) {
-                    BasicText(head, style = TextStyle(fontFamily = RiftType.Display, fontWeight = FontWeight.Black, fontSize = 32.sp, lineHeight = 32.sp, letterSpacing = 0.06.em, color = headInk))
-                }
-            }
-            if (choosing) {
+        // On a short half (a 360 × 800 phone) the die gives way, so the first / second pills keep their height:
+        // 150dp is the name, the verdict, the pills and the gaps between them.
+        BoxWithConstraints {
+            val fitted = minOf(dieSize, maxHeight.value - 150f).coerceAtLeast(96f)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                BasicText(name.uppercase(), style = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, letterSpacing = 0.16.em, color = Color.White.copy(alpha = 0.78f)))
                 Spacer(Modifier.height(14.dp))
-                SoftIn(Modifier.fillMaxWidth(), delayMs = 200) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Pill("I go first", onFirst, Modifier.weight(1f).height(54.dp), fill = accent, ink = ink, style = RiftType.Body.copy(fontWeight = FontWeight.Bold, fontSize = 15.sp))
-                        Pill(
-                            "I go second", onSecond, Modifier.weight(1f).height(54.dp), fill = Color.Black.copy(alpha = 0.4f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
-                            style = RiftType.Body.copy(fontWeight = FontWeight.Bold, fontSize = 15.sp),
-                        )
+                DieGraphic(type, die, accent, highlight, fitted)
+                if (hint != null) {
+                    Spacer(Modifier.height(16.dp))
+                    BasicText(hint, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White.copy(alpha = 0.72f)))
+                }
+                if (head != null) {
+                    Spacer(Modifier.height(12.dp))
+                    SoftIn(durationMs = 900) {
+                        BasicText(head, style = TextStyle(fontFamily = RiftType.Display, fontWeight = FontWeight.Black, fontSize = 32.sp, lineHeight = 32.sp, letterSpacing = 0.06.em, color = headInk))
+                    }
+                }
+                if (choosing) {
+                    Spacer(Modifier.height(14.dp))
+                    SoftIn(Modifier.fillMaxWidth(), delayMs = 200) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Pill("I go first", onFirst, Modifier.weight(1f).height(54.dp), fill = accent, ink = ink, style = RiftType.Body.copy(fontWeight = FontWeight.Bold, fontSize = 15.sp))
+                            Pill(
+                                "I go second", onSecond, Modifier.weight(1f).height(54.dp), fill = Color.Black.copy(alpha = 0.4f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                                style = RiftType.Body.copy(fontWeight = FontWeight.Bold, fontSize = 15.sp),
+                            )
+                        }
                     }
                 }
             }
