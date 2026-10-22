@@ -35,7 +35,6 @@ final class ScoreboardViewModel: ObservableObject {
 
     init() {
         applyPlayerCount(playerCount)
-        adoptSharedScoresIfAvailable()
     }
 
     func applyPlayerCount(_ count: Int) {
@@ -51,18 +50,6 @@ final class ScoreboardViewModel: ObservableObject {
         players = newPlayers
         history.removeAll()
         events.removeAll()
-        pushShared()
-    }
-
-    private func pushShared() {
-        SharedScoreboard.writeScores(players.map(\.score))
-        SharedScoreboard.writePlayerCount(players.count)
-    }
-
-    func adoptSharedScoresIfAvailable() {
-        let shared = SharedScoreboard.readScores()
-        guard shared.count == players.count else { return }
-        for i in players.indices { players[i].score = shared[i] }
     }
 
     private func snapshot() {
@@ -94,7 +81,6 @@ final class ScoreboardViewModel: ObservableObject {
             delta: effective
         ))
         Haptics.light()
-        pushShared()
     }
 
     func increment(_ player: Player, by value: Int = 1) {
@@ -102,7 +88,6 @@ final class ScoreboardViewModel: ObservableObject {
         snapshot()
         players[idx].score += value
         Haptics.light()
-        pushShared()
     }
 
     func decrement(_ player: Player, by value: Int = 1) {
@@ -110,7 +95,6 @@ final class ScoreboardViewModel: ObservableObject {
         snapshot()
         players[idx].score = max(0, players[idx].score - value)
         Haptics.light()
-        pushShared()
     }
 
     func incrementXP(_ player: Player, by value: Int = 1) {
@@ -135,7 +119,6 @@ final class ScoreboardViewModel: ObservableObject {
         }
         events.removeAll()
         Haptics.warning()
-        pushShared()
     }
 
     var canUndo: Bool { !history.isEmpty }
@@ -150,7 +133,6 @@ final class ScoreboardViewModel: ObservableObject {
         }
         events = last.events
         Haptics.medium()
-        pushShared()
     }
 
     // MARK: - Farben

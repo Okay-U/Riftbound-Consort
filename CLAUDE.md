@@ -22,7 +22,7 @@ Plans and audits live in `docs/`: `PLAYRIFTBOUND.md` (Riot platform migration, i
 - **Decks tab**: 7-step builder wizard, deck detail editing, import/export as text, draw hand, draw odds (hypergeometric), deck stats, game history + review.
 - **Settings**: haptics, match mode, tours replay, acknowledgments, about. (Battery-saver toggle removed 2026-07-13 — placebo; true-black is the real saver.)
 - **Onboarding**: 6-page main tour, Events tour, builder tip overlay.
-- iOS-only: Live Activity (lock screen scoreboard), keep-screen-on, widgets. Android-only: Photon geocoder (replaces CLGeocoder).
+- iOS-only: keep-screen-on. Android-only: Photon geocoder (replaces CLGeocoder). Live Activity and widgets were removed on 2026-10-22 (`feature/ios-redesign`).
 
 Feature history is in git. Android port specifics + SkipUI gotcha catalog in memory `android-port.md`.
 
@@ -33,7 +33,6 @@ Feature history is in git. Android port specifics + SkipUI gotcha catalog in mem
 | `Riftbound Companiokay/` | iOS app sources (synced folder groups — new files on disk auto-join the target) |
 | `Riftbound Companiokay/User/Events/` | Locator + eloshowdown integration |
 | `Riftbound Companiokay/User/DeckBuilder/`, `User/Onboarding/`, `Cards/` | feature folders |
-| `RiftboundWidgets/` | iOS widget extension (Live Activity) |
 | `android/` | entire Skip Android project (own Package.swift, `Sources/Riftcount/`, `Android/` gradle shell) |
 | `android/Sources/Riftcount/` | Android Swift sources (flat + `Events/`) |
 

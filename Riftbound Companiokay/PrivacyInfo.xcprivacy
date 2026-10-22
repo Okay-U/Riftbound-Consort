@@ -24,8 +24,6 @@
 			<array>
 				<!-- CA92.1: read/write the app's own preferences. -->
 				<string>CA92.1</string>
-				<!-- 1C8F.1: shared scoreboard via the app's App Group (app + widget). -->
-				<string>1C8F.1</string>
 			</array>
 		</dict>
 	</array>

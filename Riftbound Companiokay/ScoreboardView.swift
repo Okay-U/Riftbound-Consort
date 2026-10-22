@@ -26,11 +26,9 @@ struct ScoreboardView: View {
     @State private var showGameSetupSheet = false
     @State private var lastGameEnd: TimeInterval = 0
     @State private var xpStepperMode: Bool = false
-    @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
     @AppStorage("currentTab") private var currentTab: String = "score"
     @State private var showNoEventNotice = false
     @Environment(\.scenePhase) private var scenePhase
-    @State private var liveActivityDebounce: Task<Void, Never>?
     @State private var reportingMatch: ResolvedMyMatch?
     @State private var riftReporting: PlayRiftboundStrip?
     @State private var confirmReset = false
@@ -125,30 +123,11 @@ struct ScoreboardView: View {
             // The strip only shows with match mode on; no off-screen PlayRiftbound load otherwise.
             if matchMode.enabled { await riftMatch.refresh(browser: riftBrowser) }
         }
-        .onChange(of: gameTimer.isRunning, initial: false) { _, _ in
-            syncLiveActivity()
-        }
-        .onChange(of: vm.players.map(\.score), initial: false) { _, _ in
-            syncLiveActivity()
-        }
-        .onChange(of: activeDeckId, initial: true) { _, _ in
-            SharedScoreboard.writeDeckNames(my: currentDeckName(), opp: currentOpponent())
-            syncLiveActivity()
-        }
-        .onChange(of: activeOpponent, initial: true) { _, _ in
-            SharedScoreboard.writeDeckNames(my: currentDeckName(), opp: currentOpponent())
-            syncLiveActivity()
-        }
         .onChange(of: scenePhase, initial: false) { _, phase in
             if phase == .active {
-                vm.adoptSharedScoresIfAvailable()
-                syncLiveActivity()
                 Task { await matchMode.refresh(session: session) }
                 if matchMode.enabled { Task { await riftMatch.refresh(browser: riftBrowser) } }
             }
-        }
-        .onChange(of: liveActivityEnabled, initial: false) { _, _ in
-            syncLiveActivity()
         }
         .onChange(of: currentTab, initial: false) { _, tab in
             // Returning to the Scoreboard mid-tournament: re-pull the live match so
@@ -157,9 +136,6 @@ struct ScoreboardView: View {
                 Task { await matchMode.refresh(session: session) }
                 if matchMode.enabled { Task { await riftMatch.refresh(browser: riftBrowser) } }
             }
-        }
-        .onChange(of: vm.playerCount, initial: false) { _, _ in
-            syncLiveActivity()
         }
         // Auto-enable the XP stepper when a level-up legend (Poppy / Master Yi -
         // Wuju Master) is on either side. Fires on launch and whenever the deck
@@ -219,11 +195,6 @@ struct ScoreboardView: View {
         gameRecordStore.record(record)
         lastGameEnd = now
         vm.resetScores()
-        GameActivityController.shared.end()
-    }
-
-    private func currentDeckName() -> String? {
-        activeDeck()?.name
     }
 
     // MARK: - Undo toast
@@ -252,53 +223,6 @@ struct ScoreboardView: View {
             try? await Task.sleep(nanoseconds: 1_600_000_000)
             guard generation == undoToastGeneration else { return }  // newer undo keeps it up
             withAnimation(.easeIn(duration: 0.3)) { undoToastVisible = false }
-        }
-    }
-
-    private func currentOpponent() -> String? {
-        let s = activeOpponent.trimmingCharacters(in: .whitespaces)
-        return s.isEmpty ? nil : s
-    }
-
-    private func syncLiveActivity() {
-        liveActivityDebounce?.cancel()
-        liveActivityDebounce = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 80_000_000)
-            if Task.isCancelled { return }
-            performLiveActivitySync()
-        }
-    }
-
-    private func performLiveActivitySync() {
-        guard liveActivityEnabled, vm.playerCount == 2 else {
-            if GameActivityController.shared.isActive {
-                GameActivityController.shared.end()
-            }
-            return
-        }
-        let scores = vm.players.map(\.score)
-        let running = gameTimer.isRunning
-        let elapsed = gameTimer.elapsed
-        let effective: Date? = running ? Date().addingTimeInterval(-elapsed) : nil
-
-        if GameActivityController.shared.isActive {
-            GameActivityController.shared.update(
-                scores: scores,
-                effectiveStart: .some(effective),
-                pausedElapsed: elapsed,
-                myDeck: .some(currentDeckName()),
-                oppDeck: .some(currentOpponent())
-            )
-        } else if running {
-            GameActivityController.shared.start(
-                playerCount: vm.playerCount,
-                targetScore: 8,
-                scores: scores,
-                effectiveStart: effective,
-                pausedElapsed: elapsed,
-                myDeck: currentDeckName(),
-                oppDeck: currentOpponent()
-            )
         }
     }
 

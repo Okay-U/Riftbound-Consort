@@ -6,22 +6,7 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXCopyFilesBuildPhase section */
-		434038D92FA6492E00C3FC91 /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
-		434038C02FA6492D00C3FC91 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
-		434038C22FA6492D00C3FC91 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		434356532EB77412008F0B0B /* Riftbound Companiokay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Riftbound Companiokay.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -44,20 +29,10 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		434038BF2FA6492D00C3FC91 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				434038C02FA6492D00C3FC91 /* WidgetKit.framework */,
-				434038C22FA6492D00C3FC91 /* SwiftUI.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		4343564A2EB77412008F0B0B = {
 			isa = PBXGroup;
 			children = (
 				434356552EB77412008F0B0B /* Riftbound Companiokay */,
-				434038BF2FA6492D00C3FC91 /* Frameworks */,
 				434356542EB77412008F0B0B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -80,7 +55,6 @@
 				4343564F2EB77412008F0B0B /* Sources */,
 				434356502EB77412008F0B0B /* Frameworks */,
 				434356512EB77412008F0B0B /* Resources */,
-				434038D92FA6492E00C3FC91 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
@@ -289,7 +263,6 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.card-games";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Add tournament events to your calendar.";
-				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -318,7 +291,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "Riftbound Companiokay/Riftbound CompaniokayRelease.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -330,7 +302,6 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.card-games";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Add tournament events to your calendar.";
-				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

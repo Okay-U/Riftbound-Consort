@@ -39,9 +39,6 @@ final class GameTimer: ObservableObject {
         accumulated = 0
         elapsed = 0
         isRunning = false
-        #if os(iOS)
-        GameActivityController.shared.end()
-        #endif
     }
 
     private func tick() {

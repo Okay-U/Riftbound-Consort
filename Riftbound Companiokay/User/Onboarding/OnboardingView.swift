@@ -120,10 +120,7 @@ struct OnboardingView: View {
                                  detail: "Screen stays on during games"),
                 OnboardingBullet(symbol: "hand.raised.fill",
                                  title: "Haptics & sounds",
-                                 detail: "Toggle feedback to taste"),
-                OnboardingBullet(symbol: "rectangle.on.rectangle.angled",
-                                 title: "Live Activity",
-                                 detail: "Optional Lock Screen + Dynamic Island scoreboard with ± buttons (2-player)")
+                                 detail: "Toggle feedback to taste")
             ]
         )
     ]

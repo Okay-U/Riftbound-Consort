@@ -46,9 +46,12 @@ reviews in Xcode.
 
 0. **Foundation:** tokens (colours, fonts, easing), the two font families bundled, `RedesignRoot` with the
    five tabs (classic screens inside), the root switch, the "Classic design" switch in Settings.
-1. **Live Activity out**, from both designs: `GameActivityController`, `GameActivityAttributes`,
-   `ScoreIntent`, the shared scoreboard in `AppGroup`, the widget extension target and its Settings section.
-   Done before the scoreboard, so the new one needs no lock-screen sync.
+1. **Live Activity out** · done 2026-10-22, from both designs: `GameActivityController`,
+   `GameActivityAttributes`, `ScoreIntent`, the shared scoreboard in `AppGroup` with its App Group
+   entitlement, the widget extension target (removed by Okay in Xcode) and folder, `NSSupportsLiveActivities`,
+   the Settings section and the tour bullet. Done before the scoreboard, so the new one needs no lock-screen
+   sync. The App Group never kept scores over a relaunch (`init` wrote the fresh zeros before reading), so
+   nothing is lost.
 2. **Scoreboard** (`ScoreFinal` + Android rounds 1–6): opponent half turned, territory fields and glowing
    line, blur-morph numbers, Conquer/Hold/Effect/Fix −1, XP chips, the final-point prompt, best of three
    with pips, undo, restart, seam (dice duel, clock, match line, trophy, Report), summary with the light

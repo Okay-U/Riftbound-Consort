@@ -6,25 +6,14 @@
 //
 
 import SwiftUI
-#if os(iOS)
-import ActivityKit
-#endif
 
 struct Settings: View {
     @AppStorage("hapticsEnabled") private var hapticsEnabled: Bool = true
     @AppStorage("soundsEnabled") private var soundsEnabled: Bool = false
-    @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = false
     @AppStorage("matchModeEnabled") private var matchModeEnabled: Bool = true
     @AppStorage("didOnboard") private var didOnboard: Bool = false
     @AppStorage("classicDesign") private var classicDesign: Bool = false
 
-    private var systemLiveActivitiesAuthorized: Bool {
-        #if os(iOS)
-        ActivityAuthorizationInfo().areActivitiesEnabled
-        #else
-        false
-        #endif
-    }
     @State private var showOnboarding: Bool = false
     @State private var showEventsOnboarding: Bool = false
 
@@ -41,20 +30,6 @@ struct Settings: View {
 
                 Section("Interaction") {
                     Toggle("Haptics", isOn: $hapticsEnabled)
-                }
-
-                Section {
-                    Toggle("Live Activity", isOn: $liveActivityEnabled)
-                    if liveActivityEnabled, !systemLiveActivitiesAuthorized {
-                        Label("Live Activities are disabled in iOS Settings. Enable them in Settings → Riftcount → Live Activities.",
-                              systemImage: "exclamationmark.triangle.fill")
-                            .font(.footnote)
-                            .foregroundStyle(.orange)
-                    }
-                } header: {
-                    Text("Live Activity")
-                } footer: {
-                    Text("Shows scoreboard on Lock Screen and Dynamic Island while a 2-player game timer is running. Tap +/− on lock screen to update scores.")
                 }
 
                 Section {
