@@ -89,6 +89,7 @@ struct RiftSettingsView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 30)
+                .readableWidth()
             }
             .background(page.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
@@ -214,6 +215,7 @@ private struct SubPage: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 40)
+            .readableWidth()
         }
         .scrollDismissesKeyboard(.interactively)
         .background(background.ignoresSafeArea())

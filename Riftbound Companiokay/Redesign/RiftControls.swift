@@ -155,6 +155,9 @@ extension View {
 
     func rise() -> some View { modifier(Rise()) }
 
+    /// Lists and text stay readable on an iPad: at most 700pt wide, centred.
+    func readableWidth(_ limit: CGFloat = 700) -> some View { frame(maxWidth: limit).frame(maxWidth: .infinity) }
+
     /// Caps labels of the mocks: Barlow with wide tracking.
     func caps(_ size: CGFloat = 11, tracking: CGFloat = 0.14, weight: Font.Weight = .semibold) -> some View {
         font(RiftFont.text(size, weight)).tracking(size * tracking)

@@ -9,7 +9,8 @@
 
 import SwiftUI
 
-private let threeColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
+/// Three to a row on a phone, more on a wider screen.
+private let threeColumns = [GridItem(.adaptive(minimum: 100, maximum: 170), spacing: 8)]
 
 /// "23 / 39" with a caption or the signature tag on the right.
 private struct CountHead: View {
@@ -82,7 +83,7 @@ struct LegendPage: View {
             VStack(alignment: .leading, spacing: 10) {
                 RiftSearchField(text: $query, placeholder: "Search legends").padding(.bottom, 4)
                 if shown.isEmpty { PageNote(text: all.isEmpty ? "Loading the card list…" : "No legend matches.") }
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 260), spacing: 10)], spacing: 10) {
                     ForEach(shown) { legend in
                         LegendTile(legend: legend, on: draft.legend?.id == legend.id) { onPick(legend) }
                     }

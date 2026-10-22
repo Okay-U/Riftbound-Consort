@@ -174,7 +174,8 @@ struct RiftDecksView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 6)
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 4) {
+                // Two piles to a row on a phone, more on a wider screen.
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 135), spacing: 10)], spacing: 4) {
                     ForEach(Array(decks.lists.enumerated()), id: \.element.id) { i, deck in
                         PileCell(deck: deck, legend: deck.legend.flatMap { index[$0.cardId] }, record: Tally.of(games.records.filter { $0.deckId == deck.id }),
                                  status: DeckRules.status(deck, cards: index), index: i, hidden: opened?.id == deck.id) { pile in openDeck(deck, from: pile) }

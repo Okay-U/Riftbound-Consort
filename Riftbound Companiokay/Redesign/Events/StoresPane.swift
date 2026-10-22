@@ -65,6 +65,7 @@ struct StoresPane: View {
             .padding(.horizontal, 16)
             .padding(.top, 14)
             .padding(.bottom, 30)
+            .readableWidth()
         }
         .scrollDismissesKeyboard(.interactively)
         .refreshable { await calendar.load(events: events, favorites: favorites, browser: browser, force: true) }

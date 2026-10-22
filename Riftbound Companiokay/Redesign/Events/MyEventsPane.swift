@@ -35,6 +35,7 @@ struct MyEventsPane: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 14)
                 .padding(.bottom, 30)
+                .readableWidth()
         }
         .refreshable { await reload(force: true) }
         // Each time the section shows and on every return: signing in on the PlayRiftbound section counts at once.

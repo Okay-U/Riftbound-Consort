@@ -125,7 +125,24 @@ reviews in Xcode.
    PlayRiftbound keeps the existing browser and loads the first time it shows. The scoreboard's "Open the
    event?" now opens the native event page. For Okay's review: pages are native pushes and sheets; the
    Locator "Old" segment is not in the new design (Classic design still has it until November).
-7. **Release prep:** iPad pass (same screens, wider), App Store screenshots, What's new, version.
+7. **Release prep** · 2026-10-22: iPad pass (the same screens: card galleries, the piles, the builder's pools
+   and legends get more columns on a wider screen; Settings and the Events lists keep a readable width of
+   700pt; Cards and the scoreboard already adapted), version 3.6 (`MARKETING_VERSION`, build 1; Android's
+   native app is 3.5.0, change it if the rebrand should be 4.0). App Store screenshots are Okay's. What's new
+   for the App Store:
+
+   > Riftcount has a new look.
+   > • Scoreboard: territory fields with a glowing line, the dice in the middle decide who goes first, best
+   >   of three with the match clock, and a slide to report your tournament match.
+   > • Cards: the whole pool in a new grid, filters with sliders, and a card view that grows out of its
+   >   tile, with keyword chips and errata.
+   > • Decks: your piles on a table, a deck that opens out of its pile, test hands, odds and stats, a
+   >   seven-step builder, and a match log with every game's race to 8.
+   > • Events: a live card with your table and the round clock, the event page with matches, rounds,
+   >   standings and "Can I draw?", stores on a two-week rail and a month view.
+   > • Settings: tiles that turn over to tell what they do, 16 player colors, true black or dark grey.
+   > Prefer the old look? Settings › Classic design brings it back for a while.
+   > The Live Activity and the widgets are gone.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.

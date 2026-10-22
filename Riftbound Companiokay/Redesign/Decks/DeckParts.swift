@@ -336,7 +336,7 @@ struct PileGallery: View {
                         CardRow(entry: DecklistEntry(cardId: card.id, cardName: card.name, count: count), card: cards[card.id], chosen: card.id == championId)
                     }
                 } else {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100, maximum: 170), spacing: 8)], spacing: 8) {
                         ForEach(group.cards, id: \.0.id) { card, count in
                             CardTile(card: card, errata: false, imageWidth: 120)
                                 .aspectRatio(cardAspect, contentMode: .fit)

@@ -226,6 +226,7 @@ struct PushedPage<Content: View>: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 40)
+            .readableWidth()
         }
         .scrollDismissesKeyboard(.interactively)
         .background(page.ignoresSafeArea())

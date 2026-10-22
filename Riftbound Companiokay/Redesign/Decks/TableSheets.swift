@@ -266,7 +266,7 @@ struct RiftShortlistSheet: View {
                         GroupHeader(label: group.label, count: group.cards.count)
                             .padding(.top, 16)
                             .padding(.bottom, 8)
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100, maximum: 170), spacing: 8)], spacing: 8) {
                             ForEach(group.cards, id: \.0.id) { card, _ in KeptTile(card: card) }
                         }
                     }
