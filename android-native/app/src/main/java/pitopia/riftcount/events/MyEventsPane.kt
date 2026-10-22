@@ -133,8 +133,8 @@ class RoundClock(val text: String, val over: Boolean, val fraction: Float, val e
 
 fun roundClock(round: Tournament.Round?, now: Long): RoundClock? {
     val started = round?.startedAt ?: return null
-    val total = (round.roundDuration ?: 60) * 60_000L
-    val end = started + total
+    val end = round.endsAt ?: return null
+    val total = end - started
     val left = ((end - now) / 1000).toInt()
     val over = left < 0
     return RoundClock(if (over) "+" + Fmt.clock(-left) else Fmt.clock(left), over, ((now - started).toFloat() / total).coerceIn(0f, 1f), end)

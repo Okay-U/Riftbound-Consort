@@ -151,8 +151,20 @@ private fun DialogText(title: String, text: String) {
     Spacer(Modifier.height(14.dp))
 }
 
+/** Before the scoreboard gives way to the Events tab: the event line is easy to hit by mistake. */
 @Composable
+fun OpenEventDialog(event: String, onStay: () -> Unit, onOpen: () -> Unit) {
+    DialogFrame(onStay) {
+        DialogText("Open the event?", "$event opens in Events. Your scoreboard stays as it is.")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Pill("Stay here", onStay, Modifier.weight(1f).height(46.dp))
+            Pill("Open event", onOpen, Modifier.weight(1f).height(46.dp), fill = RiftColors.You, ink = Color.Black)
+        }
+    }
+}
+
 /** [gameNo] of a live series; casual games have no number. */
+@Composable
 fun RestartDialog(gameNo: Int?, onKeep: () -> Unit, onRestart: () -> Unit) {
     DialogFrame(onKeep) {
         DialogText(

@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -97,7 +98,8 @@ fun Seam(c: ScoreController, match: MatchInfo?, modifier: Modifier = Modifier) {
                     }
                     RoundIcon({ c.undo() }, "Undo last point", enabled = s.canUndo && !gone) { SeamIcon(ScoreIcons.Undo) }
                     when {
-                        waiting != null || s.liveTag != null -> ClockBox(s, waiting, onStart = { waiting?.let(c::startLive) }, onFormat = c::toggleFormat, onClock = c::toggleClock)
+                        waiting != null || s.liveTag != null ->
+                            ClockBox(s, waiting, live?.roundEndsAt, onStart = { waiting?.let(c::startLive) }, onFormat = c::toggleFormat, onClock = c::toggleClock)
                         line != null -> LineBox(line, enabled = !gone)
                     }
                     // Waiting for Start match, the table and opponent need the room; restart comes back with the match.
@@ -142,10 +144,12 @@ private fun CheckButton(match: MatchInfo, enabled: Boolean) {
     }
 }
 
-/** The event before round 1, a bye or a reported round; a tap opens the event. */
+/** The event before round 1, a bye or a reported round; a tap asks before opening the event (no slip leaves the board). */
 @Composable
 private fun LineBox(line: EventLine, enabled: Boolean) {
-    Pressable(line.open, Modifier.widthIn(min = 72.dp, max = 140.dp), enabled = enabled, label = "Open the event") {
+    var asking by remember { mutableStateOf(false) }
+    if (asking) OpenEventDialog(line.event, onStay = { asking = false }) { asking = false; line.open() }
+    Pressable({ asking = true }, Modifier.widthIn(min = 72.dp, max = 140.dp), enabled = enabled, label = "Open the event") {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             BasicText(
                 line.label.uppercase(),
@@ -163,23 +167,32 @@ private fun LineBox(line: EventLine, enabled: Boolean) {
 
 /**
  * Before a live match: its table and opponent, and a tap starts it. During it: round and table over the
- * match clock; a tap switches one ↔ three games, a long press pauses the clock. Casual play shows no clock.
+ * round's countdown ([roundEnd], the organiser's clock; gold once over), or the match clock where the round
+ * has none; a tap switches one ↔ three games, a long press pauses the match clock. Casual play shows no clock.
  */
 @Composable
-private fun ClockBox(s: ScoreState, waiting: TableLink?, onStart: () -> Unit, onFormat: () -> Unit, onClock: () -> Unit) {
+private fun ClockBox(s: ScoreState, waiting: TableLink?, roundEnd: Long?, onStart: () -> Unit, onFormat: () -> Unit, onClock: () -> Unit) {
     val caps = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, letterSpacing = 0.14.em, color = Color.White.copy(alpha = 0.72f))
     val tag = s.liveTag
+    val round = roundEnd.takeIf { waiting == null }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     // Redraw exactly when the shown second changes, not on a fixed tick (as iOS does).
-    LaunchedEffect(s.clock) {
+    LaunchedEffect(s.clock, round) {
         now = System.currentTimeMillis()
-        while (s.clock.isRunning) {
-            delay(1000 - s.clock.elapsedMs(System.currentTimeMillis()) % 1000 + 5)
+        while (round != null || s.clock.isRunning) {
+            val ms = if (round != null) (round - System.currentTimeMillis()).mod(1000L) else 1000 - s.clock.elapsedMs(System.currentTimeMillis()) % 1000
+            delay(ms + 5)
             now = System.currentTimeMillis()
         }
     }
-    val text = clockText(s.clock.elapsedSeconds(now))
-    val paused = waiting == null && !s.clock.isRunning && s.clock.accumulatedMs > 0
+    val left = round?.let { ((it - now) / 1000).toInt() }
+    val over = left != null && left < 0
+    val text = when {
+        left == null -> clockText(s.clock.elapsedSeconds(now))
+        over -> "+" + clockText(-left)
+        else -> clockText(left)
+    }
+    val paused = waiting == null && round == null && !s.clock.isRunning && s.clock.accumulatedMs > 0
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.94f else 1f, tween(250, easing = RiftEase), label = "press")
@@ -195,19 +208,28 @@ private fun ClockBox(s: ScoreState, waiting: TableLink?, onStart: () -> Unit, on
             .combinedClickable(
                 source, indication = null, role = Role.Button,
                 onClickLabel = if (waiting != null) "Start the live match" else if (s.bestOf == 1) "Play best of three" else "Play best of one",
-                onLongClickLabel = if (waiting != null) null else clockLabel,
-                onLongClick = if (waiting != null) null else onClock,
+                onLongClickLabel = if (waiting != null || round != null) null else clockLabel,
+                onLongClick = if (waiting != null || round != null) null else onClock,
                 hapticFeedbackEnabled = false,
                 onClick = if (waiting != null) onStart else onFormat,
             )
-            .semantics { contentDescription = if (waiting != null) "$label, vs ${waiting.opponent.orEmpty()}" else "$label, match clock $text" + if (paused) ", paused" else "" },
+            .semantics {
+                contentDescription = when {
+                    waiting != null -> "$label, vs ${waiting.opponent.orEmpty()}"
+                    round != null -> "$label, " + if (over) "round over by $text" else "$text left in the round"
+                    else -> "$label, match clock $text" + if (paused) ", paused" else ""
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             BasicText(label, style = if (paused) caps.copy(color = RiftColors.Gold) else caps, maxLines = 1)
             BasicText(
                 if (waiting != null) "vs ${waiting.opponent ?: "?"}" else text,
-                style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = if (waiting != null) 14.sp else 16.sp, lineHeight = 18.sp, fontFeatureSettings = "tnum", color = Color.White),
+                style = RiftType.Body.copy(
+                    fontWeight = FontWeight.SemiBold, fontSize = if (waiting != null) 14.sp else 16.sp, lineHeight = 18.sp, fontFeatureSettings = "tnum",
+                    color = if (over) RiftColors.Gold else Color.White,
+                ),
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }

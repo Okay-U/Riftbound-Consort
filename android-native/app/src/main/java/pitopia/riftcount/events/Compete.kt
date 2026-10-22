@@ -1,9 +1,13 @@
+// The lenient serializers' nullable descriptors.
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package pitopia.riftcount.events
 
 import java.time.Instant
 import java.time.OffsetDateTime
 import kotlin.math.abs
 import kotlin.math.roundToLong
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -238,6 +242,8 @@ data class Tournament(
     ) {
         val number: Int get() = roundNumber ?: 0
         val id: String get() = "$sectionIndex-$number"
+        /** The round clock's end: start plus its minutes (60 when the event sets none). */
+        val endsAt: Long? get() = startedAt?.let { it + (roundDuration ?: 60) * 60_000L }
     }
 
     @Serializable

@@ -275,6 +275,10 @@ a toast (no live event, no pairing yet, bye, round reported, or the table), and 
 before round 1, a bye or a reported round; a tap opens that event (iOS match strip). After a report the
 summary says to ask the scorekeeper for changes instead of offering the result picker.
 
+Scoreboard, round 4 (2026-10-22): the event line asks "Open the event?" before it leaves the board; the live
+match's seam counts down the round's clock (start plus its minutes, gold once over) where the event has one,
+otherwise the match clock as before.
+
 ## Open points
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build

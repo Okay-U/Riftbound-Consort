@@ -15,6 +15,8 @@ class TableLink(
     val reportable: Boolean,
     /** Riot has a result for the match (from this phone or another). */
     val reported: Boolean,
+    /** The round clock's end while the round runs, for the seam's countdown. */
+    val roundEndsAt: Long?,
     /** Asks Riot again (the end of a series, a new match): the pairing may be reported meanwhile or newer. */
     val refresh: () -> Unit,
     /** Winner of each game ([YOU], [OPPONENT], -1 for a draw); returns the score sent, throws with Riot's answer. */
@@ -35,5 +37,5 @@ class MatchInfo(
     val check: () -> Unit,
 )
 
-/** "18:30 · Summoner Skirmish", "R3 · BYE", "R3 · T5 · Reported"; a tap opens the event. */
-class EventLine(val label: String, val text: String, val open: () -> Unit)
+/** "18:30 · Summoner Skirmish", "R3 · BYE", "R3 · T5 · Reported"; a tap asks, then opens [event]. */
+class EventLine(val label: String, val text: String, val event: String, val open: () -> Unit)

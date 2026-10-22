@@ -16,6 +16,7 @@ fun EventsData.matchInfo(scope: CoroutineScope, say: (String) -> Unit, open: (To
     val s = strip
     val p = s?.pairing
     val tag = p?.let { it.roundShort + (it.tableNumber?.let { n -> " · T$n" } ?: "") }
+    val round = s?.let { cached(it.entry.tournament.id) }?.rounds?.firstOrNull { it.id == p?.roundId }
     val link = if (s != null && p != null && tag != null && !p.isBye) {
         TableLink(
             tag = tag,
@@ -24,6 +25,7 @@ fun EventsData.matchInfo(scope: CoroutineScope, say: (String) -> Unit, open: (To
             bestOf = p.bestOf,
             reportable = p.isReportable,
             reported = p.isComplete,
+            roundEndsAt = round?.takeIf { r -> r.matches.any { !it.isComplete } }?.endsAt,
             refresh = { scope.launch { refreshStrip(force = true) } },
             report = { winners -> reportSeries(s.entry.tournament.id, p, winners) },
         )
@@ -31,11 +33,12 @@ fun EventsData.matchInfo(scope: CoroutineScope, say: (String) -> Unit, open: (To
         null
     }
     val line = s?.let {
+        val name = it.entry.tournament.name
         val go = { open(it.entry) }
         when {
-            p == null -> EventLine(it.entry.tournament.startsAt?.let(Fmt::time) ?: "TODAY", it.entry.tournament.name, go)
-            p.isBye -> EventLine("${p.roundShort} · BYE", "Bye this round", go)
-            p.isComplete -> EventLine(tag.orEmpty(), "Reported", go)
+            p == null -> EventLine(it.entry.tournament.startsAt?.let(Fmt::time) ?: "TODAY", name, name, go)
+            p.isBye -> EventLine("${p.roundShort} · BYE", "Bye this round", name, go)
+            p.isComplete -> EventLine(tag.orEmpty(), "Reported", name, go)
             else -> null
         }
     }
