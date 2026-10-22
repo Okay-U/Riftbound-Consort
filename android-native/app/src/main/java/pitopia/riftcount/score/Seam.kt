@@ -39,6 +39,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -87,11 +88,7 @@ fun Seam(c: ScoreController, link: TableLink?, modifier: Modifier = Modifier) {
                         SeamIcon(ScoreIcons.Dice, RiftColors.You)
                     }
                     RoundIcon({ c.undo() }, "Undo last point", enabled = s.canUndo && !gone) { SeamIcon(ScoreIcons.Undo) }
-                    ClockBox(
-                        s, live?.tag, waiting,
-                        onTap = { if (waiting != null) c.startLive(waiting) else if (s.isDuel) c.toggleFormat() else c.toggleClock() },
-                        onLongPress = { c.toggleClock() },
-                    )
+                    ClockBox(s, waiting, onStart = { waiting?.let(c::startLive) }, onFormat = c::toggleFormat, onClock = c::toggleClock)
                     // Waiting for Start match, the table and opponent need the room; restart comes back with the match.
                     if (waiting == null) RoundIcon({ c.askRestart() }, "Restart this game", enabled = !s.gameOver && !gone) { SeamIcon(ScoreIcons.Restart) }
                     if (s.isDuel) {
@@ -116,11 +113,18 @@ private fun SeamIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, tint
     Image(icon, contentDescription = null, colorFilter = ColorFilter.tint(tint))
 
 /**
- * The game and the match clock. Tap switches casual ↔ best of three (one ↔ three games in a live match),
- * long press pauses the clock. Before a live match starts: its table and opponent, and tap starts it.
+ * Casual: the game number only, no clock (Okay, 2026-10-22). Before a live match: its table and opponent,
+ * and a tap starts it. During it: round and table over the match clock; a tap switches one ↔ three games,
+ * a long press pauses the clock.
  */
 @Composable
-private fun ClockBox(s: ScoreState, tag: String?, waiting: TableLink?, onTap: () -> Unit, onLongPress: () -> Unit) {
+private fun ClockBox(s: ScoreState, waiting: TableLink?, onStart: () -> Unit, onFormat: () -> Unit, onClock: () -> Unit) {
+    val caps = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, letterSpacing = 0.14.em, color = Color.White.copy(alpha = 0.72f))
+    val tag = s.liveTag
+    if (waiting == null && tag == null) {
+        BasicText(if (s.isDuel) "GAME ${s.gameNo}" else "${s.players.size} PLAYERS", Modifier.widthIn(min = 72.dp), style = caps.copy(textAlign = TextAlign.Center), maxLines = 1)
+        return
+    }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     // Redraw exactly when the shown second changes, not on a fixed tick (as iOS does).
     LaunchedEffect(s.clock) {
@@ -131,41 +135,32 @@ private fun ClockBox(s: ScoreState, tag: String?, waiting: TableLink?, onTap: ()
         }
     }
     val text = clockText(s.clock.elapsedSeconds(now))
-    val paused = !s.clock.isRunning && s.clock.accumulatedMs > 0
+    val paused = waiting == null && !s.clock.isRunning && s.clock.accumulatedMs > 0
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.94f else 1f, tween(250, easing = RiftEase), label = "press")
     val label = when {
         waiting != null -> waiting.table?.let { "TABLE $it" } ?: waiting.tag.uppercase()
         paused -> "PAUSED"
-        tag != null -> tag.uppercase()
-        !s.isDuel -> "${s.players.size} PLAYERS"
-        s.isSeries -> "BO${s.bestOf} · GAME ${s.gameNo}"
-        else -> "GAME ${s.gameNo}"
+        else -> tag.orEmpty().uppercase()
     }
-    val tapLabel = when {
-        waiting != null -> "Start the live match"
-        !s.isDuel -> if (s.clock.isRunning) "Pause the clock" else "Start the clock"
-        s.liveTag != null -> if (s.bestOf == 1) "Play best of three" else "Play best of one"
-        else -> if (s.isSeries) "Play casual games" else "Play best of three"
-    }
+    val clockLabel = if (s.clock.isRunning) "Pause the clock" else "Start the clock"
     Box(
         Modifier.widthIn(min = 72.dp, max = 132.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .combinedClickable(
-                source, indication = null, role = Role.Button, onClickLabel = tapLabel,
-                onLongClickLabel = if (s.clock.isRunning) "Pause the clock" else "Start the clock",
-                onLongClick = onLongPress, hapticFeedbackEnabled = false, onClick = onTap,
+                source, indication = null, role = Role.Button,
+                onClickLabel = if (waiting != null) "Start the live match" else if (s.bestOf == 1) "Play best of three" else "Play best of one",
+                onLongClickLabel = if (waiting != null) null else clockLabel,
+                onLongClick = if (waiting != null) null else onClock,
+                hapticFeedbackEnabled = false,
+                onClick = if (waiting != null) onStart else onFormat,
             )
-            .semantics { contentDescription = if (waiting != null) "$label, ${waiting.opponent ?: ""}" else "$label, match clock $text" + if (paused) ", paused" else "" },
+            .semantics { contentDescription = if (waiting != null) "$label, vs ${waiting.opponent.orEmpty()}" else "$label, match clock $text" + if (paused) ", paused" else "" },
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            BasicText(
-                label,
-                style = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, letterSpacing = 0.14.em, color = if (paused && waiting == null) RiftColors.Gold else Color.White.copy(alpha = 0.72f)),
-                maxLines = 1,
-            )
+            BasicText(label, style = if (paused) caps.copy(color = RiftColors.Gold) else caps, maxLines = 1)
             BasicText(
                 if (waiting != null) "vs ${waiting.opponent ?: "?"}" else text,
                 style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = if (waiting != null) 14.sp else 16.sp, lineHeight = 18.sp, fontFeatureSettings = "tnum", color = Color.White),

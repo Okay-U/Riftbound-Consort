@@ -55,7 +55,7 @@ fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, ca
         if (c.state.isDuel) Duel(c, swatches, area, maxHeight, link) else FourPlayers(c, swatches, area)
         // Centred on the seam like the mock, so it never covers a player's own controls.
         BoardToast(c.toast, c::clearToast, Modifier.align(Alignment.TopCenter).offset(y = area / 2 - 20.dp))
-        if (c.confirmRestart) RestartDialog(c.state.gameNo, c::cancelRestart, c::restart)
+        if (c.confirmRestart) RestartDialog(c.state.gameNo, c.state.isSeries, c::cancelRestart, c::restart)
         c.picker?.let { ResultPickerDialog(c, it, swatches.map { s -> s.color }) }
     }
     when (c.setupSlot) {

@@ -137,9 +137,13 @@ private fun DialogText(title: String, text: String) {
 }
 
 @Composable
-fun RestartDialog(gameNo: Int, onKeep: () -> Unit, onRestart: () -> Unit) {
+fun RestartDialog(gameNo: Int, series: Boolean, onKeep: () -> Unit, onRestart: () -> Unit) {
     DialogFrame(onKeep) {
-        DialogText("Restart game $gameNo?", "Both scores and XP go back to 0. The series and the match clock stay as they are, and Undo brings the game back.")
+        DialogText(
+            "Restart game $gameNo?",
+            if (series) "Both scores and XP go back to 0. The series and the match clock stay as they are, and Undo brings the game back."
+            else "Both scores and XP go back to 0, and Undo brings the game back.",
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Pill("Keep playing", onKeep, Modifier.weight(1f).height(46.dp))
             Pill("Restart", onRestart, Modifier.weight(1f).height(46.dp), fill = RiftColors.Danger, ink = Color.Black)

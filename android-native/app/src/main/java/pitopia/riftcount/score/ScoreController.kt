@@ -126,19 +126,11 @@ class ScoreController(
     fun toggleClock() = apply(state.toggleClock(now()), Haptic.Tick)
     fun nextGame() = apply(state.nextGame(now()), Haptic.Tick)
 
-    /** Tap on the game in the seam: casual ↔ best of three, or in a live match one ↔ three games. */
+    /** Tap on the round and table in a live match: one game or three. */
     fun toggleFormat() {
-        val s = state
-        val next = if (s.liveTag != null) (if (s.bestOf == 1) 3 else 1) else (if (s.bestOf == 0) 3 else 0)
-        apply(s.withBestOf(next), Haptic.Tick)
-        if (state.bestOf != next) return
-        show(
-            when (next) {
-                0 -> "Casual · every game on its own"
-                1 -> "Best of 1 · one game decides"
-                else -> "Best of 3 · first to two games"
-            },
-        )
+        val next = if (state.bestOf == 1) 3 else 1
+        apply(state.withBestOf(next), Haptic.Tick)
+        if (state.bestOf == next) show(if (next == 1) "Best of 1 · one game decides" else "Best of 3 · first to two games")
     }
 
     /** "Start match" in the seam: a fresh match for the PlayRiftbound pairing, in its event's format. */
@@ -302,7 +294,9 @@ class ScoreController(
 
     private fun restore(): ScoreState {
         val saved = runCatching { SwiftJson.decodeFromString(ScoreState.serializer(), Prefs.string(STATE_KEY, "")) }.getOrNull()
-        return (saved ?: ScoreState()).withPlayerCount(Prefs.int("playerCount", 2))
+        // A best of three started by hand (an earlier test build) reads as casual: series are for live matches only.
+        val casual = saved?.takeIf { it.bestOf > 0 && it.liveTag == null }?.copy(bestOf = 0, log = emptyList())
+        return (casual ?: saved ?: ScoreState()).withPlayerCount(Prefs.int("playerCount", 2))
     }
 
     companion object {

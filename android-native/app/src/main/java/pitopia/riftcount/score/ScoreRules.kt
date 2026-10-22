@@ -27,8 +27,8 @@ data class GameResult(val winner: Int, val scores: List<Int>? = null)
 /**
  * The scoreboard, immutable: every action returns a new state. Rules follow the iOS app (undo of
  * 50 steps including XP, a score never below 0, unchanged scores are not recorded) and the chosen mock
- * (a duel ends at 8, the 8th point by conquering is asked for). Casual by default, every game on its own;
- * a best of three by hand, or a live PlayRiftbound match in its event's format (Okay, 2026-10-22).
+ * (a duel ends at 8, the 8th point by conquering is asked for). Always casual, every game on its own; a
+ * series (best of 1 or 3, its summary and report) only for a live PlayRiftbound match (Okay, 2026-10-22).
  */
 @Serializable
 data class ScoreState(
@@ -137,19 +137,10 @@ data class ScoreState(
         )
     }
 
-    /** A best of three started by hand stays one; after a live match the next is casual again. */
-    fun newMatch(): ScoreState = ScoreState(players = List(players.size) { Player() }, bestOf = if (liveTag == null) bestOf else 0)
+    fun newMatch(): ScoreState = ScoreState(players = List(players.size) { Player() })
 
-    /**
-     * Casual ↔ best of three by hand, or one ↔ three games in a live match (the event's setting is not
-     * always what the table plays). Casual and series swap at the game on the board: a won casual game
-     * becomes game 1.
-     */
-    fun withBestOf(n: Int): ScoreState {
-        if (!isDuel || n == bestOf || ended) return this
-        if (bestOf > 0 && n > 0) return copy(bestOf = n)
-        return copy(bestOf = n, log = if (gameOver) log.takeLast(1) else emptyList(), gameNo = 1)
-    }
+    /** One ↔ three games in a live match: the event's setting is not always what the table plays. */
+    fun withBestOf(n: Int): ScoreState = if (isSeries && (n == 1 || n == 3) && !ended) copy(bestOf = n) else this
 
     /** A fresh match for a PlayRiftbound pairing in the event's format; who goes first stays as rolled. */
     fun startLive(tag: String, bestOf: Int): ScoreState =

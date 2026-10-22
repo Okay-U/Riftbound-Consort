@@ -54,8 +54,7 @@ class ScoreRulesTest {
         val over = ScoreState(bestOf = 3).points(YOU, 8).nextGame(t0).points(OPPONENT, 8).nextGame(t0).points(YOU, 8)
         assertTrue(over.matchOver)
         assertEquals(over, over.nextGame(t0))
-        // A best of three started by hand stays one for the next match.
-        assertEquals(ScoreState(bestOf = 3), over.newMatch())
+        assertEquals(ScoreState(), over.newMatch())
     }
 
     @Test
@@ -77,19 +76,9 @@ class ScoreRulesTest {
     }
 
     @Test
-    fun `switching casual and best of three keeps the game on the board`() {
+    fun `a series exists only for a live match, casual cannot become one`() {
         val playing = ScoreState().points(YOU, 3)
-        val series = playing.withBestOf(3)
-        assertEquals(listOf(0, 3), series.players.map { it.score })
-        assertEquals(1, series.gameNo)
-        // A casual game already won becomes game 1 of the series.
-        val afterWin = ScoreState().points(YOU, 8).nextGame(t0).points(OPPONENT, 8).withBestOf(3)
-        assertEquals(listOf(1, 0), afterWin.seriesWins())
-        assertEquals(1, afterWin.gameNo)
-        assertFalse(afterWin.matchOver)
-        val back = afterWin.nextGame(t0).points(YOU, 2).withBestOf(0)
-        assertEquals(listOf(0, 0), back.seriesWins())
-        assertEquals(listOf(0, 2), back.players.map { it.score })
+        assertEquals(playing, playing.withBestOf(3))
     }
 
     @Test
