@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import pitopia.riftcount.R
+import pitopia.riftcount.data.AppSettings
 
 /** Colours from the chosen mocks: true black, green for you, violet for the opponent. */
 object RiftColors {
@@ -27,6 +28,9 @@ object RiftColors {
     val Sheet = Color(0xFF101010)
     val Hairline = Color(0x1FFFFFFF)
     val NavBar = Color(0xF00E0E0E)
+
+    /** Page background: true black, or dark grey with the True black switch off. */
+    val Page: Color get() = if (AppSettings.trueBlack.on) Black else Color(0xFF121212)
 }
 
 /** Exponential ease-out used by every transition in the mocks: cubic-bezier(.16, 1, .3, 1). */

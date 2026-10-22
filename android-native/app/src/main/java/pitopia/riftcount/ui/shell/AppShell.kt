@@ -3,6 +3,7 @@ package pitopia.riftcount.ui.shell
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -55,10 +56,16 @@ import pitopia.riftcount.decks.DecksScreen
 import pitopia.riftcount.decks.DecksUi
 import pitopia.riftcount.data.Documents
 import pitopia.riftcount.data.GameRecordStore
+import pitopia.riftcount.data.AppSettings
 import pitopia.riftcount.data.Prefs
+import pitopia.riftcount.platform.Sounds
 import pitopia.riftcount.platform.haptic
 import pitopia.riftcount.score.ScoreController
 import pitopia.riftcount.score.ScoreScreen
+import pitopia.riftcount.settings.PlayRiftboundLog
+import pitopia.riftcount.settings.SettingsScreen
+import pitopia.riftcount.tour.Tour
+import pitopia.riftcount.tour.TourKind
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
@@ -101,11 +108,31 @@ fun AppShell() {
         onPauseOrDispose {}
     }
     val view = LocalView.current
-    SideEffect { score.haptic = { view.haptic(it) } }
+    SideEffect {
+        score.haptic = {
+            view.haptic(it)
+            Sounds.play(it)
+        }
+    }
     StatusBarHidden(tab == Tab.Score)
+    KeepAwake(AppSettings.keepScreenOn.on)
+    // The six-page tour on first launch; the Events tour the first time Events opens; both again from Settings.
+    var tour by remember { mutableStateOf(if (AppSettings.didOnboard.on) null else TourKind.Main) }
+    LaunchedEffect(tab) {
+        if (tab == Tab.Events && tour == null && !AppSettings.didOnboardEvents.on) tour = TourKind.Events
+    }
+    fun endTour() {
+        when (tour) {
+            TourKind.Main -> AppSettings.didOnboard.on = true
+            TourKind.Events -> AppSettings.didOnboardEvents.on = true
+            null -> Unit
+        }
+        tour = null
+    }
     // The tab bar (66 + 14 margin) above the system navigation; the score halves end above it.
     val barReserve = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 80.dp
-    Box(Modifier.fillMaxSize().background(RiftColors.Black)) {
+    val page by animateColorAsState(RiftColors.Page, tween(600), label = "page")
+    Box(Modifier.fillMaxSize().background(page)) {
         AnimatedContent(
             targetState = tab,
             transitionSpec = {
@@ -121,10 +148,29 @@ fun AppShell() {
                     tab = Tab.Decks
                 }
                 Tab.Decks -> DecksScreen(decksUi, decks, games, cards, barReserve) { overlay(Tab.Decks, it) }
-                else -> Placeholder(shown)
+                Tab.Settings -> SettingsScreen(score, docs.file(PlayRiftboundLog.FILE), barReserve, onTour = { tour = it }) {
+                    overlay(Tab.Settings, it)
+                }
+                Tab.Events -> Placeholder(shown)
             }
         }
         BottomNav(selected = tab, onSelect = { tab = it }, modifier = Modifier.align(Alignment.BottomCenter), hidden = tab in overlays)
+        AnimatedContent(
+            targetState = tour,
+            modifier = Modifier.fillMaxSize(),
+            transitionSpec = { fadeIn(tween(420, easing = RiftEase)).togetherWith(fadeOut(tween(300))) },
+            label = "tour",
+        ) { kind -> if (kind != null) Tour(kind, ::endTour) }
+    }
+}
+
+/** iOS keeps the screen awake while the app is open; the Keep screen on switch turns it off right away. */
+@Composable
+private fun KeepAwake(on: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(on) {
+        view.keepScreenOn = on
+        onDispose { view.keepScreenOn = false }
     }
 }
 
@@ -146,13 +192,7 @@ private fun StatusBarHidden(hidden: Boolean) {
 // ponytail: stand-in screens until each tab is built in its own phase
 @Composable
 private fun Placeholder(tab: Tab) {
-    val phase = when (tab) {
-        Tab.Score -> "Phase 1 · scoreboard"
-        Tab.Events -> "Phase 5 · events"
-        Tab.Cards -> "Phase 2 · cards"
-        Tab.Decks -> "Phase 3 · decks"
-        Tab.Settings -> "Phase 4 · settings"
-    }
+    val phase = "Phase 5 · events"
     Column(Modifier.fillMaxSize().statusBarsPadding().padding(start = 20.dp, top = 30.dp, end = 20.dp)) {
         BasicText(tab.label, style = RiftType.Title.copy(color = RiftColors.Ink))
         Spacer(Modifier.height(10.dp))

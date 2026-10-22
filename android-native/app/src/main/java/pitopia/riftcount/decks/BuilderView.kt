@@ -98,7 +98,7 @@ fun BuilderView(ui: DecksUi, shown: Boolean, pool: List<Card>, index: Map<String
     val done = listOf(d.legend != null, d.champion != null, d.battlefields.size == DeckRules.BATTLEFIELDS, d.mainCount == DeckRules.MAIN, true, d.runeCount == DeckRules.RUNES, false)
     fun reachable(i: Int) = i <= step.ordinal || (0 until i).all { j -> done[j] || j >= 3 }
     Column(
-        Modifier.fillMaxSize().graphicsLayer { translationY = size.height * slide.value }.background(Color.Black)
+        Modifier.fillMaxSize().graphicsLayer { translationY = size.height * slide.value }.background(RiftColors.Page)
             .clickable(remember { MutableInteractionSource() }, indication = null) {}.statusBarsPadding().navigationBarsPadding().imePadding(),
     ) {
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 18.dp), verticalAlignment = Alignment.CenterVertically) {

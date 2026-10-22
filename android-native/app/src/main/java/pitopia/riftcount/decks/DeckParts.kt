@@ -1,7 +1,6 @@
 package pitopia.riftcount.decks
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -26,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -36,10 +34,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -95,22 +91,6 @@ fun Mini(card: Card?, modifier: Modifier = Modifier) {
         }
         Box(Modifier.fillMaxSize().border(1.dp, Color.White.copy(alpha = 0.16f), shape))
     }
-}
-
-/** The mock's `.fade` with its delay: up 14dp out of an 8dp blur; all leave in 200ms. */
-@Composable
-fun Rise(shown: Boolean, delayMs: Int, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val t = remember { Animatable(0f) }
-    LaunchedEffect(shown) { t.animateTo(if (shown) 1f else 0f, if (shown) tween(700, delayMs, RiftEase) else tween(200)) }
-    Box(
-        modifier.graphicsLayer {
-            val v = t.value
-            alpha = v
-            translationY = 14.dp.toPx() * (1f - v)
-            val b = 8.dp.toPx() * (1f - v)
-            renderEffect = if (b > 0.5f) BlurEffect(b, b) else null
-        },
-    ) { content() }
 }
 
 /** The mock's `.crow`: energy in the card's colour, name, type line with SIG/CHAMP tags, stepper. */

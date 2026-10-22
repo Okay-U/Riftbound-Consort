@@ -111,7 +111,7 @@ fun CardDetail(
 
     Box(Modifier.fillMaxSize()) {
         Box(
-            Modifier.fillMaxSize().graphicsLayer { alpha = backdrop.value }.background(Color.Black.copy(alpha = 0.94f))
+            Modifier.fillMaxSize().graphicsLayer { alpha = backdrop.value }.background(RiftColors.Page.copy(alpha = 0.94f))
                 .clickable(remember { MutableInteractionSource() }, indication = null) {},
         )
         Box(

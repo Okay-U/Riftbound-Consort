@@ -139,7 +139,12 @@ class ScoreController(
         apply(state.newMatch(), Haptic.Warning)
     }
 
-    fun setPlayers(count: Int) = apply(state.withPlayerCount(count), null)
+    /** From Settings: an open who-goes-first duel has one die per seat, so it closes. */
+    fun setPlayers(count: Int) {
+        closeDuel()
+        Prefs.put("playerCount", count)
+        apply(state.withPlayerCount(count), null)
+    }
 
     // --- ending a match by hand ------------------------------------------------------------------
 

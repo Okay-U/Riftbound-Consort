@@ -159,11 +159,32 @@ Tests: `DeckTextTest` (export/import round trip, migration), `BuilderTest` (buil
 round trip, kept unknown cards), `DeckMathTest` (odds, stats, hand), `DeckEditsTest`, `MatchLogTest`.
 Emulator: builder pool scroll 0.7 % janky frames (debug).
 
-### 4 · Settings + onboarding (`SettingsHybrid`)
-Flip tiles (Haptics, Keep screen on, True black, Match mode, Sounds, Players), Scoreboard section
-(player colours, shake to roll), Help
-(tours, rules links), About (acknowledgments, PlayRiftbound log, bug report and wish by mail, share,
-rate, Ko-fi, privacy). Six-page main tour, Events tour, builder tip.
+### 4 · Settings + onboarding (`SettingsHybrid`) · done 2026-10-22
+Built as mocked: six flip tiles that turn over to say what they do (Haptics, Keep screen on, True black,
+Match mode, Sounds, Players with the blurring 2P/4P number), Scoreboard rows (player colours, shake to
+roll), Help (both tours, rules), About (acknowledgments, PlayRiftbound log, bug report, wish, share,
+rate, Ko-fi, privacy), the version line; sub pages slide in over the pushed-back list. Decisions, for
+Okay's review:
+- Every switch acts at once: True black turns the app background #000 / #121212 (600 ms), Keep screen on
+  sets the window's keep-on flag (whole app, like iOS; the tile text says so instead of "scoreboard"),
+  Haptics ticks when turned on. Sounds are real: soft clicks made in code (no files) for points, dice
+  and a won game, through the media volume. Match mode is stored for phase 5.
+- Player colours: the mock's preview and palettes, one per seat with 4 players. Taking another seat's
+  colour swaps them. 2 and 4 players share the iOS keys, so a seat default steps aside when a saved
+  pick already has its colour (no two seats alike).
+- Rules: all of iOS `RulesLibrary` (rules, set FAQs, patch notes, errata) in the mock's rows, in the
+  browser until the in-app browser comes (phase 5).
+- Acknowledgments: Riot and riftboundfaq as iOS, eloshowdown left out (the Locator integration is not
+  in this app), the two OFL fonts with their licence texts.
+- Bug and wish: the mock's two fields; the mail app opens to contact-okaydev@proton.me with "[Bug]" /
+  "[Feature]" subjects (iOS) and the app and Android version under the text.
+- PlayRiftbound log: reads the iOS/Skip file, newest first, Copy (iOS export text) and Clear.
+- Tours (no mock, built from its parts): six pages with this app's tabs (Events instead of Dice, True
+  black instead of Live Activity) on first launch; the Events tour (iOS text) the first time Events
+  opens; both from Settings. Back goes a page back, on the first page it closes. The builder tip shows
+  the first time the builder opens.
+Tests: `PlayRiftboundLogTest` (iOS file, export), `ReflowTest` (licence text), `PickColorTest`,
+`SeatColorsTest`, `SoundsTest`.
 
 ### 5 · Events (`EventsMix`)
 Section tabs Events · Stores · PlayRiftbound. PlayRiftbound = domain-locked WebView with the iOS policy

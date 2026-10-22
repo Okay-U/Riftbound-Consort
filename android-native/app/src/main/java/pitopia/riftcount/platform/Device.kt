@@ -13,13 +13,13 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import kotlin.math.sqrt
-import pitopia.riftcount.data.Prefs
+import pitopia.riftcount.data.AppSettings
 
 enum class Haptic { Tick, Success, Warning, Undo }
 
 /** iOS `Haptics.*`, through the view so no vibrate permission is needed. Off when the setting is off. */
 fun View.haptic(kind: Haptic) {
-    if (!Prefs.bool("hapticsEnabled", true)) return
+    if (!AppSettings.haptics.on) return
     val newer = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
     performHapticFeedback(
         when (kind) {

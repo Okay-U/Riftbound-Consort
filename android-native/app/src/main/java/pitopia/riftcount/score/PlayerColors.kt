@@ -39,5 +39,17 @@ object PlayerColors {
         if (players == 2) (if (slot == YOU) RiftGreen else RiftViolet)
         else listOf(RiftViolet, ios[1], RiftGreen, ios[2])[slot]
 
-    fun forSlot(slot: Int, players: Int): Swatch = byIndex(Prefs.int("colorIdx_$slot", -1)) ?: default(slot, players)
+    fun forSlot(slot: Int, players: Int): Swatch = resolve(List(players) { byIndex(Prefs.int("colorIdx_$it", -1)) }, players)[slot]
+
+    /**
+     * Saved picks stay; a seat without one takes its default, or, when a pick has that, a default left free
+     * and then the first free colour (2 and 4 players share the keys: "You" in green meets seat 3's green).
+     */
+    internal fun resolve(picked: List<Swatch?>, players: Int): List<Swatch> {
+        val taken = picked.mapNotNullTo(HashSet()) { it?.index }
+        val spare = List(players) { default(it, players) } + offered
+        return picked.mapIndexed { slot, pick ->
+            pick ?: default(slot, players).let { d -> if (d.index in taken) spare.first { it.index !in taken } else d }.also { taken += it.index }
+        }
+    }
 }
