@@ -14,6 +14,7 @@ struct RiftDecksView: View {
     @EnvironmentObject private var games: GameRecordStore
     @EnvironmentObject private var cards: CardStore
     @EnvironmentObject private var shortlist: ShortlistStore
+    @EnvironmentObject private var builder: DeckBuilderModel
 
     @State private var opened: OpenDeck?
     @State private var closingDeck = false
@@ -25,8 +26,6 @@ struct RiftDecksView: View {
     @State private var importing = false
     @State private var shortlistShown = false
     @State private var toast: BoardToast?
-    /// Until the redesign's builder lands: the classic one.
-    @State private var classicBuilder = false
     @Namespace private var space
 
     struct OpenDeck: Equatable {
@@ -50,7 +49,7 @@ struct RiftDecksView: View {
                     .opacity(away ? 0 : log == nil ? 1 : 0.12)
                     .scaleEffect(away ? 0.94 : 1)
                     .animation(.rift(0.6), value: away)
-                    .allowsHitTesting(log == nil && review == nil && opened == nil)
+                    .allowsHitTesting(log == nil && review == nil && opened == nil && builder.draft == nil)
                 if let opened, let deck = openDeck {
                     RiftDeckDetail(
                         deck: deck, cards: index, record: Tally.of(games.records.filter { $0.deckId == deck.id }), pile: opened.pile,
@@ -76,10 +75,17 @@ struct RiftDecksView: View {
                         .transition(.move(edge: .trailing))
                         .zIndex(2)
                 }
+                if let draft = builder.draft {
+                    RiftBuilderView(model: builder, draft: draft, pool: cards.allCards, cards: index,
+                                    onToast: { toast = BoardToast(text: $0) }, onSave: saveDraft, onClose: closeBuilder)
+                        .transition(.move(edge: .bottom))
+                        .zIndex(2.5)
+                }
                 if let toast {
                     HalfToast(text: toast.text)
                         .frame(maxHeight: .infinity, alignment: .bottom)
-                        .padding(.bottom, 24)
+                        // Above the builder's Back and Next.
+                        .padding(.bottom, builder.draft == nil ? 24 : 96)
                         .id(toast.id)
                         .task(id: toast.id) {
                             try? await Task.sleep(for: .seconds(2.2))
@@ -91,7 +97,7 @@ struct RiftDecksView: View {
             .coordinateSpace(.named(decksSpace))
             .background(Color.black.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
-            .toolbar(opened == nil && log == nil && review == nil ? .visible : .hidden, for: .tabBar)
+            .toolbar(opened == nil && log == nil && review == nil && builder.draft == nil ? .visible : .hidden, for: .tabBar)
         }
         .onAppear { cards.loadIfNeeded() }
         .sheet(item: $tool) { tool in
@@ -118,7 +124,6 @@ struct RiftDecksView: View {
             }
         }
         .sheet(isPresented: $shortlistShown) { RiftShortlistSheet() }
-        .sheet(isPresented: $classicBuilder) { DeckBuilderSheet() }
     }
 
     @ViewBuilder
@@ -143,7 +148,9 @@ struct RiftDecksView: View {
                 return true
             }
         case .menu:
-            DeckMenuSheet(deck: deck, onRename: { decks.rename(deck, to: $0) }, onEdit: nil, onDelete: {
+            DeckMenuSheet(deck: deck, onRename: { decks.rename(deck, to: $0) }, onEdit: {
+                withAnimation(.rift(0.64)) { builder.edit(Builder.fromDeck(deck, cards: index)) }
+            }, onDelete: {
                 opened = nil
                 closingDeck = false
                 decks.delete(deck)
@@ -171,7 +178,7 @@ struct RiftDecksView: View {
                         PileCell(deck: deck, legend: deck.legend.flatMap { index[$0.cardId] }, record: Tally.of(games.records.filter { $0.deckId == deck.id }),
                                  status: DeckRules.status(deck, cards: index), index: i, hidden: opened?.id == deck.id) { pile in openDeck(deck, from: pile) }
                     }
-                    NewDeckCell(index: decks.lists.count) { classicBuilder = true }
+                    NewDeckCell(index: decks.lists.count) { withAnimation(.rift(0.64)) { builder.start() } }
                     ShortlistCell(index: decks.lists.count + 1, kept: shortlist.ids.compactMap { index[$0] }) { shortlistShown = true }
                 }
                 .padding(.horizontal, 16)
@@ -208,6 +215,18 @@ struct RiftDecksView: View {
         guard opened != nil, !closingDeck else { return }
         tool = nil
         closingDeck = true
+    }
+
+    private func saveDraft(_ draft: Draft) {
+        let deck = Builder.toDeck(draft, pool: cards.allCards, at: Date())
+        if draft.editing != nil { decks.replace(deck) } else { decks.insert(deck) }
+        Haptics.success()
+        toast = BoardToast(text: draft.editing != nil ? "Saved \(deck.name)" : "\(deck.name) is on your table")
+        closeBuilder()
+    }
+
+    private func closeBuilder() {
+        withAnimation(.rift(0.64)) { builder.close() }
     }
 
     private func openLog(_ tile: String, deck: UUID? = nil) {

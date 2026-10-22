@@ -15,6 +15,9 @@ struct RiftAddToDeckSheet: View {
     @EnvironmentObject private var decks: DecklistStore
     @EnvironmentObject private var cards: CardStore
     @EnvironmentObject private var shortlist: ShortlistStore
+    @EnvironmentObject private var builder: DeckBuilderModel
+    @AppStorage("currentTab") private var currentTab: String = TabKey.score
+    @Environment(\.dismiss) private var dismiss
     @State private var toast: BoardToast?
 
     var body: some View {
@@ -29,6 +32,9 @@ struct RiftAddToDeckSheet: View {
                         .padding(.bottom, 14)
                     shortlistRow
                     ForEach(decks.lists) { deck in DeckRow(card: card, deck: deck, cards: index, onPlus: { plus(deck, index) }, onMinus: { minus(deck) }) }
+                    if card.isLegend || card.isChampionUnit || DeckRules.eligible(card, legendDomains: []) {
+                        newDeckButton
+                    }
                 }
                 .padding(16)
             }
@@ -48,6 +54,24 @@ struct RiftAddToDeckSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+
+    /// Starts the builder on the Decks tab; a legend starts the deck, any other card waits for a legend it fits.
+    private var newDeckButton: some View {
+        Button {
+            dismiss()
+            builder.start(with: card)
+            currentTab = TabKey.user
+        } label: {
+            Text("+ New deck with this card")
+                .font(RiftFont.text(14, .semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 50)
+                .overlay(Capsule().stroke(.white.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PressScale(scale: 0.97))
+        .padding(.top, 10)
     }
 
     private var intro: String {

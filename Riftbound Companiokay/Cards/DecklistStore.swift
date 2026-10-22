@@ -36,6 +36,13 @@ final class DecklistStore: ObservableObject {
         return new
     }
 
+    /// Adds a deck built elsewhere (the redesign's builder) with a single save.
+    func insert(_ list: Decklist) {
+        guard index(of: list) == nil else { return replace(list) }
+        lists.append(list)
+        save()
+    }
+
     func rename(_ list: Decklist, to newName: String) {
         guard let i = index(of: list) else { return }
         lists[i].name = newName

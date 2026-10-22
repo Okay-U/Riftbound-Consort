@@ -36,6 +36,13 @@ extension Card {
         return bare.isEmpty ? nil : bare
     }
 
+    /// The printing in the name's brackets: "Overnumbered", "Alternate Art", "Signature".
+    var printing: String? {
+        guard let open = name.lastIndex(of: "("), name.hasSuffix(")") else { return nil }
+        let inner = name[name.index(after: open)..<name.index(before: name.endIndex)].trimmingCharacters(in: .whitespaces)
+        return inner.isEmpty ? nil : inner
+    }
+
     /// Domains worth showing: the feed writes "Colorless" as one.
     var shownDomains: [String] { domains.filter { $0.lowercased() != "colorless" } }
 }

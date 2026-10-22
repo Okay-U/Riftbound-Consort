@@ -80,8 +80,27 @@ reviews in Xcode.
    `sh tools/check-decks/run.sh` runs the Android `DeckRulesTest` on its fixture) and the shortlist. Tiles
    load Riot's CDN WebP at tile width. `Card` gains `publicCode`. For Okay's review: "New deck with this
    card" joins with the new builder (phase 4); the filter and add sheets are native sheets.
-4. **Decks** (`DecksMix`): table of piles, the pile opening into the deck, test hand, odds, stats, match log
-   and game review, the seven-stop builder rail, shortlist spot.
+4. **Decks** (`DecksMix`) · done 2026-10-22, in three steps:
+   - 4a: the table of piles rising in (record, Legal chip), New deck, the shortlist fan and its sheet (a card
+     taken off stays dimmed until the sheet closes), the all-decks win rate ring and the last games, both
+     growing into the match log (deck chips, record, win rate, average game, first / second, game rows); a game
+     slides in as its review (result, race to 8, point by point) with the edit sheet (result, turn order, deck,
+     opponent legend, delete by tapping twice); import from pasted text, unmatched lines listed after.
+   - 4b: the pile opening into the deck: the legend grows into the banner, champion and battlefields fly out of
+     the pile, closing plays it back into the pile; test hand (fan off the pile, one mulligan of up to two to
+     the bottom), odds over several picked cards, stats, the deck's match log from its History button, champion
+     swap, battlefield picker, export, menu (rename, edit, delete by tapping twice), deck check; main, side and
+     runes as gallery or list, grouped by type or energy (the choice stays for every deck).
+   - 4c: the builder: seven stops on the light rail, pages sliding by direction, legend tiles, champion,
+     battlefields with art, main and side pools as a gallery (tap adds, minus takes back, blocked cards dim and
+     say why, Unit/Spell/Gear and Shortlist chips), runes with the full-pool trade, name and deck check; edit
+     keeps what the pickers cannot show; the steps card once (`didSeeBuilderTip`, shared with classic). Cards'
+     Add to deck gains "New deck with this card" (a legend starts the deck, any other card waits for a legend
+     it fits).
+   The deck math, the edits and the draft are checked by `sh tools/check-decks/run.sh` on the Android tests
+   (84 checks). For Okay's review: the import uses iOS's Paste button (no paste prompt) instead of reading the
+   clipboard on open; tool sheets are native sheets; cached card images now show without a placeholder flash
+   (shared image cache, both designs).
 5. **Settings + onboarding** (`SettingsHybrid`): flip tiles, player colours, help, about, the fonts in
    Acknowledgments, both tours, the Classic design switch.
 6. **Events** (`EventsMix`): Events · Stores · PlayRiftbound tabs, live card, event page with five tabs,

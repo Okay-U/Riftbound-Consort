@@ -12,6 +12,8 @@ import UIKit
 struct RedesignRoot: View {
     /// Shared with the classic tabs, so switching the design keeps the tab (Settings stays Settings).
     @AppStorage("currentTab") private var currentTab: String = TabKey.score
+    /// The deck being built: Cards' "New deck with this card" starts it, the Decks tab shows it.
+    @StateObject private var builder = DeckBuilderModel()
 
     var body: some View {
         TabView(selection: $currentTab) {
@@ -36,6 +38,7 @@ struct RedesignRoot: View {
                 .tag(TabKey.settings)
         }
         .tint(RiftColor.you)
+        .environmentObject(builder)
         .onAppear {
             // The classic Dice tab has no place here.
             if currentTab == TabKey.dice { currentTab = TabKey.score }
