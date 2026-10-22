@@ -66,3 +66,6 @@ fastlane/test_output
 
 # Xcode Cloud metadata generated when opening the project
 **/xcshareddata/xcodecloud/
+
+# Design plugin caches: Xcode copies every file in the app folders into the bundle
+.impeccable/
