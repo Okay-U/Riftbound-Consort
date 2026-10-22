@@ -87,7 +87,7 @@ struct CardSearchView: View {
             }
         }
         .navigationTitle("Cards (\(displayedCards.count))")
-        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search by name…")
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search name, text or tag…")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {

@@ -193,12 +193,26 @@ final class CardStore: ObservableObject {
     /// Bumped on every publish: card text, images or the preview flag can change while the
     /// number of cards stays the same.
     @Published private(set) var revision = 0
+    /// What a search reads besides the name, per card id; built once per publish, not per keystroke.
+    private var searchIndex: [String: String] = [:]
 
     private func publish(_ cards: [Card]) {
         revision += 1
         let unique = Self.dedupe(cards)
         allCards = unique
         legendNames = Self.computeLegendNames(from: unique)
+        searchIndex = Dictionary(uniqueKeysWithValues: unique.map { ($0.id, Self.searchText(of: $0)) })
+    }
+
+    /// The rules text without its icon tokens (`:rb_might:`) and the tags, so "Repeat" or "friendly" finds
+    /// every card that says it (Android parity, Okay 2026-10-22).
+    private static func searchText(of card: Card) -> String {
+        let rules = (card.text?.plain ?? "")
+            .replacingOccurrences(of: ":rb_[a-z0-9_]+:", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&amp;", with: "&")
+        return ([rules] + (card.tags ?? [])).joined(separator: " ")
     }
 
     // MARK: - Filtering
@@ -215,7 +229,12 @@ final class CardStore: ObservableObject {
                 && matchesRarities(card, selected: filters.rarities)
                 && matchesCost(card, filters: filters)
         }
-        return sorted(matched, primary: primarySort, secondary: secondarySort)
+        let ordered = sorted(matched, primary: primarySort, secondary: secondarySort)
+        // Cards named so come before cards that only say it in their text.
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return ordered }
+        return ordered.filter { $0.name.localizedCaseInsensitiveContains(q) }
+            + ordered.filter { !$0.name.localizedCaseInsensitiveContains(q) }
     }
 
     private func sorted(_ cards: [Card],
@@ -242,6 +261,7 @@ final class CardStore: ObservableObject {
     private func matchesQuery(_ card: Card, query: String) -> Bool {
         let q = query.trimmingCharacters(in: .whitespaces)
         return q.isEmpty || card.name.localizedCaseInsensitiveContains(q)
+            || searchIndex[card.id]?.localizedCaseInsensitiveContains(q) == true
     }
 
     private func matchesDomains(_ card: Card, selected: Set<String>) -> Bool {
