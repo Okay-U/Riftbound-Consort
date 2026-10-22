@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 9 to 11 (data_extraction_rules.xml for 12+): the web view's data (the Riot session cookies)
+     stays out of backups. -->
+<full-backup-content>
+    <exclude domain="root" path="app_webview/" />
+</full-backup-content>
