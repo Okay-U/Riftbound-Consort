@@ -62,9 +62,15 @@ reviews in Xcode.
      restart question is the native alert (the mock's dialog elsewhere); the seam is Liquid Glass on iOS 26;
      the board keeps its own game (`redesign.scoreboard`), so switching designs mid-game shows the other
      design's score; the player count still comes from the classic quick settings until phase 5.
-   - 2b: game setup (your deck and turn order, the opponent's legend) by tapping a half's name.
-   - 2c: match mode (seam with table and Start match, round clock, Report / End, summary with the light
-     rail, result picker, report to PlayRiftbound).
+   - 2b · done 2026-10-22: game setup (your deck and turn order, the opponent's legend) by tapping a
+     half's name; native sheets.
+   - 2c · done 2026-10-22: match mode (Settings "Match mode", two players): the trophy checks
+     PlayRiftbound, the event line before round 1 / bye / reported, the pairing's table and opponent with
+     Start match, the round countdown (gold once over) or the match clock (long press pauses), Report /
+     End, the summary with the light rail and slide to report (the pairing is fetched again first, as in
+     the classic report sheet), the result picker. The strip now carries the round chip and its clock's
+     end. For Okay's review: "Open the event?" opens the event's PlayRiftbound page in Events (like the
+     classic strip; the native event screen joins with phase 6); the result picker is a native sheet.
 3. **Cards** (`CardsFinal`): grid with the rising tiles, tile grows into the detail, filter sheet with the
    sliders, Add to deck with the builder rules, shortlist.
 4. **Decks** (`DecksMix`): table of piles, the pile opening into the deck, test hand, odds, stats, match log

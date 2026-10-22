@@ -21,6 +21,10 @@ nonisolated struct PlayRiftboundStrip: Sendable, Equatable, Identifiable {
     let webURL: URL?
     /// nil until the tournament has a round with the player in it.
     let pairing: CompetePairing?
+    /// The pairing's round as a chip ("R3", "QF"), for the redesign's seam.
+    var roundShort: String? = nil
+    /// While the round runs: its clock's end (`startedAt` plus `roundDuration`, 60 minutes when none).
+    var roundEndsAt: Date? = nil
 
     var id: String { tournamentID + (pairing.map { "-\($0.roundID)" } ?? "") }
 }
@@ -102,10 +106,18 @@ final class PlayRiftboundMatchStore: ObservableObject {
             }
 
             var pairing: CompetePairing?
+            var roundShort: String?
+            var roundEndsAt: Date?
             if let tournament = try await api.tournament(id: next.tournament.id, credentials: credentials),
                let gameName = credentials.gameName,
                let playerID = tournament.playerID(gameName: gameName, tagLine: credentials.tagLine) {
                 pairing = CompetePairing.resolve(in: tournament, playerID: playerID)
+                if let roundID = pairing?.roundID, let round = tournament.rounds.first(where: { $0.id == roundID }) {
+                    roundShort = tournament.shortTitle(of: round)
+                    if let started = round.startedAt, round.matches.contains(where: { !$0.isComplete }) {
+                        roundEndsAt = started.addingTimeInterval(TimeInterval(round.roundDuration ?? 60) * 60)
+                    }
+                }
             }
 
             let strip = PlayRiftboundStrip(tournamentID: next.tournament.id,
@@ -113,7 +125,9 @@ final class PlayRiftboundMatchStore: ObservableObject {
                                            organizerName: next.organizer?.name,
                                            startsAt: next.tournament.startsAt,
                                            webURL: next.tournament.webURL,
-                                           pairing: pairing)
+                                           pairing: pairing,
+                                           roundShort: roundShort,
+                                           roundEndsAt: roundEndsAt)
             lastError = nil
             lastRefresh = Date()
             if strip.id == dismissedID { current = nil; hidden = strip; return }

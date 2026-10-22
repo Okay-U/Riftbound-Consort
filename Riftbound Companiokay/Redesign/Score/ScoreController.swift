@@ -30,6 +30,10 @@ final class ScoreController: ObservableObject {
     @Published private(set) var turnOrder: String
     /// The game setup sheet a half's name opened.
     @Published var setup: SetupSheet?
+    /// "End the match" / "Set them yourself": one result per game of the series.
+    @Published private(set) var picker: ResultPicker?
+    /// The series this board reported to PlayRiftbound; in memory only, any other series is not it.
+    @Published private(set) var sentReport: SentReport?
 
     private weak var games: GameRecordStore?
     private weak var decks: DecklistStore?
@@ -126,7 +130,60 @@ final class ScoreController: ObservableObject {
         apply(state.restart(), .warning)
     }
 
-    func newMatch() { apply(state.newMatch(), .warning) }
+    func newMatch() {
+        picker = nil
+        // The next series may end with the same games; it is not reported until it is sent.
+        sentReport = nil
+        apply(state.newMatch(), .warning)
+    }
+
+    // MARK: Live match
+
+    /// "Start match" in the seam: a fresh match for the PlayRiftbound pairing, in its event's format.
+    func startLive(_ link: TableLink) {
+        picker = nil
+        sentReport = nil
+        closeRoll()
+        apply(state.startLive(tag: link.tag, bestOf: link.bestOf), .success)
+        show("Live match · \(link.tag) · best of \(state.bestOf)")
+    }
+
+    /// The event says one game but the table plays three: game 1 no longer ends the live match.
+    func playBestOfThree() {
+        apply(state.withBestOf(3), .tick)
+        if state.bestOf == 3 { show("Best of 3 · first to two games") }
+    }
+
+    /// End or set the results of a live series, one row per game it can have.
+    func openPicker(ending: Bool) {
+        guard state.isSeries else { return }
+        let log = state.log
+        picker = ResultPicker(ending: ending, picks: (0..<state.bestOf).map { $0 < log.count ? log[$0].winner : nil }, need: state.winsNeeded)
+    }
+
+    func choose(_ game: Int, _ value: Int) { picker = picker?.choose(game, value) }
+    func closePicker() { picker = nil }
+
+    func pickDone() {
+        guard let p = picker else { return }
+        let set = p.picks.prefix { $0 != nil }.compactMap { $0 }
+        guard !set.isEmpty else { return }
+        let old = state.log
+        let log = set.enumerated().map { i, winner in i < old.count && old[i].winner == winner ? old[i] : PlayedGame(winner: winner) }
+        // The game being played when the match was ended counts too (a concession), like the classic Won/Lost.
+        if set.count > old.count && !state.gameOver && set[old.count] != Seat.draw { record(winner: set[old.count], state) }
+        picker = nil
+        var next = state
+        next.log = log
+        next.ended = true
+        next.asking = -1
+        apply(next, .success)
+    }
+
+    func reported(_ report: SentReport) { sentReport = report }
+
+    /// Only while the games on the board are the ones sent.
+    var reportedSeries: SentReport? { sentReport?.log == state.log ? sentReport : nil }
 
     /// From Settings: an open roll has one die per seat, so it closes.
     func setPlayers(_ count: Int) {

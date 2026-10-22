@@ -12,15 +12,34 @@ import SwiftUI
 struct RedesignScoreView: View {
     @EnvironmentObject private var games: GameRecordStore
     @EnvironmentObject private var decks: DecklistStore
+    @EnvironmentObject private var riftMatch: PlayRiftboundMatchStore
+    @EnvironmentObject private var riftBrowser: PlayRiftboundBrowser
     @AppStorage("playerCount") private var playerCount = 2
+    @AppStorage("matchModeEnabled") private var matchModeEnabled = true
+    @AppStorage("currentTab") private var currentTab = TabKey.score
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var c = ScoreController()
+    @State private var askingEvent = false
+
+    /// Match mode's PlayRiftbound for the board; none with match mode off or four players.
+    private var match: MatchInfo? {
+        matchModeEnabled && c.state.isDuel ? MatchInfo(strip: riftMatch.current) : nil
+    }
 
     var body: some View {
         GeometryReader { geo in
             let area = geo.size.height
             ZStack(alignment: .top) {
                 if c.state.isDuel {
-                    DuelBoard(c: c, area: area, topInset: geo.safeAreaInsets.top)
+                    DuelBoard(
+                        c: c, area: area, topInset: geo.safeAreaInsets.top, match: match,
+                        checking: riftMatch.isRefreshing, onCheck: check,
+                        onOpenEvent: match?.webURL == nil ? nil : { askingEvent = true },
+                        onRefresh: { refresh(force: true) },
+                        report: { [riftBrowser, riftMatch] link, winners in
+                            try await MatchReport.send(link, winners: winners, browser: riftBrowser, store: riftMatch)
+                        }
+                    )
                 } else {
                     FourBoard(c: c, area: area)
                 }
@@ -45,14 +64,40 @@ struct RedesignScoreView: View {
         } message: {
             Text(restartText)
         }
+        .alert("Open the event?", isPresented: $askingEvent) {
+            Button("Stay here", role: .cancel) {}
+            Button("Open event") { if let url = match?.webURL { riftBrowser.open(url) } }
+        } message: {
+            Text("\(match?.event ?? "The event") opens in Events. Your scoreboard stays as it is.")
+        }
         .sheet(item: $c.setup) { sheet in
             switch sheet {
             case .deck: DeckPickSheet(c: c)
             case .opponent: OpponentPickSheet(c: c)
             }
         }
+        .sheet(isPresented: Binding(get: { c.picker != nil }, set: { if !$0 { c.closePicker() } })) {
+            ResultPickerSheet(c: c, colors: PlayerSwatches.colors(players: 2))
+        }
         .onAppear { c.attach(games: games, decks: decks) }
         .onChange(of: playerCount, initial: true) { _, count in c.setPlayers(count) }
+        // The pairing is asked for when the board shows (pairings go up between rounds), not on a timer.
+        .task { refresh(force: false) }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { refresh(force: false) } }
+        .onChange(of: currentTab) { _, tab in if tab == TabKey.score { refresh(force: false) } }
+    }
+
+    private func refresh(force: Bool) {
+        guard matchModeEnabled, c.state.isDuel else { return }
+        Task { await riftMatch.refresh(browser: riftBrowser, force: force) }
+    }
+
+    /// The trophy: asks PlayRiftbound now and says what came back.
+    private func check() {
+        Task {
+            await riftMatch.refresh(browser: riftBrowser, force: true)
+            c.show(MatchInfo.checked(riftMatch))
+        }
     }
 
     private var restartTitle: String {
@@ -75,6 +120,12 @@ private struct DuelBoard: View {
     @ObservedObject var c: ScoreController
     let area: CGFloat
     let topInset: CGFloat
+    let match: MatchInfo?
+    let checking: Bool
+    let onCheck: () -> Void
+    let onOpenEvent: (() -> Void)?
+    let onRefresh: () -> Void
+    let report: SeriesReport
 
     var body: some View {
         let s = c.state
@@ -100,7 +151,12 @@ private struct DuelBoard: View {
                 Half(c: c, slot: Seat.you, colors: colors)
             }
             .frame(height: area)
-            Seam(c: c).offset(y: center - 27)
+            Seam(c: c, match: match, checking: checking, onCheck: onCheck, onOpenEvent: onOpenEvent)
+                .offset(y: center - 27)
+            if s.showSummary {
+                MatchSummary(c: c, colors: colors, centerY: center, link: match?.link, onRefresh: onRefresh, report: report)
+                    .frame(height: area)
+            }
         }
     }
 
