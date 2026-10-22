@@ -154,6 +154,15 @@ class DeckMathTest {
         repeat(10) { h = h.draw() }
         assertEquals(Hand.MAX, h.cards.size)
     }
+
+    @Test
+    fun `a new hand gets new card ids, so it is drawn fresh`() {
+        val deck = Decklist(name = "H", createdAt = 0, updatedAt = 0, mainDeck = (1..10).map { DecklistEntry("c$it", "C$it", 1) })
+        val first = Hand.deal(deck, Random(3))
+        val next = Hand.deal(deck, Random(4), firstId = first.nextId)
+        assertEquals(listOf(4, 5, 6, 7), next.cards.map { it.id })
+        assertEquals(8, next.nextId)
+    }
 }
 
 class MatchLogTest {

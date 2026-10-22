@@ -44,7 +44,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -74,6 +73,7 @@ import kotlin.math.min
 import pitopia.riftcount.ui.common.LinkButton
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.RoundIcon
+import pitopia.riftcount.ui.common.softBlur
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
@@ -357,7 +357,7 @@ private fun Reveal(shown: Boolean, step: Int, modifier: Modifier = Modifier, con
             alpha = v
             translationY = 14.dp.toPx() * (1f - v)
             val blur = 8.dp.toPx() * (1f - v)
-            renderEffect = if (blur > 0.5f) BlurEffect(blur, blur) else null
+            renderEffect = softBlur(blur)
         },
     ) { content() }
 }

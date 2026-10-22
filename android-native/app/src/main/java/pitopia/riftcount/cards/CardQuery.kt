@@ -11,11 +11,13 @@ data class CardFilters(
     val energy: IntRange = 0..ENERGY_CAP,
     val power: IntRange = 0..POWER_CAP,
     val might: IntRange = 0..MIGHT_CAP,
+    /** Only the cards on the [Shortlist]. */
+    val shortlist: Boolean = false,
 ) {
     /** Filters behind the Filter button (domains have their own row). */
     val sheetCount: Int
         get() = types.size + series.size + rarities.size +
-            listOf(energy != 0..ENERGY_CAP, power != 0..POWER_CAP, might != 0..MIGHT_CAP).count { it }
+            listOf(energy != 0..ENERGY_CAP, power != 0..POWER_CAP, might != 0..MIGHT_CAP, shortlist).count { it }
 
     companion object {
         const val ENERGY_CAP = 12
@@ -35,19 +37,21 @@ data class CardFilters(
 
 object CardQuery {
     /** Matching cards in [sort] order; with a search, the cards named so lead those that only say it in their text. */
-    fun filter(cards: List<Card>, query: String, f: CardFilters, sort: CardSort): List<Card> {
+    fun filter(cards: List<Card>, query: String, f: CardFilters, sort: CardSort, shortlist: Set<String> = emptySet()): List<Card> {
         val q = query.trim()
-        val hits = cards.filter { matches(it, q, f) }.sortedWith(comparator(sort))
+        val hits = cards.filter { matches(it, q, f, shortlist) }.sortedWith(comparator(sort))
         if (q.isEmpty()) return hits
         val (named, said) = hits.partition { it.name.contains(q, ignoreCase = true) }
         return named + said
     }
 
     /** Hits without sorting, for the filter sheet's live "Show N cards" while a slider moves. */
-    fun count(cards: List<Card>, query: String, f: CardFilters): Int = cards.count { matches(it, query.trim(), f) }
+    fun count(cards: List<Card>, query: String, f: CardFilters, shortlist: Set<String> = emptySet()): Int =
+        cards.count { matches(it, query.trim(), f, shortlist) }
 
-    private fun matches(c: Card, q: String, f: CardFilters) =
-        (q.isEmpty() || c.name.contains(q, ignoreCase = true) || c.searchText.contains(q, ignoreCase = true)) &&
+    private fun matches(c: Card, q: String, f: CardFilters, shortlist: Set<String>) =
+        (!f.shortlist || c.id in shortlist) &&
+            (q.isEmpty() || c.name.contains(q, ignoreCase = true) || c.searchText.contains(q, ignoreCase = true)) &&
             (f.domains.isEmpty() || c.domains.any { d -> f.domains.any { it.equals(d, true) } }) &&
             (f.types.isEmpty() || f.types.any { matchesType(c, it) }) &&
             (f.series.isEmpty() || f.series.any { c.set?.label?.contains(it, ignoreCase = true) == true }) &&

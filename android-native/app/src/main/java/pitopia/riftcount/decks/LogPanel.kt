@@ -38,7 +38,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.GraphicsLayerScope
@@ -66,6 +65,7 @@ import pitopia.riftcount.data.GameRecord
 import pitopia.riftcount.score.OPPONENT
 import pitopia.riftcount.score.YOU
 import pitopia.riftcount.ui.common.RoundIcon
+import pitopia.riftcount.ui.common.softBlur
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
@@ -151,7 +151,7 @@ private fun GraphicsLayerScope.faded(v: Float) {
     alpha = v
     translationY = 12.dp.toPx() * (1f - v)
     val b = 8.dp.toPx() * (1f - v)
-    renderEffect = if (b > 0.5f) BlurEffect(b, b) else null
+    renderEffect = softBlur(b)
 }
 
 /** A filter change replays the list's rise. */

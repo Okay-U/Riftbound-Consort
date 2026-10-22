@@ -50,8 +50,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -80,6 +83,11 @@ object CardIcons {
     val Filter = lineIcon("M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 6a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M8 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M16 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0", 18.dp)
     val Back = lineIcon("M19 12H5M11 18l-6-6 6-6", 20.dp, 2.2f)
     val Plus = lineIcon("M12 5v14M5 12h14", 18.dp, 2.6f)
+    private const val STAR = "M12 3.5l2.6 5.3 5.9.9-4.25 4.15 1 5.85L12 16.9l-5.25 2.8 1-5.85L3.5 9.7l5.9-.9z"
+    val Star = lineIcon(STAR, 20.dp, 1.9f)
+    val StarFilled = ImageVector.Builder(defaultWidth = 20.dp, defaultHeight = 20.dp, viewportWidth = 24f, viewportHeight = 24f)
+        .addPath(addPathNodes(STAR), fill = SolidColor(Color.White), stroke = SolidColor(Color.White), strokeLineWidth = 1.9f, strokeLineJoin = StrokeJoin.Round)
+        .build()
 }
 
 @Composable

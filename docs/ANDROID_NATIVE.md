@@ -294,6 +294,13 @@ go through the builder, whose battlefields, main and side are galleries now (a t
 card takes one back). A full rune pool of a two-domain legend stays at 12: one domain down is the other up.
 The match log closing dissolves into its tile instead of shrinking as a black box.
 
+Decks and Cards, round 2 (2026-10-22): New hand gathers the cards back onto the pile, then deals four new
+ones with their own images (a card face that changed card in place kept the last card's image). The list
+view keeps the Type · Energy switch and its groups. Every blur fades out at its edge (`softBlur`, decal edge)
+instead of ending in a box. Shortlist (Okay's "Merkliste"): Save on a card's Add to deck sheet; the builder's
+main and side show a Shortlist chip with the kept cards the legend may play, the Cards filter has
+"My shortlist".
+
 ## Open points
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build

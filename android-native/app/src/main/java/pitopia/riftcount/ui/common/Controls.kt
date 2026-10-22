@@ -32,7 +32,9 @@ import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -48,6 +50,12 @@ import androidx.compose.ui.unit.sp
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
+
+/**
+ * A layer blur that fades out at its edge. The default edge (Clamp) repeats the border pixels, so a blurred
+ * card or number ended in a box (Okay, 2026-10-22).
+ */
+fun softBlur(px: Float): RenderEffect? = if (px > 0.5f) BlurEffect(px, px, TileMode.Decal) else null
 
 /** Tap target that shrinks a little while pressed (the mocks' `:active { scale(.94) }`), no ripple. */
 @Composable
@@ -148,7 +156,7 @@ fun Rise(shown: Boolean, delayMs: Int, modifier: Modifier = Modifier, content: @
             alpha = v
             translationY = 14.dp.toPx() * (1f - v)
             val b = 8.dp.toPx() * (1f - v)
-            renderEffect = if (b > 0.5f) BlurEffect(b, b) else null
+            renderEffect = softBlur(b)
         },
     ) { content() }
 }

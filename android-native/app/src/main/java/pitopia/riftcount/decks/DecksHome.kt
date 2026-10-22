@@ -40,7 +40,6 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -78,6 +77,7 @@ import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.data.GameRecord
 import pitopia.riftcount.ui.common.RoundIcon
 import pitopia.riftcount.ui.common.lineIcon
+import pitopia.riftcount.ui.common.softBlur
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
@@ -198,7 +198,7 @@ private fun Modifier.cellIn(t: Animatable<Float, *>) = graphicsLayer {
     alpha = v
     translationY = 16.dp.toPx() * (1f - v)
     val b = 8.dp.toPx() * (1f - v)
-    renderEffect = if (b > 0.5f) BlurEffect(b, b) else null
+    renderEffect = softBlur(b)
 }
 
 @Composable

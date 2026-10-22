@@ -49,6 +49,16 @@ class CardQueryTest {
     }
 
     @Test
+    fun `the shortlist filter keeps only the cards kept in mind`() {
+        val all = listOf(Card(id = "1", name = "Sprite Fountain"), Card(id = "2", name = "Repeater"), Card(id = "3", name = "Brambleback"))
+        val kept = setOf("3", "1")
+        assertEquals(listOf("3", "1").sorted(), CardQuery.filter(all, "", CardFilters(shortlist = true), CardSort.Set, kept).map { it.id }.sorted())
+        assertEquals(3, CardQuery.filter(all, "", CardFilters(), CardSort.Set, kept).size)
+        assertEquals(1, CardQuery.count(all, "spr", CardFilters(shortlist = true), kept))
+        assertEquals(1, CardFilters(shortlist = true).sheetCount)
+    }
+
+    @Test
     fun `search, domains and types combine`() {
         val fury = CardQuery.filter(all, "", CardFilters(domains = setOf("Fury")), CardSort.Set)
         assertTrue(fury.isNotEmpty() && fury.all { c -> c.domains.any { it.equals("Fury", true) } })

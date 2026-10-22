@@ -35,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -61,6 +60,7 @@ import pitopia.riftcount.data.DecklistStore
 import pitopia.riftcount.ui.common.LinkButton
 import pitopia.riftcount.ui.common.Pill
 import pitopia.riftcount.ui.common.Pressable
+import pitopia.riftcount.ui.common.softBlur
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
@@ -114,10 +114,11 @@ fun CardsScreen(
     DisposableEffect(Unit) { onDispose { overlay(false) } }
     // Filtering 1400 cards per keystroke or slider step is wasted work: wait for a pause, like iOS.
     var appliedKey by remember { mutableStateOf<Any?>(null) }
-    LaunchedEffect(store.revision, ui.query, ui.filters, ui.sort) {
+    val kept = if (ui.filters.shortlist) Shortlist.ids else emptySet()
+    LaunchedEffect(store.revision, ui.query, ui.filters, ui.sort, kept) {
         val key = Triple(ui.query, ui.filters, ui.sort)
         if (ui.shown.isNotEmpty()) delay(120)
-        val next = withContext(Dispatchers.Default) { CardQuery.filter(store.cards, ui.query, ui.filters, ui.sort) }
+        val next = withContext(Dispatchers.Default) { CardQuery.filter(store.cards, ui.query, ui.filters, ui.sort, kept) }
         ui.shown = next
         if (key != appliedKey) {
             if (appliedKey != null) {
@@ -194,7 +195,7 @@ fun CardsScreen(
     if (filtering) {
         FilterSheet(
             filters = ui.filters, onChange = { ui.filters = it }, store = store,
-            count = remember(store.revision, ui.query, ui.filters) { CardQuery.count(store.cards, ui.query, ui.filters) },
+            count = remember(store.revision, ui.query, ui.filters, Shortlist.ids) { CardQuery.count(store.cards, ui.query, ui.filters, Shortlist.ids) },
             onDismiss = {
                 filtering = false
                 if (replayPending) {
@@ -238,7 +239,7 @@ private fun CardGrid(ui: CardsUi, errata: ErrataStore, columns: Int, tilePx: Int
                         scaleX = 0.96f + 0.04f * v
                         scaleY = scaleX
                         val blur = 6.dp.toPx() * (1f - v)
-                        renderEffect = if (blur > 0.5f) BlurEffect(blur, blur) else null
+                        renderEffect = softBlur(blur)
                     }
                     .semantics { contentDescription = tileLabel(card) },
                 pressedScale = 0.96f,

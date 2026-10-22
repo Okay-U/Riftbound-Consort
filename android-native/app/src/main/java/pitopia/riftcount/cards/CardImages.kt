@@ -82,6 +82,8 @@ fun rememberCardArt(card: Card, widthPx: Int): State<ImageBitmap?> {
     val w = if (card.orientation.equals("landscape", true)) (widthPx / CARD_ASPECT).toInt() else widthPx
     val url = card.media?.imageUrl?.let { CardImages.sized(it, w) }
     return produceState(initialValue = url?.let(CardImages::cached), url) {
+        // Another card in the same place (a new hand) starts from its own image, never the last card's.
+        value = url?.let(CardImages::cached)
         if (url != null && value == null) value = CardImages.load(url)
     }
 }

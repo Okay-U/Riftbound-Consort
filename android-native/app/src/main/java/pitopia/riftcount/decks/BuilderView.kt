@@ -57,7 +57,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.TransformOrigin
@@ -79,8 +78,10 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import pitopia.riftcount.cards.Card
 import pitopia.riftcount.cards.SearchField
+import pitopia.riftcount.cards.Shortlist
 import pitopia.riftcount.data.DeckRules
 import pitopia.riftcount.ui.common.LinkButton
+import pitopia.riftcount.ui.common.softBlur
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
@@ -211,7 +212,7 @@ private fun TitleLine(title: String, key: BuildStep) {
             alpha = t.value
             translationY = 10.dp.toPx() * (1f - t.value)
             val b = 8.dp.toPx() * (1f - t.value)
-            renderEffect = if (b > 0.5f) BlurEffect(b, b) else null
+            renderEffect = softBlur(b)
         },
         style = RiftType.Title.copy(fontSize = 32.sp, lineHeight = 32.sp, color = Color.White),
     )
@@ -347,7 +348,13 @@ private fun Progress(fraction: Float) {
 private fun PoolPage(d: Draft, pile: Pile, pool: List<Card>, index: Map<String, Card>, onToast: (String) -> Unit, onChange: (Draft) -> Unit) {
     var query by remember { mutableStateOf("") }
     var types by remember { mutableStateOf(emptySet<String>()) }
-    val cards = remember(d.legend, pool, query, types) { Builder.pool(d, pool, query, types) }
+    var shortlisted by remember { mutableStateOf(false) }
+    val kept = Shortlist.ids
+    // Only the kept cards this legend may play count, so the chip never promises cards it cannot show.
+    val keptHere = remember(d.legend, pool, kept) { Builder.pool(d, pool).count { it.id in kept } }
+    val cards = remember(d.legend, pool, query, types, shortlisted, kept) {
+        Builder.pool(d, pool, query, types).let { all -> if (shortlisted) all.filter { it.id in kept } else all }
+    }
     val main = pile == Pile.Main
     val tilePx = LocalWindowInfo.current.containerSize.width / 3
     PoolGrid {
@@ -358,6 +365,8 @@ private fun PoolPage(d: Draft, pile: Pile, pool: List<Card>, index: Map<String, 
             SearchField(query, inset = 0.dp) { query = it }
             Row(Modifier.padding(top = 10.dp, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("Unit", "Spell", "Gear").forEach { t -> OnOffChip(t, t in types, height = 34.dp) { types = if (t in types) types - t else types + t } }
+                // The cards kept in mind from the Cards tab, so they need no searching.
+                if (keptHere > 0) OnOffChip("Shortlist $keptHere", shortlisted, height = 34.dp) { shortlisted = !shortlisted }
             }
             if (d.legend == null) BasicText("Pick a legend first: its domains decide the cards.", Modifier.padding(vertical = 12.dp), style = SheetText)
         }

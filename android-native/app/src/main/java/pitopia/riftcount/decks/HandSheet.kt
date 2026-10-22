@@ -1,6 +1,7 @@
 package pitopia.riftcount.decks
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -22,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +44,7 @@ import androidx.compose.ui.util.lerp
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import pitopia.riftcount.cards.Card
 import pitopia.riftcount.cards.CardFace
 import pitopia.riftcount.cards.rememberCardArt
@@ -58,7 +61,10 @@ import pitopia.riftcount.ui.theme.RiftType
 @Composable
 fun HandSheet(deck: Decklist, index: Map<String, Card>, onDismiss: () -> Unit) {
     val toaster = remember { Toaster() }
+    val scope = rememberCoroutineScope()
     var hand by remember { mutableStateOf(Hand.deal(deck)) }
+    // New hand: the cards fly back onto the pile first, then four new ones come off it.
+    var collecting by remember { mutableStateOf(false) }
     Sheet("Draw a test hand", onDismiss, overlay = { ToastHost(toaster) }) {
         BasicText("Test hand · ${deck.name}", style = SheetTitle)
         Row(Modifier.fillMaxWidth().padding(top = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -74,25 +80,35 @@ fun HandSheet(deck: Decklist, index: Map<String, Card>, onDismiss: () -> Unit) {
             )
             BasicText("${hand.pile.size} left in deck", style = style)
         }
-        Fan(hand, index) { id ->
+        Fan(hand, index, collecting) { id ->
             val (next, note) = hand.toggle(id)
             hand = next
             note?.let(toaster::show)
         }
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            WideButton("New hand", Modifier.weight(1f)) { hand = Hand.deal(deck) }
-            WideButton("Draw 1", Modifier.weight(1f), enabled = hand.canDraw) { hand = hand.draw() }
+            WideButton("New hand", Modifier.weight(1f), enabled = !collecting) {
+                scope.launch {
+                    collecting = true
+                    delay(COLLECT_MS + hand.cards.size * COLLECT_STAGGER_MS)
+                    hand = Hand.deal(deck, firstId = hand.nextId)
+                    collecting = false
+                }
+            }
+            WideButton("Draw 1", Modifier.weight(1f), enabled = hand.canDraw && !collecting) { hand = hand.draw() }
             WideButton(
                 if (hand.marked.isNotEmpty()) "Mulligan ${hand.marked.size}" else "Mulligan", Modifier.weight(1f),
-                fill = RiftColors.Gold, ink = Color.Black, enabled = hand.canMulligan,
+                fill = RiftColors.Gold, ink = Color.Black, enabled = hand.canMulligan && !collecting,
             ) { hand = hand.mulligan() }
         }
     }
 }
 
+private const val COLLECT_MS = 380L
+private const val COLLECT_STAGGER_MS = 45L
+
 /** The mock's fan: cards on an arc of 300dp radius, up to 40° wide; a marked card lifts and glows amber. */
 @Composable
-private fun Fan(hand: Hand, index: Map<String, Card>, onTap: (Int) -> Unit) {
+private fun Fan(hand: Hand, index: Map<String, Card>, collecting: Boolean, onTap: (Int) -> Unit) {
     val density = LocalDensity.current
     BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 6.dp).height(300.dp)) {
         val w = maxWidth
@@ -116,6 +132,12 @@ private fun Fan(hand: Hand, index: Map<String, Card>, onTap: (Int) -> Unit) {
                 LaunchedEffect(Unit) {
                     delay(order * 90L)
                     fly.animateTo(1f, tween(700, easing = RiftEase))
+                }
+                // Back onto the pile, the last card first.
+                LaunchedEffect(collecting) {
+                    if (!collecting) return@LaunchedEffect
+                    delay((n - 1 - i) * COLLECT_STAGGER_MS)
+                    fly.animateTo(0f, tween(COLLECT_MS.toInt(), easing = FastOutLinearInEasing))
                 }
                 val card = index[c.cardId]
                 val art by if (card != null) rememberCardArt(card, with(density) { 112.dp.roundToPx() }) else remember { mutableStateOf(null) }

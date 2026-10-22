@@ -1,5 +1,6 @@
 package pitopia.riftcount.cards
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -35,11 +37,13 @@ import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.data.DecklistStore
 import pitopia.riftcount.platform.Haptic
 import pitopia.riftcount.platform.haptic
+import pitopia.riftcount.ui.common.Pill
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.Sheet
 import pitopia.riftcount.ui.common.Stepper
 import pitopia.riftcount.ui.common.ToastHost
 import pitopia.riftcount.ui.common.Toaster
+import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftType
 
 /** Copies of [card] per deck with a stepper; decks it cannot join are greyed out with the reason. */
@@ -64,6 +68,10 @@ fun AddToDeckSheet(card: Card, decks: DecklistStore, index: Map<String, Card>, o
             Modifier.padding(top = 4.dp, bottom = 14.dp),
             style = RiftType.Body.copy(fontSize = 13.sp, lineHeight = 19.sp, fontWeight = FontWeight.Normal, color = Color.White.copy(alpha = 0.72f)),
         )
+        ShortlistRow(card) { on ->
+            view.haptic(Haptic.Tick)
+            toaster.show(if (on) "On your shortlist · find it in the builder" else "Off your shortlist")
+        }
         decks.lists.forEach { deck ->
             DeckRow(card, deck, index, onPlus = { plus(deck) }, onMinus = {
                 decks.replace(DeckRules.remove(card, deck, System.currentTimeMillis()))
@@ -78,6 +86,34 @@ fun AddToDeckSheet(card: Card, decks: DecklistStore, index: Map<String, Card>, o
                 onNewDeck()
             }
         }
+    }
+}
+
+/** Keeps the card in mind for a deck to come (the builder's Shortlist chip, the Cards filter). */
+@Composable
+private fun ShortlistRow(card: Card, onToggled: (Boolean) -> Unit) {
+    val on = Shortlist.has(card.id)
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(44.dp).background(if (on) RiftColors.You else Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(if (on) CardIcons.StarFilled else CardIcons.Star, null, colorFilter = ColorFilter.tint(if (on) Color.Black else Color.White))
+        }
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            BasicText("Shortlist", style = RiftType.Body.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White), maxLines = 1)
+            BasicText(
+                "Keep it in mind for a deck · ${Shortlist.ids.size} on it",
+                style = RiftType.Body.copy(fontSize = 12.5.sp, lineHeight = 16.sp, color = Color.White.copy(alpha = 0.66f)),
+            )
+        }
+        Pill(
+            if (on) "Saved" else "Save", { onToggled(Shortlist.toggle(card.id)) }, Modifier.height(36.dp),
+            fill = if (on) RiftColors.You else Color.White.copy(alpha = 0.12f), ink = if (on) Color.Black else Color.White,
+        )
     }
 }
 

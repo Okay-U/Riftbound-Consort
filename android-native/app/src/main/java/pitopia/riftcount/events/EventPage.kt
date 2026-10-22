@@ -34,7 +34,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
@@ -53,6 +52,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.Toaster
+import pitopia.riftcount.ui.common.softBlur
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
@@ -231,7 +231,7 @@ private fun TabContent(tab: EvTab, content: @Composable ColumnScope.() -> Unit) 
             alpha = v
             translationX = 24.dp.toPx() * (1f - v)
             val b = 6.dp.toPx() * (1f - v)
-            renderEffect = if (b > 0.5f) BlurEffect(b, b) else null
+            renderEffect = softBlur(b)
         },
         content = content,
     )

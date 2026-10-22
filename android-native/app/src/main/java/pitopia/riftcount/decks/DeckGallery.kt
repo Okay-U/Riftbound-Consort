@@ -74,9 +74,9 @@ private fun typeLabel(type: String) = when (type) {
     else -> type.replaceFirstChar { it.titlecase() }
 }
 
-/** The deck detail's gallery: group headers with their counts, three cards to a row, the copies on each. */
+/** The deck detail's piles: group headers with their counts, then three cards to a row (or [list] rows), the copies on each. */
 @Composable
-fun PileGallery(entries: List<DecklistEntry>, index: Map<String, Card>, byEnergy: Boolean, championId: String?, modifier: Modifier = Modifier) {
+fun PileGallery(entries: List<DecklistEntry>, index: Map<String, Card>, byEnergy: Boolean, championId: String?, list: Boolean, modifier: Modifier = Modifier) {
     // A card the list no longer knows still shows, as its name on a blank face.
     val cards = entries.map { (index[it.cardId] ?: Card(id = it.cardId, name = it.cardName)) to it.count }
     val tilePx = LocalWindowInfo.current.containerSize.width / COLUMNS
@@ -86,7 +86,9 @@ fun PileGallery(entries: List<DecklistEntry>, index: Map<String, Card>, byEnergy
                 GroupLabel(label)
                 GroupLabel("${group.sumOf { it.second }}")
             }
-            group.chunked(COLUMNS).forEach { row ->
+            if (list) {
+                group.forEach { (card, count) -> CardRow(DecklistEntry(card.id, card.name, count), index[card.id], card.id == championId) }
+            } else group.chunked(COLUMNS).forEach { row ->
                 Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     row.forEach { (card, count) ->
                         CardTile(card, tilePx, Modifier.weight(1f)) {

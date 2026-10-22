@@ -66,6 +66,8 @@ fun FilterSheet(filters: CardFilters, onChange: (CardFilters) -> Unit, store: Ca
                 onChange(CardFilters(domains = filters.domains))
             })
         }
+        val mine = "My shortlist · ${Shortlist.ids.size}"
+        ChipSection("Shortlist", listOf(mine), if (filters.shortlist) setOf(mine) else emptySet(), gems = false) { onChange(filters.copy(shortlist = !filters.shortlist)) }
         ChipSection("Type", types, filters.types, gems = false) { onChange(filters.copy(types = filters.types.toggle(it))) }
         ChipSection("Series", CardFilters.knownSeries, filters.series, gems = false) { onChange(filters.copy(series = filters.series.toggle(it))) }
         ChipSection("Rarity", rarities, filters.rarities, gems = true) { onChange(filters.copy(rarities = filters.rarities.toggle(it))) }

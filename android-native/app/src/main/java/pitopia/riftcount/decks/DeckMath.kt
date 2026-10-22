@@ -97,10 +97,11 @@ data class Hand(val pile: List<String>, val cards: List<HandCard>, val marked: S
         const val MULLIGAN = 2
         const val MAX = 8
 
-        fun deal(deck: Decklist, random: Random = Random.Default): Hand {
+        /** A fresh shuffle; ids go on from [firstId], so a new hand's cards are new cards to the screen. */
+        fun deal(deck: Decklist, random: Random = Random.Default, firstId: Int = 0): Hand {
             val all = deck.mainDeck.flatMap { e -> List(e.count) { e.cardId } }.shuffled(random)
             val first = all.take(OPENING)
-            return Hand(all.drop(first.size), first.mapIndexed { i, id -> HandCard(i, id) }, nextId = first.size)
+            return Hand(all.drop(first.size), first.mapIndexed { i, id -> HandCard(firstId + i, id) }, nextId = firstId + first.size)
         }
     }
 }

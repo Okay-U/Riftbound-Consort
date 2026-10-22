@@ -43,7 +43,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
@@ -65,6 +64,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.lineIcon
+import pitopia.riftcount.ui.common.softBlur
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
@@ -336,7 +336,7 @@ private fun Modifier.blurShift(off: () -> Float) = graphicsLayer {
     alpha = 1f - a
     translationY = size.height * 0.4f * o
     val b = 8.dp.toPx() * a
-    renderEffect = if (b > 0.5f) BlurEffect(b, b) else null
+    renderEffect = softBlur(b)
 }
 
 @Composable

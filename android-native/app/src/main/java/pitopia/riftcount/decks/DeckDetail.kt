@@ -43,7 +43,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.PathEffect
@@ -74,6 +73,7 @@ import pitopia.riftcount.data.DecklistEntry
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.Rise
 import pitopia.riftcount.ui.common.RoundIcon
+import pitopia.riftcount.ui.common.softBlur
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
@@ -379,10 +379,8 @@ private fun PileTabs(deck: Decklist, legend: Card?, index: Map<String, Card>, sh
                     )
                 }
                 if (rows.isNotEmpty()) ViewSwitch()
-                if (rows.isNotEmpty() && !AppSettings.deckList.on) {
-                    PileGallery(rows, index, AppSettings.deckByEnergy.on, deck.champion?.cardId, Modifier.rowIn(shown, 0, tabKey))
-                } else {
-                    rows.forEachIndexed { i, e -> CardRow(e, index[e.cardId], deck.champion?.cardId == e.cardId, Modifier.rowIn(shown, i, tabKey)) }
+                if (rows.isNotEmpty()) {
+                    PileGallery(rows, index, AppSettings.deckByEnergy.on, deck.champion?.cardId, list = AppSettings.deckList.on, modifier = Modifier.rowIn(shown, 0, tabKey))
                 }
             }
             else -> RunePool(domains, { DeckEdits.runeCount(deck, it, index) }, runes, onStep = null)
@@ -390,14 +388,12 @@ private fun PileTabs(deck: Decklist, legend: Card?, index: Map<String, Card>, sh
     }
 }
 
-/** Gallery or list, and the gallery by type or by energy; the choice stays for every deck. */
+/** Gallery or list, grouped by type or by energy; the choice stays for every deck. */
 @Composable
 private fun ViewSwitch() {
     Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Segmented(listOf("Gallery", "List"), if (AppSettings.deckList.on) 1 else 0, Modifier.weight(1f), height = 36.dp) { AppSettings.deckList.on = it == 1 }
-        if (!AppSettings.deckList.on) {
-            Segmented(listOf("Type", "Energy"), if (AppSettings.deckByEnergy.on) 1 else 0, Modifier.weight(1f), height = 36.dp) { AppSettings.deckByEnergy.on = it == 1 }
-        }
+        Segmented(listOf("Type", "Energy"), if (AppSettings.deckByEnergy.on) 1 else 0, Modifier.weight(1f), height = 36.dp) { AppSettings.deckByEnergy.on = it == 1 }
     }
 }
 
@@ -424,6 +420,6 @@ private fun Modifier.rowsIn(key: Int): Modifier {
         alpha = v
         translationY = 10.dp.toPx() * (1f - v)
         val b = 6.dp.toPx() * (1f - v)
-        renderEffect = if (b > 0.5f) BlurEffect(b, b) else null
+        renderEffect = softBlur(b)
     }
 }
