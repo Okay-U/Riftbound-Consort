@@ -196,7 +196,7 @@ nonisolated final class PlayRiftboundAPI: Sendable {
         guard let url = components.url else { throw PlayRiftboundError.badResponse }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        return try await send(request, operation: operation, credentials: credentials)
+        return try await perform(request, operation: operation, credentials: credentials)
     }
 
     /// Persisted mutation over POST.
@@ -208,26 +208,7 @@ nonisolated final class PlayRiftboundAPI: Sendable {
         request.setValue("https://playriftbound.com", forHTTPHeaderField: "Origin")
         request.httpBody = try JSONEncoder().encode(MutationBody(operationName: operation, variables: variables,
                                                                  extensions: Extensions(persistedQuery: .init(sha256Hash: id))))
-        return try await send(request, operation: operation, credentials: credentials)
-    }
-
-    private func send<T: Decodable & Sendable>(_ request: URLRequest, operation: String,
-                                               credentials: PlayRiftboundCredentials?) async throws -> T {
-        let started = Date()
-        let method = request.httpMethod ?? "GET"
-        // Mutation variables (ids only) go into the on-device log; GET query strings carry nothing a failure needs.
-        let sent = request.httpBody.flatMap { String(data: $0, encoding: .utf8) }
-        do {
-            let value: T = try await perform(request, operation: operation, credentials: credentials)
-            await PlayRiftboundDiagnostics.shared.record(operation: operation, method: method, outcome: "ok", detail: sent, started: started)
-            return value
-        } catch {
-            let outcome = (error as? PlayRiftboundError).map { "\($0)" } ?? error.localizedDescription
-            await PlayRiftboundDiagnostics.shared.record(operation: operation, method: method, outcome: String(outcome.prefix(120)),
-                                                          detail: [sent, (error as? LocalizedError)?.errorDescription].compactMap { $0 }.joined(separator: "\n"),
-                                                          started: started)
-            throw error
-        }
+        return try await perform(request, operation: operation, credentials: credentials)
     }
 
     private func perform<T: Decodable & Sendable>(_ request: URLRequest, operation: String,
@@ -256,8 +237,6 @@ nonisolated final class PlayRiftboundAPI: Sendable {
         } catch {
             guard (200..<300).contains(http.statusCode) else { throw PlayRiftboundError.http(http.statusCode) }
             log.error("\(operation, privacy: .public): undecodable response: \(String(describing: error), privacy: .public)")
-            await PlayRiftboundDiagnostics.shared.record(operation: operation, method: request.httpMethod ?? "GET", outcome: "decode",
-                                                          detail: String(describing: error), started: Date())
             throw PlayRiftboundError.badResponse
         }
         if let errors = envelope.errors, !errors.isEmpty {

@@ -71,7 +71,6 @@ struct Settings: View {
 
                 Section("About") {
                     NavigationLink("Acknowledgments") { AcknowledgmentsView() }
-                    NavigationLink("PlayRiftbound log") { PlayRiftboundLogView() }
                     NavigationLink("Report Bug") { BugReportView() }
                     NavigationLink("Wish a Feature") { FeatureRequestView() }
                     ShareLink(
