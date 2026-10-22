@@ -65,16 +65,20 @@ struct RiftReportSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            switch stage {
-            case .pick: pick
-            case .confirm: confirm
-            case .sending: sending
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                switch stage {
+                case .pick: pick
+                case .confirm: confirm
+                case .sending: sending
+                }
             }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .presentationDetents([.medium, .large])
+        .scrollBounceBehavior(.basedOnSize)
+        // Three game rows and the buttons outgrow half a phone: a series opens at full height.
+        .presentationDetents(series ? [.large] : [.medium, .large])
         .presentationDragIndicator(stage == .sending ? .hidden : .visible)
         // A result on its way is sent either way; the sheet stays until the answer is in.
         .interactiveDismissDisabled(stage == .sending)
