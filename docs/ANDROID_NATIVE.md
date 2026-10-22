@@ -279,6 +279,12 @@ Scoreboard, round 4 (2026-10-22): the event line asks "Open the event?" before i
 match's seam counts down the round's clock (start plus its minutes, gold once over) where the event has one,
 otherwise the match clock as before.
 
+Scoreboard, round 5 (2026-10-22): the seam's centre only ever leads to the event (after the question), never
+starts or changes a match: Start match starts it, the best of 1 ↔ 3 tap is gone (a best-of-one summary still
+offers "We play best of 3"). The summary's button reads Return to scoreboard. Before each next game the last
+game's loser picks first or second on their half. The seam's dice button shows two thrown dice. The light
+along the report rail grows in width instead of being scaled, so its glow fades out softly.
+
 ## Open points
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build

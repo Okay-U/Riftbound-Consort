@@ -48,6 +48,8 @@ data class ScoreState(
     val bestOf: Int = 0,
     /** The PlayRiftbound pairing ("R3 · T5") this match was started for; null for any other. */
     val liveTag: String? = null,
+    /** The last game's loser, who picks who starts this one (Riftbound's rule); -1 once picked or played. */
+    val chooser: Int = -1,
 ) {
     val isDuel get() = players.size == 2
     val isSeries get() = isDuel && bestOf > 0
@@ -88,6 +90,7 @@ data class ScoreState(
             events = events + event,
             history = pushed(),
             asking = -1,
+            chooser = -1,
             clock = clockNow,
         )
         return if (isDuel && new >= TARGET && !gameOver) next.copy(winner = slot, log = log + GameResult(slot, next.players.map { it.score })) else next
@@ -122,7 +125,7 @@ data class ScoreState(
         return copy(
             players = players.map { Player() }, events = emptyList(), history = emptyList(),
             log = if (isSeries) log else emptyList(),
-            gameNo = gameNo + 1, winner = -1, asking = -1, starter = -1,
+            gameNo = gameNo + 1, winner = -1, asking = -1, starter = -1, chooser = if (isDuel) 1 - winner else -1,
             lastGameEndSeconds = clock.elapsedSeconds(nowMs),
         )
     }
@@ -143,7 +146,7 @@ data class ScoreState(
     }
 
     fun withStarter(slot: Int, nowMs: Long): ScoreState =
-        copy(starter = slot, clock = if (clock.isRunning) clock else clock.start(nowMs))
+        copy(starter = slot, chooser = -1, clock = if (clock.isRunning) clock else clock.start(nowMs))
 
     fun toggleClock(nowMs: Long): ScoreState = copy(clock = if (clock.isRunning) clock.pause(nowMs) else clock.start(nowMs))
 

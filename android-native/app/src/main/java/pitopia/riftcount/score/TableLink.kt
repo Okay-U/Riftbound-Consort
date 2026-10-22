@@ -32,10 +32,13 @@ class MatchInfo(
     val link: TableLink?,
     /** What to say when there is nothing to play: the event before round 1, a bye, a reported round. */
     val line: EventLine?,
+    /** The event's name while there is one; a tap on the seam's centre asks to open it. */
+    val event: String?,
+    val openEvent: () -> Unit,
     val checking: Boolean,
     /** Asks PlayRiftbound again (pairings go up between rounds) and says what came back. */
     val check: () -> Unit,
 )
 
-/** "18:30 · Summoner Skirmish", "R3 · BYE", "R3 · T5 · Reported"; a tap asks, then opens [event]. */
-class EventLine(val label: String, val text: String, val event: String, val open: () -> Unit)
+/** "18:30 · Summoner Skirmish", "R3 · BYE", "R3 · T5 · Reported". */
+class EventLine(val label: String, val text: String)

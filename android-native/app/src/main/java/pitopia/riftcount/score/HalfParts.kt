@@ -302,6 +302,27 @@ fun FinalPointSheet(accent: Color, ink: Color, onYes: () -> Unit, onNo: () -> Un
     }
 }
 
+/** After a lost game Riftbound lets the loser pick who starts the next one; the sheet waits on their half. */
+@Composable
+fun StartChoiceSheet(accent: Color, ink: Color, onFirst: () -> Unit, onSecond: () -> Unit, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(24.dp)
+    Rise(modifier) {
+        Column(Modifier.fillMaxWidth().background(Color(0xF50E0E0E), shape).border(1.dp, Color.White.copy(alpha = 0.14f), shape).padding(18.dp)) {
+            BasicText("Go first or second?", style = RiftType.Body.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White))
+            Spacer(Modifier.height(6.dp))
+            BasicText(
+                "You lost the last game, so you choose who starts this one.",
+                style = RiftType.Body.copy(fontSize = 13.sp, lineHeight = 19.sp, color = Color.White.copy(alpha = 0.8f)),
+            )
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Pill("I go first", onFirst, Modifier.weight(1f).height(46.dp), fill = accent, ink = ink)
+                Pill("I go second", onSecond, Modifier.weight(1f).height(46.dp))
+            }
+        }
+    }
+}
+
 @Composable
 fun HalfToast(text: String, modifier: Modifier = Modifier) {
     Rise(modifier) {

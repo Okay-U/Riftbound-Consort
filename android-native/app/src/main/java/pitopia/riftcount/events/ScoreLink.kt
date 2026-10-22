@@ -33,16 +33,14 @@ fun EventsData.matchInfo(scope: CoroutineScope, say: (String) -> Unit, open: (To
         null
     }
     val line = s?.let {
-        val name = it.entry.tournament.name
-        val go = { open(it.entry) }
         when {
-            p == null -> EventLine(it.entry.tournament.startsAt?.let(Fmt::time) ?: "TODAY", name, name, go)
-            p.isBye -> EventLine("${p.roundShort} · BYE", "Bye this round", name, go)
-            p.isComplete -> EventLine(tag.orEmpty(), "Reported", name, go)
+            p == null -> EventLine(it.entry.tournament.startsAt?.let(Fmt::time) ?: "TODAY", it.entry.tournament.name)
+            p.isBye -> EventLine("${p.roundShort} · BYE", "Bye this round")
+            p.isComplete -> EventLine(tag.orEmpty(), "Reported")
             else -> null
         }
     }
-    return MatchInfo(link, line, stripRefreshing) {
+    return MatchInfo(link, line, s?.entry?.tournament?.name, { s?.let { open(it.entry) } }, stripRefreshing) {
         scope.launch {
             refreshStrip(force = true)
             say(checked())

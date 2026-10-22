@@ -126,11 +126,20 @@ class ScoreController(
     fun toggleClock() = apply(state.toggleClock(now()), Haptic.Tick)
     fun nextGame() = apply(state.nextGame(now()), Haptic.Tick)
 
-    /** Tap on the round and table in a live match: one game or three. */
-    fun toggleFormat() {
-        val next = if (state.bestOf == 1) 3 else 1
-        apply(state.withBestOf(next), Haptic.Tick)
-        if (state.bestOf == next) show(if (next == 1) "Best of 1 · one game decides" else "Best of 3 · first to two games")
+    /** The event says one game but the table plays three: game 1 no longer ends the live match. */
+    fun playBestOfThree() {
+        apply(state.withBestOf(3), Haptic.Tick)
+        if (state.bestOf == 3) show("Best of 3 · first to two games")
+    }
+
+    /** The last game's loser goes first or second. */
+    fun pickStart(first: Boolean) {
+        val chooser = state.chooser
+        if (chooser < 0) return
+        val starter = if (first) chooser else 1 - chooser
+        pickTurnOrder(if (starter == YOU) "first" else "second")
+        apply(state.withStarter(starter, now()), Haptic.Success)
+        show(startsText(starter))
     }
 
     /** "Start match" in the seam: a fresh match for the PlayRiftbound pairing, in its event's format. */
@@ -248,8 +257,11 @@ class ScoreController(
         duel = null
         if (state.isDuel) pickTurnOrder(if (starter == YOU) "first" else "second")
         apply(state.withStarter(starter, now()), Haptic.Success)
-        show(if (state.isDuel && starter == YOU && legend(YOU) == "You") "You start · good game" else "${shortName(starter)} starts · good game")
+        show(startsText(starter))
     }
+
+    private fun startsText(starter: Int) =
+        if (state.isDuel && starter == YOU && legend(YOU) == "You") "You start · good game" else "${shortName(starter)} starts · good game"
 
     private fun stopTumbles() { tumbles.forEach { it.cancel() }; tumbles.clear() }
 

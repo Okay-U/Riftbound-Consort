@@ -44,7 +44,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -73,6 +72,11 @@ fun Seam(c: ScoreController, match: MatchInfo?, modifier: Modifier = Modifier) {
     val live = link?.takeIf { it.tag == s.liveTag }
     val waiting = link?.takeIf { s.isDuel && it.reportable && it.tag != s.liveTag }
     val line = match?.line?.takeIf { s.liveTag == null && waiting == null }
+    // The centre always leads to the event, after a question: a slip must not take the scoreboard away.
+    var asking by remember { mutableStateOf(false) }
+    val event = match?.event
+    if (asking && event != null) OpenEventDialog(event, onStay = { asking = false }) { asking = false; match.openEvent() }
+    val ask = if (event != null && !gone) ({ asking = true }) else null
     val shown by animateFloatAsState(if (gone) 0f else 1f, tween(500, easing = RiftEase), label = "seam")
     val shape = RoundedCornerShape(50)
     Box(
@@ -99,8 +103,8 @@ fun Seam(c: ScoreController, match: MatchInfo?, modifier: Modifier = Modifier) {
                     RoundIcon({ c.undo() }, "Undo last point", enabled = s.canUndo && !gone) { SeamIcon(ScoreIcons.Undo) }
                     when {
                         waiting != null || s.liveTag != null ->
-                            ClockBox(s, waiting, live?.roundEndsAt, onStart = { waiting?.let(c::startLive) }, onFormat = c::toggleFormat, onClock = c::toggleClock)
-                        line != null -> LineBox(line, enabled = !gone)
+                            ClockBox(s, waiting, live?.roundEndsAt, onOpen = ask, onClock = c::toggleClock)
+                        line != null -> LineBox(line, onOpen = ask)
                     }
                     // Waiting for Start match, the table and opponent need the room; restart comes back with the match.
                     if (waiting == null) RoundIcon({ c.askRestart() }, "Restart this game", enabled = !s.gameOver && !gone) { SeamIcon(ScoreIcons.Restart) }
@@ -144,12 +148,10 @@ private fun CheckButton(match: MatchInfo, enabled: Boolean) {
     }
 }
 
-/** The event before round 1, a bye or a reported round; a tap asks before opening the event (no slip leaves the board). */
+/** The event before round 1, a bye or a reported round; a tap asks to open the event. */
 @Composable
-private fun LineBox(line: EventLine, enabled: Boolean) {
-    var asking by remember { mutableStateOf(false) }
-    if (asking) OpenEventDialog(line.event, onStay = { asking = false }) { asking = false; line.open() }
-    Pressable({ asking = true }, Modifier.widthIn(min = 72.dp, max = 140.dp), enabled = enabled, label = "Open the event") {
+private fun LineBox(line: EventLine, onOpen: (() -> Unit)?) {
+    Pressable(onOpen ?: {}, Modifier.widthIn(min = 72.dp, max = 140.dp), enabled = onOpen != null, label = "Open the event") {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             BasicText(
                 line.label.uppercase(),
@@ -166,12 +168,12 @@ private fun LineBox(line: EventLine, enabled: Boolean) {
 }
 
 /**
- * Before a live match: its table and opponent, and a tap starts it. During it: round and table over the
- * round's countdown ([roundEnd], the organiser's clock; gold once over), or the match clock where the round
- * has none; a tap switches one ↔ three games, a long press pauses the match clock. Casual play shows no clock.
+ * Before a live match: its table and opponent (Start match beside it starts it). During it: round and table
+ * over the round's countdown ([roundEnd], the organiser's clock; gold once over), or the match clock where
+ * the round has none, which a long press pauses. A tap asks to open the event. Casual play shows no clock.
  */
 @Composable
-private fun ClockBox(s: ScoreState, waiting: TableLink?, roundEnd: Long?, onStart: () -> Unit, onFormat: () -> Unit, onClock: () -> Unit) {
+private fun ClockBox(s: ScoreState, waiting: TableLink?, roundEnd: Long?, onOpen: (() -> Unit)?, onClock: () -> Unit) {
     val caps = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, letterSpacing = 0.14.em, color = Color.White.copy(alpha = 0.72f))
     val tag = s.liveTag
     val round = roundEnd.takeIf { waiting == null }
@@ -202,16 +204,17 @@ private fun ClockBox(s: ScoreState, waiting: TableLink?, roundEnd: Long?, onStar
         else -> tag.orEmpty().uppercase()
     }
     val clockLabel = if (s.clock.isRunning) "Pause the clock" else "Start the clock"
+    val longPress = if (waiting != null || round != null) null else onClock
     Box(
         Modifier.widthIn(min = 72.dp, max = 132.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .combinedClickable(
-                source, indication = null, role = Role.Button,
-                onClickLabel = if (waiting != null) "Start the live match" else if (s.bestOf == 1) "Play best of three" else "Play best of one",
-                onLongClickLabel = if (waiting != null || round != null) null else clockLabel,
-                onLongClick = if (waiting != null || round != null) null else onClock,
+                source, indication = null, enabled = onOpen != null || longPress != null, role = Role.Button,
+                onClickLabel = "Open the event",
+                onLongClickLabel = if (longPress != null) clockLabel else null,
+                onLongClick = longPress,
                 hapticFeedbackEnabled = false,
-                onClick = if (waiting != null) onStart else onFormat,
+                onClick = onOpen ?: {},
             )
             .semantics {
                 contentDescription = when {

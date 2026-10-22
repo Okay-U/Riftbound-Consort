@@ -99,6 +99,15 @@ class ScoreRulesTest {
     }
 
     @Test
+    fun `the last game's loser picks who starts the next one`() {
+        val next = ScoreState().points(OPPONENT, 8).nextGame(t0)
+        assertEquals(YOU, next.chooser)
+        assertEquals(-1, next.withStarter(OPPONENT, t0).chooser)
+        assertEquals(-1, next.points(OPPONENT, 1).chooser) // playing on without picking closes the question
+        assertEquals(-1, ScoreState().chooser)
+    }
+
+    @Test
     fun `undo walks back points and XP, at most fifty steps`() {
         val s = ScoreState().points(YOU, 2).xp(YOU, 1).xp(YOU, 1)
         assertEquals(2, s.players[YOU].xp)

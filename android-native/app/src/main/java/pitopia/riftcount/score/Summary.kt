@@ -27,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.text.TextStyle
@@ -76,8 +75,8 @@ fun MatchSummary(c: ScoreController, colors: List<Color>, centerY: Dp, link: Tab
         if (reporting) SoftIn(Modifier.fillMaxSize(), delayMs = 900, durationMs = 700) {
             Box(Modifier.fillMaxSize()) { ReportRail(c, colors, accent, railLeft, railWidth, centerY, live) }
         } else {
-            RailIn(Modifier.offset(x = railLeft, y = centerY - 2.dp).size(railWidth, 4.dp), Color.White.copy(alpha = 0.18f), null)
-            RailIn(Modifier.offset(x = railLeft, y = centerY - 2.dp).size(railWidth, 4.dp), accent, accent, delayMs = 1300)
+            RailIn(railLeft, centerY, railWidth, Color.White.copy(alpha = 0.18f), null)
+            RailIn(railLeft, centerY, railWidth, accent, accent, delayMs = 1300)
         }
         val n = s.log.size
         if (!reporting) s.log.forEachIndexed { i, g ->
@@ -98,7 +97,7 @@ fun MatchSummary(c: ScoreController, colors: List<Color>, centerY: Dp, link: Tab
         Column(Modifier.fillMaxWidth().offset(y = centerY + if (reporting) 52.dp else 37.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             SoftIn(delayMs = 1700, durationMs = 600) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Pill("Start a new match", { link?.refresh(); c.newMatch() }, Modifier.height(46.dp), fill = accent, ink = inkOn(accent))
+                    Pill("Return to scoreboard", { link?.refresh(); c.newMatch() }, Modifier.height(46.dp), fill = accent, ink = inkOn(accent))
                     Spacer(Modifier.height(4.dp))
                     when {
                         c.reportedSeries() != null -> Note("Wrong result? Ask the scorekeeper to change it.")
@@ -106,7 +105,7 @@ fun MatchSummary(c: ScoreController, colors: List<Color>, centerY: Dp, link: Tab
                         else -> {
                             LinkText("Wrong results? Set them yourself") { c.openPicker(ending = false) }
                             // The event says one game, the table plays three: game 1 then no longer ends the match.
-                            if (s.bestOf == 1 && !s.ended) LinkText("We play best of 3") { c.toggleFormat() }
+                            if (s.bestOf == 1 && !s.ended) LinkText("We play best of 3") { c.playBestOfThree() }
                         }
                     }
                 }
@@ -115,13 +114,13 @@ fun MatchSummary(c: ScoreController, colors: List<Color>, centerY: Dp, link: Tab
     }
 }
 
+/** The line drawing in from the left; grown in width, not scaled, so its glow keeps a soft end. */
 @Composable
-private fun RailIn(modifier: Modifier, color: Color, glow: Color?, delayMs: Int = 900) {
+private fun RailIn(left: Dp, centerY: Dp, width: Dp, color: Color, glow: Color?, delayMs: Int = 900) {
     val t = remember { Animatable(0f) }
     LaunchedEffect(Unit) { t.animateTo(1f, tween(900, delayMs, RiftEase)) }
-    Box(
-        modifier
-            .graphicsLayer { scaleX = t.value; transformOrigin = TransformOrigin(0f, 0.5f) }
+    if (t.value > 0f) Box(
+        Modifier.offset(x = left, y = centerY - 2.dp).size(width * t.value, 4.dp)
             .let { if (glow != null) it.dropShadow(RoundedCornerShape(2.dp), Shadow(16.dp, glow, spread = 2.dp)) else it }
             .background(color, RoundedCornerShape(2.dp)),
     )

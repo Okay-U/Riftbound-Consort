@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
@@ -102,10 +101,12 @@ fun ReportRail(c: ScoreController, colors: List<Color>, accent: Color, railLeft:
     // The base line and the light that follows the knob.
     val shape = RoundedCornerShape(2.dp)
     Box(Modifier.offset(x = railLeft, y = centerY - 2.dp).size(railWidth, 4.dp).background(Color.White.copy(alpha = 0.18f), shape))
-    Box(
-        Modifier.offset(x = railLeft, y = centerY - 2.dp).size(railWidth, 4.dp)
-            .graphicsLayer { scaleX = progress.value; alpha = flash.value; transformOrigin = TransformOrigin(0f, 0.5f) }
-            .dropShadow(shape, Shadow(16.dp, accent, spread = 2.dp)).background(accent, shape),
+    // Grown in width, not scaled: a scaled layer squeezes the glow into a box at the knob, and a faded layer
+    // cuts it at its bounds; the flash fades the colour instead.
+    val light = accent.copy(alpha = accent.alpha * flash.value)
+    if (progress.value > 0f) Box(
+        Modifier.offset(x = railLeft, y = centerY - 2.dp).size(railWidth * progress.value, 4.dp)
+            .dropShadow(shape, Shadow(16.dp, light, spread = 2.dp)).background(light, shape),
     )
     val n = c.state.log.size
     c.state.log.forEachIndexed { i, g ->

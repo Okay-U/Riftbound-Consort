@@ -142,6 +142,9 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
         if (d == null && s.asking == slot) {
             FinalPointSheet(accent, ink, { c.finalPoint(true) }, { c.finalPoint(false) }, Modifier.align(Alignment.BottomCenter).padding(12.dp))
         }
+        if (d == null && s.chooser == slot && !s.gameOver && !s.showSummary) {
+            StartChoiceSheet(accent, ink, { c.pickStart(true) }, { c.pickStart(false) }, Modifier.align(Alignment.BottomCenter).padding(12.dp))
+        }
         if (c.drew == slot) HalfToast("No point · draw a card instead", Modifier.align(Alignment.TopCenter).padding(top = 70.dp))
     }
 }
