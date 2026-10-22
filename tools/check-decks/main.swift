@@ -154,4 +154,30 @@ do {
     check(issues.contains("Kinkou Monk: 4 copies (max 3)") && issues.contains("Kinkou Monk: outside Darius's domains"), "\(issues)")
 }
 
+// The match log's numbers (Redesign/Decks/MatchLog.swift).
+do {
+    func ev(_ s: Int, _ slot: Int, _ type: ScoreEventType, _ delta: Int) -> ScoreEvent {
+        ScoreEvent(elapsedSeconds: s, slot: slot, type: type, delta: delta)
+    }
+    let game = GameRecord(result: .won, durationSeconds: 750, events: [
+        ev(30, Seat.opponent, .manual, -1), ev(10, Seat.you, .conquer, 1), ev(20, Seat.you, .hold, 1),
+        ev(40, Seat.you, .manual, -1), ev(50, Seat.opponent, .manual, 2),
+    ], startedFirst: true)
+    let points = MatchLog.points(game)
+    check(points.map(\.seconds) == [10, 20, 30, 40, 50], "in time order")
+    check(points[2].them == 0, "a fix never goes below 0")
+    check(MatchLog.score(game).map { $0.you == 1 && $0.them == 2 } == true, "final score")
+    let race = MatchLog.race(game)
+    check(race[Seat.you] == [.conquer] && race[Seat.opponent] == [.manual, .manual], "a fix takes the last point back")
+    let four = GameRecord(result: .lost, durationSeconds: 90, events: [ev(5, 2, .conquer, 1)])
+    check(MatchLog.points(four).isEmpty && MatchLog.score(four) == nil, "4 players have no race")
+    let lostFirst = GameRecord(result: .lost, durationSeconds: 810, startedFirst: true)
+    let wonSecond = GameRecord(result: .won, durationSeconds: 60, startedFirst: false)
+    let split = MatchLog.firstSecond([game, lostFirst, wonSecond, four])
+    check(split.first == Tally(wins: 1, losses: 1) && split.second == Tally(wins: 1, losses: 0), "first / second")
+    check(MatchLog.averageMinutes([game, lostFirst]) == 13 && MatchLog.averageMinutes([four]) == 2 && MatchLog.averageMinutes([]) == nil, "average")
+    check(Tally.of([game, lostFirst, wonSecond]).percent == "67%" && Tally.of([]).percent == "–", "percent")
+    check(MatchLog.opponentShort("Darius - Hand of Noxus") == "Darius" && MatchLog.opponentShort("") == "Unknown", "short name")
+}
+
 print("deck rules ok (\(checks) checks)")

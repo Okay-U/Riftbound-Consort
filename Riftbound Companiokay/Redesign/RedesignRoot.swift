@@ -27,7 +27,7 @@ struct RedesignRoot: View {
                 .tabItem { Label("Cards", systemImage: "rectangle.portrait.on.rectangle.portrait") }
                 .tag(TabKey.cards)
 
-            UserTabView()
+            RiftDecksView()
                 .tabItem { Label("Decks", systemImage: "square.3.layers.3d") }
                 .tag(TabKey.user)
 
