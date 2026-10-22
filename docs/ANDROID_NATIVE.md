@@ -288,6 +288,12 @@ along the report rail grows in width instead of being scaled, so its glow fades 
 Cards, round 1 (2026-10-22): the search also reads the rules text (without its icon tokens) and the tags,
 so "Repeat" or "friendly" finds every card that says it; cards named so come first.
 
+Decks, round 1 (2026-10-22): a finished deck is to look at: main and side show as a gallery (the Cards tab's
+faces, grouped Units · Spells · Gear or by energy) or as the list, without steppers; runes read only. Changes
+go through the builder, whose battlefields, main and side are galleries now (a tap adds a copy, the minus on a
+card takes one back). A full rune pool of a two-domain legend stays at 12: one domain down is the other up.
+The match log closing dissolves into its tile instead of shrinking as a black box.
+
 ## Open points
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build

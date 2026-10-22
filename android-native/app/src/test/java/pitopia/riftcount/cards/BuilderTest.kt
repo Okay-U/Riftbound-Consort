@@ -62,6 +62,21 @@ class BuilderTest {
     }
 
     @Test
+    fun `a full rune pool stays full, one domain down is the other up`() {
+        val d = Builder.pickLegend(Draft(), darius)
+        assertEquals(mapOf("fury" to 5, "order" to 7), Builder.rune(d, "fury", -1).runes)
+        assertEquals(mapOf("fury" to 5, "order" to 7), Builder.rune(d, "order", +1).runes)
+        // A pool short of 12 fills or empties without touching the other domain.
+        val short = d.copy(runes = mapOf("fury" to 4, "order" to 4))
+        assertEquals(mapOf("fury" to 5, "order" to 4), Builder.rune(short, "fury", +1).runes)
+        assertEquals(mapOf("fury" to 3, "order" to 4), Builder.rune(short, "fury", -1).runes)
+        val edge = d.copy(runes = mapOf("fury" to 12, "order" to 0))
+        assertEquals(edge.runes, Builder.rune(edge, "fury", +1).runes)
+        assertEquals(edge.runes, Builder.rune(edge, "order", -1).runes)
+        assertEquals(mapOf("fury" to 11, "order" to 1), Builder.rune(edge, "fury", -1).runes)
+    }
+
+    @Test
     fun `a saved draft becomes the edited deck again`() {
         var d = Builder.pickChampion(Builder.pickLegend(Draft(), darius), trifarian)
         pool.filter { it.isBattlefield }.forEach { d = Builder.toggleBattlefield(d, it) }
@@ -184,20 +199,12 @@ class DeckEditsTest {
     }
 
     @Test
-    fun `runes change the printing already in the deck`() {
-        val more = DeckEdits.rune(base, "Fury", +1, pool, cards, 1)
-        assertEquals(listOf("ogn-007a-298" to 6), more.runes.map { it.cardId to it.count })
-        val order = DeckEdits.rune(base, "Order", +1, pool, cards, 1)
-        assertEquals("no Order rune card in the fixture", base, order)
+    fun `the detail counts a domain's runes across printings`() {
         assertEquals(5, DeckEdits.runeCount(base, "Fury", cards))
     }
 
     @Test
-    fun `a full main deck or three copies stop the plus`() {
-        val executioner = Fixture.named("Darius - Executioner")
-        assertTrue(DeckEdits.canAdd(base, Pile.Main, executioner, cards))
-        val three = DeckEdits.step(base, Pile.Main, base.mainDeck[0], +1, 1)
-        assertFalse(DeckEdits.canAdd(three, Pile.Main, executioner, cards))
+    fun `a deck takes three battlefields at most`() {
         val battlefields = pool.filter { it.isBattlefield }
         var d: Decklist = base
         battlefields.forEach { b -> d = DeckEdits.toggleBattlefield(d, b, 1) ?: d }

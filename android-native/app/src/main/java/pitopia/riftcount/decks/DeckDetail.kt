@@ -67,6 +67,7 @@ import androidx.compose.ui.util.lerp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import pitopia.riftcount.cards.Card
+import pitopia.riftcount.data.AppSettings
 import pitopia.riftcount.data.DeckRules
 import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.data.DecklistEntry
@@ -91,13 +92,11 @@ private val HeroHeight = 250.dp
 fun DeckDetail(
     deck: Decklist,
     index: Map<String, Card>,
-    pool: List<Card>,
     record: Tally,
     from: Rect,
     shown: Boolean,
     progress: () -> Float,
     onClose: () -> Unit,
-    onChange: (Decklist) -> Unit,
     onTool: (DeckTool, Rect?) -> Unit,
 ) {
     val legend = deck.legend?.let { index[it.cardId] }
@@ -107,7 +106,6 @@ fun DeckDetail(
     val heroPx = with(density) { (HeroHeight + WindowInsets.statusBars.getTop(this).toDp()).toPx() }
     val atHero by remember { derivedStateOf { shown && progress() >= 0.999f } }
     val backdrop by animateFloatAsState(if (shown) 1f else 0f, tween(420), label = "backdrop")
-    val now = { System.currentTimeMillis() }
 
     Box(Modifier.fillMaxSize()) {
         Box(
@@ -137,7 +135,7 @@ fun DeckDetail(
             Tools(shown, record, onTool)
             ChampionBlock(deck, champion, from, shown, index, onTool)
             FieldsBlock(deck, index, from, shown, onTool)
-            PileTabs(deck, legend, index, pool, shown, onChange, now)
+            PileTabs(deck, legend, index, shown)
         }
     }
 }
@@ -350,8 +348,9 @@ private fun Modifier.fly(pile: Rect, shown: Boolean, i: Int, rotation: Float): M
     }
 }
 
+/** Main, side and runes as a finished deck shows them: to look at, no steppers (changes go through the builder). */
 @Composable
-private fun PileTabs(deck: Decklist, legend: Card?, index: Map<String, Card>, pool: List<Card>, shown: Boolean, onChange: (Decklist) -> Unit, now: () -> Long) {
+private fun PileTabs(deck: Decklist, legend: Card?, index: Map<String, Card>, shown: Boolean) {
     var tab by remember { mutableIntStateOf(0) }
     var tabKey by remember { mutableIntStateOf(0) }
     val runes = deck.runes.sumOf { it.count }
@@ -379,19 +378,25 @@ private fun PileTabs(deck: Decklist, legend: Card?, index: Map<String, Card>, po
                         style = RiftType.Body.copy(fontSize = 13.5.sp, lineHeight = 19.sp, color = Color.White.copy(alpha = 0.66f)),
                     )
                 }
-                rows.forEachIndexed { i, e ->
-                    val card = index[e.cardId]
-                    CardRow(
-                        e, card, deck.champion?.cardId == e.cardId, Modifier.rowIn(shown, i, tabKey),
-                        canAdd = card != null && DeckEdits.canAdd(deck, pile, card, index),
-                        onMinus = { onChange(DeckEdits.step(deck, pile, e, -1, now())) },
-                        onPlus = { onChange(DeckEdits.step(deck, pile, e, +1, now())) },
-                    )
+                if (rows.isNotEmpty()) ViewSwitch()
+                if (rows.isNotEmpty() && !AppSettings.deckList.on) {
+                    PileGallery(rows, index, AppSettings.deckByEnergy.on, deck.champion?.cardId, Modifier.rowIn(shown, 0, tabKey))
+                } else {
+                    rows.forEachIndexed { i, e -> CardRow(e, index[e.cardId], deck.champion?.cardId == e.cardId, Modifier.rowIn(shown, i, tabKey)) }
                 }
             }
-            else -> RunePool(domains, { DeckEdits.runeCount(deck, it, index) }, runes) { d, delta ->
-                onChange(DeckEdits.rune(deck, d, delta, pool, index, now()))
-            }
+            else -> RunePool(domains, { DeckEdits.runeCount(deck, it, index) }, runes, onStep = null)
+        }
+    }
+}
+
+/** Gallery or list, and the gallery by type or by energy; the choice stays for every deck. */
+@Composable
+private fun ViewSwitch() {
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Segmented(listOf("Gallery", "List"), if (AppSettings.deckList.on) 1 else 0, Modifier.weight(1f), height = 36.dp) { AppSettings.deckList.on = it == 1 }
+        if (!AppSettings.deckList.on) {
+            Segmented(listOf("Type", "Energy"), if (AppSettings.deckByEnergy.on) 1 else 0, Modifier.weight(1f), height = 36.dp) { AppSettings.deckByEnergy.on = it == 1 }
         }
     }
 }

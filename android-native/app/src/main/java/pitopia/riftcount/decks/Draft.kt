@@ -139,11 +139,19 @@ object Builder {
         return if (pile == Pile.Main) d.copy(main = minus(d.main)) else d.copy(side = minus(d.side))
     }
 
+    /** A full pool of a two-domain legend stays full: a rune more of one domain is one fewer of the other (Okay). */
     fun rune(d: Draft, domain: String, delta: Int): Draft {
         val key = domain.lowercase()
-        val cur = d.runes[key] ?: 0
-        if (delta > 0 && d.runeCount >= DeckRules.RUNES) return d
-        return d.copy(runes = d.runes + (key to (cur + delta).coerceAtLeast(0)))
+        val next = (d.runes[key] ?: 0) + delta
+        if (next < 0) return d
+        val full = d.runeCount >= DeckRules.RUNES
+        val other = d.domains.map { it.lowercase() }.filter { it != key }.singleOrNull()
+        if (full && other != null && d.domains.size == 2) {
+            val rest = (d.runes[other] ?: 0) - delta
+            return if (rest < 0) d else d.copy(runes = d.runes + (key to next) + (other to rest))
+        }
+        if (delta > 0 && full) return d
+        return d.copy(runes = d.runes + (key to next))
     }
 
     /** The draft as a deck: new, or the edited one with its id and creation date. Runes are each domain's rune card. */

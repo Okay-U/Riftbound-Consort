@@ -133,7 +133,8 @@ fun DecksScreen(ui: DecksUi, decks: DecklistStore, games: GameRecordStore, cards
     Box(Modifier.fillMaxSize()) {
         DecksHome(
             decks.lists, games.records, index,
-            hiddenDeck = opened?.id, hiddenTile = log?.tile,
+            // The tile is back under the closing panel at once, so the two cross-fade.
+            hiddenDeck = opened?.id, hiddenTile = log?.tile?.takeIf { logShown },
             bottomReserve = bottomReserve,
             onOpenDeck = ::openDeck,
             onNewDeck = { ui.startBuilder() },
@@ -147,9 +148,8 @@ fun DecksScreen(ui: DecksUi, decks: DecklistStore, games: GameRecordStore, cards
                 LaunchedEffect(Unit) { closeDeck() }
             } else {
                 DeckDetail(
-                    deck, index, pool, Tally.of(games.records.filter { it.deckId.equals(deck.id, true) }), o.from, detailShown, { morph.value },
+                    deck, index, Tally.of(games.records.filter { it.deckId.equals(deck.id, true) }), o.from, detailShown, { morph.value },
                     onClose = ::closeDeck,
-                    onChange = decks::replace,
                     onTool = { tool, rect ->
                         if (tool == DeckTool.Log) openLog(deck.id, rect ?: o.from, null) else sheet = tool
                     },

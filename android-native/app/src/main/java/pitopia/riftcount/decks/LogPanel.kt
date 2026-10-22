@@ -101,7 +101,12 @@ fun LogPanel(
                     Constraints.fixed(lerp(from.width, screen.width.toFloat(), p).roundToInt(), lerp(from.height, screen.height.toFloat(), p).roundToInt()),
                 )
                 layout(0, 0) { placeable.place(lerp(from.left, 0f, p).roundToInt(), lerp(from.top, 0f, p).roundToInt()) }
-            }.graphicsLayer { clip = true; shape = RoundedCornerShape((24 * (1f - t.value)).dp) }.background(PanelBg)
+            }.graphicsLayer {
+                clip = true
+                shape = RoundedCornerShape((24 * (1f - t.value)).dp)
+                // Closing, the panel dissolves into the tile below as it shrinks, instead of landing as a black box.
+                alpha = if (shown) 1f else (t.value / 0.6f).coerceIn(0f, 1f)
+            }.background(PanelBg)
                 .clickable(remember { MutableInteractionSource() }, indication = null) {},
         )
         val filtered = games.filter { deckId == null || it.deckId.equals(deckId, true) }

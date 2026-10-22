@@ -5,18 +5,9 @@ import pitopia.riftcount.data.DeckRules
 import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.data.DecklistEntry
 
-/** Changes made right in the deck detail (iOS `DeckDetailView`), each returning the new deck. */
+/** Changes made from the deck detail's sheets (champion, battlefields), each returning the new deck. */
 object DeckEdits {
     fun entries(deck: Decklist, pile: Pile) = if (pile == Pile.Main) deck.mainDeck else deck.sideDeck
-
-    /** iOS `canIncrement`: pile size, three copies of a card across main, side and champion, three signatures. */
-    fun canAdd(deck: Decklist, pile: Pile, card: Card, cards: Map<String, Card>): Boolean = when {
-        pile == Pile.Main && deck.mainDeck.sumOf { it.count } >= DeckRules.MAIN -> false
-        pile == Pile.Side && deck.sideDeck.sumOf { it.count } >= Builder.SIDE -> false
-        DeckRules.copies(deck, card, cards) >= DeckRules.COPY_LIMIT -> false
-        card.isSignature && DeckRules.signatures(deck, cards) >= DeckRules.SIGNATURE_LIMIT -> false
-        else -> true
-    }
 
     fun step(deck: Decklist, pile: Pile, entry: DecklistEntry, delta: Int, nowMs: Long): Decklist {
         val list = entries(deck, pile).mapNotNull {
@@ -24,20 +15,6 @@ object DeckEdits {
         }
         val next = if (pile == Pile.Main) deck.copy(mainDeck = list) else deck.copy(sideDeck = list)
         return next.copy(updatedAt = nowMs)
-    }
-
-    /** Runes of a legend domain: the printing already in the deck changes, a new one is the domain's rune card. */
-    fun rune(deck: Decklist, domain: String, delta: Int, pool: List<Card>, cards: Map<String, Card>, nowMs: Long): Decklist {
-        val total = deck.runes.sumOf { it.count }
-        if (delta > 0 && total >= DeckRules.RUNES) return deck
-        val mine = deck.runes.filter { e -> cards[e.cardId]?.domains?.any { it.equals(domain, true) } == true }
-        val runes = when {
-            delta > 0 && mine.isNotEmpty() -> deck.runes.map { if (it.cardId == mine.first().cardId) it.copy(count = it.count + 1) else it }
-            delta > 0 -> DeckRules.runeCard(domain, pool)?.let { deck.runes + DecklistEntry(it.id, it.name, 1) } ?: return deck
-            mine.isEmpty() -> return deck
-            else -> deck.runes.mapNotNull { if (it.cardId == mine.last().cardId) it.copy(count = it.count - 1).takeIf { e -> e.count > 0 } else it }
-        }
-        return deck.copy(runes = runes, updatedAt = nowMs)
     }
 
     fun runeCount(deck: Decklist, domain: String, cards: Map<String, Card>) =

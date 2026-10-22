@@ -93,9 +93,9 @@ fun Mini(card: Card?, modifier: Modifier = Modifier) {
     }
 }
 
-/** The mock's `.crow`: energy in the card's colour, name, type line with SIG/CHAMP tags, stepper. */
+/** The mock's `.crow`: energy in the card's colour, name, type line with SIG/CHAMP tags and the copies. */
 @Composable
-fun CardRow(entry: DecklistEntry, card: Card?, chosen: Boolean, modifier: Modifier = Modifier, canAdd: Boolean, onMinus: () -> Unit, onPlus: () -> Unit, count: Int = entry.count) {
+fun CardRow(entry: DecklistEntry, card: Card?, chosen: Boolean, modifier: Modifier = Modifier) {
     Row(
         modifier.fillMaxWidth().height(56.dp).drawBehind { drawRect(Color.White.copy(alpha = 0.06f), Offset(0f, size.height - 1.dp.toPx()), Size(size.width, 1.dp.toPx())) },
         verticalAlignment = Alignment.CenterVertically,
@@ -117,7 +117,10 @@ fun CardRow(entry: DecklistEntry, card: Card?, chosen: Boolean, modifier: Modifi
                 if (chosen) Tag("CHAMP", RiftColors.You)
             }
         }
-        Stepper(count, onMinus, onPlus, card?.title ?: entry.cardName, plus = canAdd, button = 32.dp)
+        BasicText(
+            "×${entry.count}",
+            style = RiftType.Title.copy(fontSize = 20.sp, lineHeight = 20.sp, fontFeatureSettings = "tnum", color = Color.White),
+        )
     }
 }
 
@@ -163,9 +166,9 @@ fun Segmented(labels: List<String>, selected: Int, modifier: Modifier = Modifier
     }
 }
 
-/** Rune rows for the legend's domains, the 12 pips and the total (detail and builder). */
+/** Rune rows for the legend's domains, the 12 pips and the total; steppers only where [onStep] edits (the builder). */
 @Composable
-fun RunePool(domains: List<String>, count: (String) -> Int, total: Int, onStep: (String, Int) -> Unit) {
+fun RunePool(domains: List<String>, count: (String) -> Int, total: Int, onStep: ((String, Int) -> Unit)?) {
     if (domains.isEmpty()) {
         BasicText("Pick a legend first: its domains decide the runes.", Modifier.padding(vertical = 18.dp), style = RiftType.Body.copy(fontSize = 13.5.sp, color = Color.White.copy(alpha = 0.66f)))
         return
@@ -184,7 +187,11 @@ fun RunePool(domains: List<String>, count: (String) -> Int, total: Int, onStep: 
                 Image(painterResource(CardStyle.glyph(d)), null, Modifier.size(20.dp), colorFilter = ColorFilter.tint(Color.Black))
             }
             BasicText("$d Rune", Modifier.weight(1f).padding(start = 12.dp), style = RiftType.Body.copy(fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold, color = Color.White))
-            Stepper(n, { onStep(d, -1) }, { onStep(d, +1) }, "$d rune", plus = total < DeckRules.RUNES, button = 32.dp)
+            if (onStep != null) {
+                Stepper(n, { onStep(d, -1) }, { onStep(d, +1) }, "$d rune", plus = total < DeckRules.RUNES || (domains.size == 2 && domains.any { it != d && count(it) > 0 }), button = 32.dp)
+            } else {
+                BasicText("×$n", style = RiftType.Title.copy(fontSize = 20.sp, lineHeight = 20.sp, fontFeatureSettings = "tnum", color = Color.White))
+            }
         }
     }
     val pips = domains.flatMap { d -> List(count(d)) { d } }

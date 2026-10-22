@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,6 +37,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -63,6 +65,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -77,7 +80,6 @@ import androidx.compose.ui.unit.sp
 import pitopia.riftcount.cards.Card
 import pitopia.riftcount.cards.SearchField
 import pitopia.riftcount.data.DeckRules
-import pitopia.riftcount.data.DecklistEntry
 import pitopia.riftcount.ui.common.LinkButton
 import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
@@ -126,8 +128,8 @@ fun BuilderView(ui: DecksUi, shown: Boolean, pool: List<Card>, index: Map<String
                     BuildStep.Legend -> LegendPage(d, pool) { legend -> ui.pickLegend(legend)?.let(onToast) }
                     BuildStep.Champion -> ChampionPage(d, champions) { ui.update(Builder.pickChampion(d, it)) }
                     BuildStep.Fields -> FieldsPage(d, pool, onToast) { ui.update(it) }
-                    BuildStep.Main -> PoolPage(d, Pile.Main, pool, index) { ui.update(it) }
-                    BuildStep.Side -> PoolPage(d, Pile.Side, pool, index) { ui.update(it) }
+                    BuildStep.Main -> PoolPage(d, Pile.Main, pool, index, onToast) { ui.update(it) }
+                    BuildStep.Side -> PoolPage(d, Pile.Side, pool, index, onToast) { ui.update(it) }
                     BuildStep.Runes -> RunesPage(d) { ui.update(it) }
                     BuildStep.Save -> SavePage(d, issues) { ui.update(d.copy(name = it.take(40))) }
                 }
@@ -266,25 +268,41 @@ private fun ChampionPage(d: Draft, champions: List<Card>, onPick: (Card) -> Unit
     }
 }
 
+/** The battlefields as the Cards tab shows them, three to a row (Okay: building without art is hard). */
 @Composable
 private fun FieldsPage(d: Draft, pool: List<Card>, onToast: (String) -> Unit, onChange: (Draft) -> Unit) {
     var query by remember { mutableStateOf("") }
     val all = remember(pool) { Builder.battlefields(pool) }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 24.dp)) {
-        item { CountHead(d.battlefields.size, DeckRules.BATTLEFIELDS, if (d.keepBattlefields) "Kept as they are" else "Pick three") }
+    val tilePx = LocalWindowInfo.current.containerSize.width / 3
+    PoolGrid {
+        header { CountHead(d.battlefields.size, DeckRules.BATTLEFIELDS, if (d.keepBattlefields) "Kept as they are" else "Pick three") }
         if (d.keepBattlefields) {
-            item { BasicText("This deck's battlefields are not all in today's card list, so they stay as they are.", Modifier.padding(bottom = 10.dp), style = SheetText) }
+            header { BasicText("This deck's battlefields are not all in today's card list, so they stay as they are.", Modifier.padding(bottom = 10.dp), style = SheetText) }
         } else {
-            item { Box(Modifier.padding(bottom = 12.dp)) { SearchField(query, placeholder = "Search battlefields", inset = 0.dp) { query = it } } }
+            header { Box(Modifier.padding(bottom = 6.dp)) { SearchField(query, placeholder = "Search battlefields", inset = 0.dp) { query = it } } }
             items(all.filter { query.isBlank() || it.name.contains(query.trim(), true) }, key = { it.id }) { c ->
                 val on = d.battlefields.any { it.id == c.id }
-                PickRow(c.name, c.summary, on) {
+                FieldPick(c, on, tilePx, onToggle = {
                     if (!on && d.battlefields.size >= DeckRules.BATTLEFIELDS) onToast("Three battlefields, remove one first") else onChange(Builder.toggleBattlefield(d, c))
-                }
+                })
             }
         }
     }
 }
+
+/** Three cards to a row, headers across the whole width. */
+@Composable
+private fun PoolGrid(content: LazyGridScope.() -> Unit) {
+    LazyVerticalGrid(
+        GridCells.Fixed(3), Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+        content = content,
+    )
+}
+
+/** A grid item stacks what it holds on top of each other: a header lays its parts out in a column. */
+private fun LazyGridScope.header(content: @Composable ColumnScope.() -> Unit) = item(span = { GridItemSpan(maxLineSpan) }) { Column { content() } }
 
 @Composable
 private fun CountHead(n: Int, of: Int, right: String, rightTag: Boolean = false) {
@@ -321,15 +339,19 @@ private fun Progress(fraction: Float) {
     }
 }
 
-/** Main or side: the cards the legend allows, search and type chips, a stepper per card (iOS `CardPoolPickerView`). */
+/**
+ * Main or side: the cards the legend allows as a gallery (iOS `CardPoolPickerView`, Okay asked for the art):
+ * a tap adds a copy, the minus on a card takes one back; search and type chips on top.
+ */
 @Composable
-private fun PoolPage(d: Draft, pile: Pile, pool: List<Card>, index: Map<String, Card>, onChange: (Draft) -> Unit) {
+private fun PoolPage(d: Draft, pile: Pile, pool: List<Card>, index: Map<String, Card>, onToast: (String) -> Unit, onChange: (Draft) -> Unit) {
     var query by remember { mutableStateOf("") }
     var types by remember { mutableStateOf(emptySet<String>()) }
     val cards = remember(d.legend, pool, query, types) { Builder.pool(d, pool, query, types) }
     val main = pile == Pile.Main
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 24.dp)) {
-        item {
+    val tilePx = LocalWindowInfo.current.containerSize.width / 3
+    PoolGrid {
+        header {
             if (main) CountHead(d.mainCount, DeckRules.MAIN, "SIG ${Builder.signatures(d, index)} / ${DeckRules.SIGNATURE_LIMIT}", rightTag = true)
             else CountHead(d.sideCount, Builder.SIDE, "Optional · 0 or 10")
             Progress(if (main) d.mainCount / DeckRules.MAIN.toFloat() else d.sideCount / Builder.SIDE.toFloat())
@@ -340,13 +362,11 @@ private fun PoolPage(d: Draft, pile: Pile, pool: List<Card>, index: Map<String, 
             if (d.legend == null) BasicText("Pick a legend first: its domains decide the cards.", Modifier.padding(vertical = 12.dp), style = SheetText)
         }
         items(cards, key = { it.id }) { c ->
-            val count = d.count(pile, c)
-            CardRow(
-                DecklistEntry(c.id, c.name, count), c, d.champion?.id == c.id,
-                canAdd = Builder.blocker(d, pile, c, index) == null,
-                onMinus = { onChange(Builder.remove(d, pile, c)) },
-                onPlus = { onChange(Builder.add(d, pile, c)) },
-                count = count,
+            val blocker = Builder.blocker(d, pile, c, index)
+            PickTile(
+                c, d.count(pile, c), blocker != null, tilePx,
+                onAdd = { if (blocker != null) onToast(blocker) else onChange(Builder.add(d, pile, c)) },
+                onRemove = { onChange(Builder.remove(d, pile, c)) },
             )
         }
     }
