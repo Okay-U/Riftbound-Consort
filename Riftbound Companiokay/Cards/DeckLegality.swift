@@ -27,8 +27,9 @@ struct DeckLegality {
         }
 
         let side = totalCount(deck.sideDeck)
-        if side != 0 && side != 10 {
-            issues.append("Side deck: \(side) (must be 0 or 10)")
+        // Tournament Rules 601.1.c.1: a sideboard of 10 or fewer cards.
+        if side > 10 {
+            issues.append("Side deck: \(side) (max 10)")
         }
 
         let runes = totalCount(deck.runes)

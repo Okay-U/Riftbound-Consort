@@ -26,6 +26,12 @@ extension Card {
         supertypeLower == "champion"
     }
 
+    /// A Signature card (Core Rules 103.2.d: at most three, all of the legend's champion). Not the signed
+    /// "(Signature)" printing of a legend or champion, which the feed marks in metadata.signature.
+    var isSignature: Bool {
+        supertypeLower == "signature"
+    }
+
     var isBattlefield: Bool {
         typeLower == "battlefield"
     }
@@ -50,30 +56,27 @@ extension Card {
         return cardDomains.isSubset(of: legendDomains)
     }
 
-    /// True if this champion card matches the given legend. Strategy:
-    /// 1. Tag intersection (preferred — both share a tag).
-    /// 2. Fallback: champion name starts with legend's primary name token
-    ///    (e.g. legend "Master Yi" → champion "Master Yi, Wuju Bladesman").
+    /// True if this card carries the legend's champion tag (Core Rules 103.2): the champion's name, "Jinx" for
+    /// "Jinx - Loose Cannon". A tag the legend shares with others is not one: Kennen's "Yordle" offered every
+    /// Yordle champion.
     func matchesLegend(_ legend: Card) -> Bool {
-        let myTags = Set((tags ?? []).map { $0.lowercased() })
-        let legendTags = Set((legend.tags ?? []).map { $0.lowercased() })
-        if !myTags.isEmpty && !legendTags.isEmpty &&
-           !myTags.isDisjoint(with: legendTags) {
-            return true
-        }
-        // Fallback — name prefix match.
-        let legendKey = Card.primaryNameToken(legend.name).lowercased()
-        guard !legendKey.isEmpty else { return false }
-        let mine = Card.primaryNameToken(name).lowercased()
-        return mine == legendKey
+        let champion = Card.championName(legend.name)
+        guard !champion.isEmpty else { return false }
+        if Card.championName(name).caseInsensitiveCompare(champion) == .orderedSame { return true }
+        return (tags ?? []).contains { $0.caseInsensitiveCompare(champion) == .orderedSame }
     }
 
-    /// Splits "Master Yi, Wuju Bladesman" → "Master Yi".
-    static func primaryNameToken(_ name: String) -> String {
-        if let comma = name.firstIndex(of: ",") {
-            return String(name[..<comma]).trimmingCharacters(in: .whitespaces)
-        }
-        return name.trimmingCharacters(in: .whitespaces)
+    /// A Signature card only goes with its own champion's legend (Core Rules 103.2.d); without a legend yet, any.
+    func signatureFits(legend: Card?) -> Bool {
+        guard isSignature, let legend else { return true }
+        return matchesLegend(legend)
+    }
+
+    /// "Jinx - Loose Cannon" → "Jinx", "Master Yi, Wuju Bladesman" → "Master Yi".
+    static func championName(_ name: String) -> String {
+        let beforeDash = name.components(separatedBy: " - ").first ?? name
+        let beforeComma = beforeDash.components(separatedBy: ",").first ?? beforeDash
+        return beforeComma.trimmingCharacters(in: .whitespaces)
     }
 
     /// Finds a rune card representing the given domain. Returns the lowest

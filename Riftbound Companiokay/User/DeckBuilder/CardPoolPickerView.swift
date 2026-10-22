@@ -82,7 +82,7 @@ struct CardPoolPickerView: View {
     private var pool: [Card] {
         let domains = state.legendDomainsSet
         var cards = cardStore.allCards.filter {
-            $0.isMainDeckEligible(legendDomains: domains)
+            $0.isMainDeckEligible(legendDomains: domains) && $0.signatureFits(legend: state.legend)
         }
 
         let q = query.trimmingCharacters(in: .whitespaces)
@@ -238,7 +238,7 @@ struct CardPoolPickerView: View {
     private var keptHere: Int {
         let domains = state.legendDomainsSet
         return Set(cardStore.allCards.filter {
-            shortlist.contains($0.id) && $0.isMainDeckEligible(legendDomains: domains)
+            shortlist.contains($0.id) && $0.isMainDeckEligible(legendDomains: domains) && $0.signatureFits(legend: state.legend)
         }.map(\.id)).count
     }
 

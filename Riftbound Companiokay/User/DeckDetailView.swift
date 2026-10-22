@@ -44,7 +44,7 @@ struct DeckDetailView: View {
     private func mainSideSignatureCount() -> Int {
         let entries = current.mainDeck + current.sideDeck
         return entries
-            .filter { e in card(for: e)?.metadata?.signature == true }
+            .filter { e in card(for: e)?.isSignature == true }
             .reduce(0) { $0 + $1.count }
     }
 
@@ -67,7 +67,7 @@ struct DeckDetailView: View {
         if slot == .mainDeck || slot == .sideDeck {
             let key = DeckBuilderState.identityKey(for: c)
             if mainSideIdentityCount(key) >= DeckBuilderState.copyLimit { return false }
-            if c.metadata?.signature == true,
+            if c.isSignature,
                mainSideSignatureCount() >= DeckBuilderState.signatureLimit {
                 return false
             }

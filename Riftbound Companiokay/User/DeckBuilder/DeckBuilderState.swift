@@ -39,7 +39,6 @@ final class DeckBuilderState: ObservableObject {
 
     static let mainDeckTarget   = 39
     /// Legal sizes; empty is legal too, but the UI only ever shows the full target.
-    static let sideDeckOptions: [Int] = [0, 10]
     static let sideDeckTarget   = 10
     static let battlefieldTarget = 3
     static let runeTotal         = 12
@@ -168,7 +167,7 @@ final class DeckBuilderState: ObservableObject {
     func canAdd(_ card: Card) -> Bool {
         let key = identityKey(for: card)
         if totalCount(matchingIdentity: key) >= Self.copyLimit { return false }
-        if card.metadata?.signature == true,
+        if card.isSignature,
            signatureCopyCount >= Self.signatureLimit { return false }
         return true
     }
@@ -246,7 +245,7 @@ final class DeckBuilderState: ObservableObject {
     }
 
     func incrementSide(_ card: Card) {
-        guard sideCount < (Self.sideDeckOptions.last ?? 8), canAdd(card) else { return }
+        guard sideCount < Self.sideDeckTarget, canAdd(card) else { return }
         trackIdentity(card)
         trackSignature(card)
         increment(&sideDeck, card: card)
@@ -262,7 +261,7 @@ final class DeckBuilderState: ObservableObject {
     }
 
     private func trackSignature(_ card: Card) {
-        if card.metadata?.signature == true {
+        if card.isSignature {
             signatureIds.insert(card.id)
         }
     }
@@ -280,7 +279,8 @@ final class DeckBuilderState: ObservableObject {
     var canAdvanceFromChampion: Bool    { champion != nil }
     var canAdvanceFromBattlefield: Bool { battlefields.count == Self.battlefieldTarget }
     var canAdvanceFromMain: Bool        { mainCount == Self.mainDeckTarget }
-    var canAdvanceFromSide: Bool        { Self.sideDeckOptions.contains(sideCount) }
+    /// Tournament Rules 601.1.c.1: a sideboard of 10 or fewer cards.
+    var canAdvanceFromSide: Bool        { sideCount <= Self.sideDeckTarget }
     var canAdvanceFromRunes: Bool       { runeTotalCount == Self.runeTotal }
     /// Only a name is required — incomplete (illegal) decks may be saved; the
     /// deck detail's legality section flags what's missing.
