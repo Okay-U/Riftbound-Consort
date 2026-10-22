@@ -8,6 +8,7 @@ import SwiftUI
 struct CardSearchView: View {
     @EnvironmentObject var cardStore: CardStore
     @EnvironmentObject var decklistStore: DecklistStore
+    @EnvironmentObject var shortlist: ShortlistStore
 
     @State private var query = ""
     @State private var filters = CardFilters()
@@ -37,7 +38,8 @@ struct CardSearchView: View {
             displayedCards = cardStore.filtered(query: query,
                                                 filters: filters,
                                                 primarySort: primarySort,
-                                                secondarySort: secondarySort)
+                                                secondarySort: secondarySort,
+                                                shortlist: Set(shortlist.ids))
         }
     }
 
@@ -129,6 +131,7 @@ struct CardSearchView: View {
         .onChange(of: cardStore.revision) { _, _ in scheduleRefresh(debounce: false) }
         .onChange(of: query) { _, _ in scheduleRefresh(debounce: true) }
         .onChange(of: filters) { _, _ in scheduleRefresh(debounce: true) }
+        .onChange(of: shortlist.ids) { _, _ in if filters.shortlistOnly { scheduleRefresh(debounce: false) } }
         .onChange(of: primarySort) { _, _ in scheduleRefresh(debounce: false) }
         .onChange(of: secondarySort) { _, _ in scheduleRefresh(debounce: false) }
     }

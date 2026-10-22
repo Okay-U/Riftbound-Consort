@@ -62,9 +62,11 @@ struct CardFilters: Equatable {
     var maxPower: Int = CardFilters.powerCap
     var minMight: Int = 0
     var maxMight: Int = CardFilters.mightCap
+    /// Only the cards on the shortlist.
+    var shortlistOnly: Bool = false
 
     var isActive: Bool {
-        !domains.isEmpty || !types.isEmpty || !series.isEmpty || !rarities.isEmpty
+        shortlistOnly || !domains.isEmpty || !types.isEmpty || !series.isEmpty || !rarities.isEmpty
             || minEnergy > 0 || maxEnergy < Self.energyCap
             || minPower > 0 || maxPower < Self.powerCap
             || minMight > 0 || maxMight < Self.mightCap

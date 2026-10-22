@@ -156,6 +156,7 @@ private extension View {
 struct AddToDeckSheet: View {
     let card: Card
     @EnvironmentObject var decklistStore: DecklistStore
+    @EnvironmentObject var shortlist: ShortlistStore
     @Environment(\.dismiss) private var dismiss
     @State private var newDeckName: String = ""
     @State private var showNewDeckField: Bool = false
@@ -163,6 +164,19 @@ struct AddToDeckSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                // Kept in mind for a deck to come, without picking the deck now.
+                Section {
+                    Button {
+                        shortlist.toggle(card.id)
+                        Haptics.selection()
+                    } label: {
+                        Label(shortlist.contains(card.id) ? "On your shortlist" : "Save to shortlist",
+                              systemImage: shortlist.contains(card.id) ? "star.fill" : "star")
+                    }
+                } footer: {
+                    Text("Kept cards wait in the deck builder, the card filters and the Decks tab.")
+                }
+
                 if decklistStore.lists.isEmpty {
                     Text("No decklists yet — create one below.")
                         .foregroundStyle(.secondary)

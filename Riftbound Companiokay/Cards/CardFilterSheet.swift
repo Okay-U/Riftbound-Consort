@@ -13,10 +13,15 @@ struct CardFilterSheet: View {
     var availableTypes: [String] = CardFilters.knownTypes
     var availableRarities: [String] = CardFilters.knownRarities
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var shortlist: ShortlistStore
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Shortlist") {
+                    Toggle("Only my shortlist (\(shortlist.ids.count))", isOn: $filters.shortlistOnly)
+                }
+
                 // Domain
                 if !availableDomains.isEmpty {
                     Section("Domain") {

@@ -13,9 +13,11 @@ enum BuilderPoolSlot {
 struct CardPoolPickerView: View {
     @ObservedObject var state: DeckBuilderState
     @EnvironmentObject var cardStore: CardStore
+    @EnvironmentObject var shortlist: ShortlistStore
     let slot: BuilderPoolSlot
     @State private var query: String = ""
     @State private var selectedTypes: Set<String> = []
+    @State private var shortlistOnly = false
 
     private let typeOptions = ["Unit", "Spell", "Gear"]
 
@@ -93,6 +95,10 @@ struct CardPoolPickerView: View {
             cards = cards.filter {
                 lower.contains($0.classification?.type?.lowercased() ?? "")
             }
+        }
+
+        if shortlistOnly {
+            cards = cards.filter { shortlist.contains($0.id) }
         }
 
         var seen: Set<String> = []
@@ -228,11 +234,24 @@ struct CardPoolPickerView: View {
         .padding(.top, 8)
     }
 
+    /// Shortlisted cards this legend may play, so the chip never promises cards it cannot show.
+    private var keptHere: Int {
+        let domains = state.legendDomainsSet
+        return Set(cardStore.allCards.filter {
+            shortlist.contains($0.id) && $0.isMainDeckEligible(legendDomains: domains)
+        }.map(\.id)).count
+    }
+
     private var typeFilterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(typeOptions, id: \.self) { type in
                     typeChip(type)
+                }
+                // The cards kept in mind from the Cards tab, so they need no searching.
+                let kept = keptHere
+                if kept > 0 {
+                    chip("★ Shortlist \(kept)", isOn: shortlistOnly) { shortlistOnly.toggle() }
                 }
                 if !selectedTypes.isEmpty {
                     Button {
@@ -253,11 +272,15 @@ struct CardPoolPickerView: View {
 
     private func typeChip(_ type: String) -> some View {
         let isOn = selectedTypes.contains(type)
-        return Button {
+        return chip(type, isOn: isOn) {
             if isOn { selectedTypes.remove(type) }
             else    { selectedTypes.insert(type) }
-        } label: {
-            Text(type)
+        }
+    }
+
+    private func chip(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)

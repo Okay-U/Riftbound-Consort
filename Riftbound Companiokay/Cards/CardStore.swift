@@ -220,9 +220,11 @@ final class CardStore: ObservableObject {
     func filtered(query: String,
                   filters: CardFilters,
                   primarySort: CardSort = .set,
-                  secondarySort: CardSort? = .energy) -> [Card] {
+                  secondarySort: CardSort? = .energy,
+                  shortlist: Set<String> = []) -> [Card] {
         let matched = allCards.filter { card in
-            matchesQuery(card, query: query)
+            (!filters.shortlistOnly || shortlist.contains(card.id))
+                && matchesQuery(card, query: query)
                 && matchesDomains(card, selected: filters.domains)
                 && matchesTypes(card, selected: filters.types)
                 && matchesSeries(card, selected: filters.series)

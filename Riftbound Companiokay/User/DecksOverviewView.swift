@@ -10,6 +10,7 @@ struct DecksOverviewView: View {
     @EnvironmentObject var store: DecklistStore
     @EnvironmentObject var cardStore: CardStore
     @EnvironmentObject var recordStore: GameRecordStore
+    @EnvironmentObject var shortlist: ShortlistStore
     @State private var showBuilder: Bool = false
     @State private var showImportAlert: Bool = false
     @State private var importMessage: String = ""
@@ -19,6 +20,10 @@ struct DecksOverviewView: View {
             if store.lists.isEmpty {
                 VStack(spacing: 0) {
                     emptyState
+                    Divider()
+                    shortlistRow
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                     historyFooter
                 }
             } else {
@@ -35,6 +40,12 @@ struct DecksOverviewView: View {
                     }
                     .onDelete { offsets in
                         offsets.forEach { store.delete(store.lists[$0]) }
+                    }
+
+                    Section {
+                        shortlistRow
+                    } header: {
+                        Text("Shortlist")
                     }
 
                     Section {
@@ -147,6 +158,27 @@ struct DecksOverviewView: View {
             }
             .padding(.vertical, 4)
         }
+    }
+
+    /// After the decks (Android: right after New deck): the cards kept in mind, not a deck.
+    private var shortlistRow: some View {
+        NavigationLink {
+            ShortlistView()
+        } label: {
+            HStack {
+                Image(systemName: shortlist.ids.isEmpty ? "star" : "star.fill")
+                    .foregroundStyle(shortlist.ids.isEmpty ? Color.secondary : Color.yellow)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Shortlist")
+                        .font(.subheadline.weight(.semibold))
+                    Text(shortlist.ids.isEmpty ? "Save cards from their Add to Deck sheet" : "\(shortlist.ids.count) kept in mind")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var historyFooter: some View {
