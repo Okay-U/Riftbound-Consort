@@ -78,6 +78,18 @@ private struct Morph: ViewModifier {
 }
 
 extension AnyTransition {
+    /// The score and the roll take turns on a half: the leaving one blurs out and swells a little, the
+    /// coming one sharpens from a blur and grows into place.
+    static var halfSwap: AnyTransition {
+        let identity = Morph(blur: 0, dy: 0, scale: 1, opacity: 1)
+        return .asymmetric(
+            insertion: .modifier(active: Morph(blur: 14, dy: 0, scale: 0.88, opacity: 0), identity: identity)
+                .animation(.rift(0.7).delay(0.12)),
+            removal: .modifier(active: Morph(blur: 10, dy: 0, scale: 1.04, opacity: 0), identity: identity)
+                .animation(.easeIn(duration: 0.28))
+        )
+    }
+
     /// In from below, blurred and a little large; out upwards, blurred and a little small.
     static func scoreMorph(height: CGFloat, inDuration: Double = 0.95, outDuration: Double = 0.65) -> AnyTransition {
         let identity = Morph(blur: 0, dy: 0, scale: 1, opacity: 1)

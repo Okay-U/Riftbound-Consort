@@ -24,23 +24,26 @@ struct PressScale: ButtonStyle {
 struct LitButton<Label: View>: View {
     let accessibility: String
     var enabled = true
+    /// 1 for Liquid Glass, which answers the press itself.
+    var pressedScale: CGFloat = 0.94
     let action: () -> Void
     @ViewBuilder let label: (CGFloat) -> Label
 
     var body: some View {
         Button(action: action) { EmptyView() }
-            .buttonStyle(LitStyle(label: label))
+            .buttonStyle(LitStyle(pressedScale: pressedScale, label: label))
             .disabled(!enabled)
             .accessibilityLabel(accessibility)
     }
 }
 
 private struct LitStyle<Label: View>: ButtonStyle {
+    let pressedScale: CGFloat
     let label: (CGFloat) -> Label
 
     func makeBody(configuration: Configuration) -> some View {
         label(configuration.isPressed ? 1 : 0)
-            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .scaleEffect(configuration.isPressed ? pressedScale : 1)
             .animation(configuration.isPressed ? .linear(duration: 0.06) : .rift(0.52), value: configuration.isPressed)
     }
 }

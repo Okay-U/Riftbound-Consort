@@ -101,11 +101,27 @@ struct ActionRow: View {
     let onFix: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
-            ActionButton(title: "Conquer", delta: "+1", label: "Conquer, plus one point", filled: true, accent: accent, action: onConquer)
-            ActionButton(title: "Hold", delta: "+1", label: "Hold, plus one point", filled: false, accent: accent, action: onHold)
-            ActionButton(title: "Effect", delta: "+1", label: "Card effect, plus one point", filled: false, accent: accent, action: onEffect)
-            ActionButton(title: "Fix", delta: "−1", label: "Correct, minus one point", filled: false, accent: accent, action: onFix)
+        GlassGroup(spacing: 8) {
+            HStack(spacing: 8) {
+                ActionButton(title: "Conquer", delta: "+1", label: "Conquer, plus one point", filled: true, accent: accent, action: onConquer)
+                ActionButton(title: "Hold", delta: "+1", label: "Hold, plus one point", filled: false, accent: accent, action: onHold)
+                ActionButton(title: "Effect", delta: "+1", label: "Card effect, plus one point", filled: false, accent: accent, action: onEffect)
+                ActionButton(title: "Fix", delta: "−1", label: "Correct, minus one point", filled: false, accent: accent, action: onFix)
+            }
+        }
+    }
+}
+
+/// Liquid Glass shapes that sit close together render as one group on iOS 26.
+private struct GlassGroup<Content: View>: View {
+    let spacing: CGFloat
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        if #available(iOS 26, *) {
+            GlassEffectContainer(spacing: spacing) { content() }
+        } else {
+            content()
         }
     }
 }
@@ -119,20 +135,23 @@ struct ActionGrid: View {
     let onFix: () -> Void
 
     var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 6) {
-                ActionButton(title: "Conquer", delta: "+1", label: "Conquer, plus one point", filled: true, accent: accent, height: 40, action: onConquer)
-                ActionButton(title: "Hold", delta: "+1", label: "Hold, plus one point", filled: false, accent: accent, height: 40, action: onHold)
-            }
-            HStack(spacing: 6) {
-                ActionButton(title: "Effect", delta: "+1", label: "Card effect, plus one point", filled: false, accent: accent, height: 40, action: onEffect)
-                ActionButton(title: "Fix", delta: "−1", label: "Correct, minus one point", filled: false, accent: accent, height: 40, action: onFix)
+        GlassGroup(spacing: 6) {
+            VStack(spacing: 6) {
+                HStack(spacing: 6) {
+                    ActionButton(title: "Conquer", delta: "+1", label: "Conquer, plus one point", filled: true, accent: accent, height: 40, action: onConquer)
+                    ActionButton(title: "Hold", delta: "+1", label: "Hold, plus one point", filled: false, accent: accent, height: 40, action: onHold)
+                }
+                HStack(spacing: 6) {
+                    ActionButton(title: "Effect", delta: "+1", label: "Card effect, plus one point", filled: false, accent: accent, height: 40, action: onEffect)
+                    ActionButton(title: "Fix", delta: "−1", label: "Correct, minus one point", filled: false, accent: accent, height: 40, action: onFix)
+                }
             }
         }
     }
 }
 
-/// Conquer is filled in the half's colour and flares when tapped; the others fill with it for a moment.
+/// Conquer is filled in the half's colour and glows; the others light up in it for a moment when tapped.
+/// Liquid Glass on iOS 26 (Okay, 2026-10-22), the mock's capsules before.
 private struct ActionButton: View {
     let title: String
     let delta: String
@@ -143,28 +162,39 @@ private struct ActionButton: View {
     let action: () -> Void
 
     var body: some View {
-        LitButton(accessibility: label, action: action) { lit in
-            let glow = filled ? 0.45 + 0.35 * lit : 0.5 * lit
-            let ink = accent.ink
-            let text = filled ? ink : Color.white.mix(with: ink, by: lit)
-            VStack(spacing: 0) {
-                Text(title).font(RiftFont.text(13, .semibold))
-                Text(delta).font(RiftFont.text(10, .medium)).opacity(filled ? 0.62 : 0.66)
+        if #available(iOS 26, *) {
+            LitButton(accessibility: label, pressedScale: 1, action: action) { lit in
+                face(color: filled ? accent.ink : .white)
+                    .glassEffect(.regular.tint(filled ? accent : accent.opacity(0.9 * lit)).interactive(), in: Capsule())
+                    .shadow(color: accent.opacity(glow(lit)), radius: 13 + 6 * lit)
             }
-            .foregroundStyle(text)
-            .frame(maxWidth: .infinity)
-            .frame(height: height)
-            .background {
-                Capsule()
-                    .fill(filled ? accent.mix(with: .white, by: 0.3 * lit) : Color.black.opacity(0.38).mix(with: accent, by: 0.9 * lit))
-                    .shadow(color: accent.opacity(glow), radius: 13 + 6 * lit)
+        } else {
+            LitButton(accessibility: label, action: action) { lit in
+                face(color: filled ? accent.ink : Color.white.mix(with: accent.ink, by: lit))
+                    .background {
+                        Capsule()
+                            .fill(filled ? accent.mix(with: .white, by: 0.3 * lit) : Color.black.opacity(0.38).mix(with: accent, by: 0.9 * lit))
+                            .shadow(color: accent.opacity(glow(lit)), radius: 13 + 6 * lit)
+                    }
+                    .overlay {
+                        if !filled { Capsule().stroke(Color.white.opacity(0.2).mix(with: accent, by: lit), lineWidth: 1) }
+                    }
             }
-            .overlay {
-                if !filled { Capsule().stroke(Color.white.opacity(0.2).mix(with: accent, by: lit), lineWidth: 1) }
-            }
-            .contentShape(Capsule())
         }
     }
+
+    private func face(color: Color) -> some View {
+        VStack(spacing: 0) {
+            Text(title).font(RiftFont.text(13, .semibold))
+            Text(delta).font(RiftFont.text(10, .medium)).opacity(filled ? 0.62 : 0.66)
+        }
+        .foregroundStyle(color)
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .contentShape(Capsule())
+    }
+
+    private func glow(_ lit: CGFloat) -> Double { filled ? 0.45 + 0.35 * lit : 0.5 * lit }
 }
 
 /// "WIN · 8–3", or "GAME 2 · Series 1–0", over the winner's half, softly in after the line has swept.

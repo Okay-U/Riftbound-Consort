@@ -156,26 +156,32 @@ private struct Half: View {
         let dim = roll.map { $0.winner >= 0 && $0.winner != slot } ?? (s.gameOver && s.winner != slot)
         let wins = s.seriesWins()
         ZStack(alignment: .top) {
-            VStack(spacing: 0) {
+            // Stacked, not in a column: while they swap, the score and the roll share the half.
+            ZStack {
                 if let roll {
                     DuelSide(c: c, roll: roll, slot: slot, accent: accent)
+                        .transition(.halfSwap)
                 } else {
-                    TopLine(
-                        legend: c.legend(slot), accent: accent, starter: s.starter == slot, xp: s.players[slot].xp,
-                        onXp: { c.xp(slot, $0) }, gamesWon: wins[slot], pips: s.isSeries ? s.winsNeeded : 0,
-                        shown: !s.gameOver && !s.showSummary, onName: nil
-                    )
-                    GeometryReader { box in
-                        ScoreNumber(
-                            value: s.players[slot].score, accent: accent, won: s.winner == slot,
-                            label: "\(haves(c.shortName(slot))) \(s.players[slot].score) of \(ScoreState.target) points",
-                            size: max(40, min(188, box.size.height / 1.1, box.size.width / 1.38))
+                    VStack(spacing: 0) {
+                        TopLine(
+                            legend: c.legend(slot), accent: accent, starter: s.starter == slot, xp: s.players[slot].xp,
+                            onXp: { c.xp(slot, $0) }, gamesWon: wins[slot], pips: s.isSeries ? s.winsNeeded : 0,
+                            shown: !s.gameOver && !s.showSummary, onName: nil
                         )
-                        .frame(width: box.size.width, height: box.size.height)
+                        GeometryReader { box in
+                            ScoreNumber(
+                                value: s.players[slot].score, accent: accent, won: s.winner == slot,
+                                label: "\(haves(c.shortName(slot))) \(s.players[slot].score) of \(ScoreState.target) points",
+                                size: max(40, min(188, box.size.height / 1.1, box.size.width / 1.38))
+                            )
+                            .frame(width: box.size.width, height: box.size.height)
+                        }
+                        bottomRow(s, accent: accent)
                     }
-                    bottomRow(s, accent: accent)
+                    .transition(.halfSwap)
                 }
             }
+            .animation(.rift(0.7), value: roll != nil)
             .padding(.horizontal, 20)
             .padding(.top, 34)
             .padding(.bottom, 18)
@@ -298,27 +304,32 @@ private struct FourBoard: View {
 
     private func seat(_ slot: Int, s: ScoreState, roll: FirstRoll?, accent: Color, leading: Bool) -> some View {
         let lost = roll.map { $0.winner >= 0 && $0.winner != slot } ?? false
-        return VStack(spacing: 0) {
+        return ZStack {
             if let roll {
                 DuelSide(c: c, roll: roll, slot: slot, accent: accent, dieSize: 110)
+                    .transition(.halfSwap)
             } else {
-                TopLine(legend: c.legend(slot), accent: accent, starter: s.starter == slot, xp: s.players[slot].xp, onXp: { c.xp(slot, $0) })
-                GeometryReader { box in
-                    let n = s.players[slot].score
-                    ScoreNumber(
-                        value: n, accent: accent, won: false,
-                        label: "\(haves(c.legend(slot))) \(n) \(n == 1 ? "point" : "points")",
-                        showTarget: false, size: max(32, min(112, box.size.height / 1.1, box.size.width / 1.38))
+                VStack(spacing: 0) {
+                    TopLine(legend: c.legend(slot), accent: accent, starter: s.starter == slot, xp: s.players[slot].xp, onXp: { c.xp(slot, $0) })
+                    GeometryReader { box in
+                        let n = s.players[slot].score
+                        ScoreNumber(
+                            value: n, accent: accent, won: false,
+                            label: "\(haves(c.legend(slot))) \(n) \(n == 1 ? "point" : "points")",
+                            showTarget: false, size: max(32, min(112, box.size.height / 1.1, box.size.width / 1.38))
+                        )
+                        .frame(width: box.size.width, height: box.size.height)
+                    }
+                    ActionGrid(
+                        accent: accent,
+                        onConquer: { c.score(slot, .conquer) }, onHold: { c.score(slot, .hold) },
+                        onEffect: { c.score(slot, .effect) }, onFix: { c.fix(slot) }
                     )
-                    .frame(width: box.size.width, height: box.size.height)
                 }
-                ActionGrid(
-                    accent: accent,
-                    onConquer: { c.score(slot, .conquer) }, onHold: { c.score(slot, .hold) },
-                    onEffect: { c.score(slot, .effect) }, onFix: { c.fix(slot) }
-                )
+                .transition(.halfSwap)
             }
         }
+        .animation(.rift(0.7), value: roll != nil)
         .padding(.horizontal, 12)
         .padding(.top, 22)
         .padding(.bottom, 14)
