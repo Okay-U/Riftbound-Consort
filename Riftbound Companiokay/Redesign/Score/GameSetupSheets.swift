@@ -137,6 +137,8 @@ struct PickRow<Leading: View>: View {
     let title: String
     var sub: String? = nil
     let on: Bool
+    /// The check on the right; off where the row's sub line says it (the champion swap).
+    var check = true
     @ViewBuilder var leading: () -> Leading
     let action: () -> Void
 
@@ -152,12 +154,14 @@ struct PickRow<Leading: View>: View {
                 }
                 .multilineTextAlignment(.leading)
                 Spacer(minLength: 8)
-                ZStack {
-                    Circle().fill(on ? RiftColor.you : .clear)
-                    Circle().stroke(on ? RiftColor.you : .white.opacity(0.3), lineWidth: 1.5)
-                    if on { Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(.black) }
+                if check {
+                    ZStack {
+                        Circle().fill(on ? RiftColor.you : .clear)
+                        Circle().stroke(on ? RiftColor.you : .white.opacity(0.3), lineWidth: 1.5)
+                        if on { Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(.black) }
+                    }
+                    .frame(width: 26, height: 26)
                 }
-                .frame(width: 26, height: 26)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)

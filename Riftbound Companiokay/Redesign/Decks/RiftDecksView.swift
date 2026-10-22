@@ -15,6 +15,9 @@ struct RiftDecksView: View {
     @EnvironmentObject private var cards: CardStore
     @EnvironmentObject private var shortlist: ShortlistStore
 
+    @State private var opened: OpenDeck?
+    @State private var closingDeck = false
+    @State private var tool: DeckTool?
     @State private var log: LogOpen?
     @State private var logDeck: UUID?
     @State private var review: GameRecord?
@@ -22,23 +25,41 @@ struct RiftDecksView: View {
     @State private var importing = false
     @State private var shortlistShown = false
     @State private var toast: BoardToast?
-    /// Until the redesign's deck screen and builder land: the classic ones.
-    @State private var classicDeck: Decklist?
+    /// Until the redesign's builder lands: the classic one.
     @State private var classicBuilder = false
     @Namespace private var space
 
+    struct OpenDeck: Equatable {
+        let id: UUID
+        /// The pile's frame in `decksSpace`, where the deck grows from and goes back to.
+        let pile: CGRect
+    }
+
     struct LogOpen: Equatable {
-        /// "win" or "last": the tile it grew out of.
+        /// "win", "last" or "tool" (the deck screen's History): what it grew out of.
         let tile: String
     }
 
     var body: some View {
         let index = Dictionary(cards.allCards.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let openDeck = opened.flatMap { o in decks.lists.first { $0.id == o.id } }
+        let away = opened != nil && !closingDeck
         NavigationStack {
             ZStack {
                 home(index)
-                    .opacity(log == nil ? 1 : 0.12)
-                    .allowsHitTesting(log == nil && review == nil)
+                    .opacity(away ? 0 : log == nil ? 1 : 0.12)
+                    .scaleEffect(away ? 0.94 : 1)
+                    .animation(.rift(0.6), value: away)
+                    .allowsHitTesting(log == nil && review == nil && opened == nil)
+                if let opened, let deck = openDeck {
+                    RiftDeckDetail(
+                        deck: deck, cards: index, record: Tally.of(games.records.filter { $0.deckId == deck.id }), pile: opened.pile,
+                        closing: closingDeck, space: space, logOpen: log?.tile == "tool",
+                        onClose: closeDeck, onClosed: { self.opened = nil; closingDeck = false },
+                        onTool: { tool = $0 }, onLog: { openLog("tool", deck: deck.id) }
+                    )
+                    .zIndex(0.5)
+                }
                 if let log {
                     PanelGround(id: "log:\(log.tile)", space: space)
                         .transition(.asymmetric(insertion: .identity, removal: .opacity))
@@ -67,12 +88,15 @@ struct RiftDecksView: View {
                         .zIndex(3)
                 }
             }
+            .coordinateSpace(.named(decksSpace))
             .background(Color.black.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
-            .toolbar(log == nil && review == nil ? .visible : .hidden, for: .tabBar)
-            .navigationDestination(item: $classicDeck) { deck in DeckDetailView(deck: deck) }
+            .toolbar(opened == nil && log == nil && review == nil ? .visible : .hidden, for: .tabBar)
         }
         .onAppear { cards.loadIfNeeded() }
+        .sheet(item: $tool) { tool in
+            if let deck = openDeck { toolSheet(tool, deck: deck, index: index) }
+        }
         .sheet(item: $editing) { game in
             EditGameSheet(game: game, decks: decks.lists, legends: cards.legendNames, onSave: { updated in
                 games.update(updated)
@@ -97,6 +121,37 @@ struct RiftDecksView: View {
         .sheet(isPresented: $classicBuilder) { DeckBuilderSheet() }
     }
 
+    @ViewBuilder
+    private func toolSheet(_ tool: DeckTool, deck: Decklist, index: [String: Card]) -> some View {
+        switch tool {
+        case .hand: HandSheet(deck: deck, cards: index)
+        case .odds: OddsSheet(deck: deck, cards: index)
+        case .stats: StatsSheet(deck: deck, cards: index)
+        case .issues: IssuesSheet(deck: deck, cards: index)
+        case .export: ExportSheet(deck: deck, pool: cards.allCards) { toast = BoardToast(text: "Deck list copied") }
+        case .champion:
+            ChampionSheet(deck: deck, cards: index, pool: cards.allCards) { champion in
+                decks.replace(DeckEdits.champion(deck, champion, at: Date()))
+                Haptics.success()
+                toast = BoardToast(text: "\(champion.title) is your champion")
+            }
+        case .fields:
+            FieldsSheet(deck: deck, pool: cards.allCards) { field in
+                // The sheet reads the stored deck, so a second tap sees the first.
+                guard let live = decks.lists.first(where: { $0.id == deck.id }), let next = DeckEdits.toggleBattlefield(live, field, at: Date()) else { return false }
+                decks.replace(next)
+                return true
+            }
+        case .menu:
+            DeckMenuSheet(deck: deck, onRename: { decks.rename(deck, to: $0) }, onEdit: nil, onDelete: {
+                opened = nil
+                closingDeck = false
+                decks.delete(deck)
+                toast = BoardToast(text: "Deleted \(deck.name)")
+            })
+        }
+    }
+
     private func home(_ index: [String: Card]) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -114,7 +169,7 @@ struct RiftDecksView: View {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 4) {
                     ForEach(Array(decks.lists.enumerated()), id: \.element.id) { i, deck in
                         PileCell(deck: deck, legend: deck.legend.flatMap { index[$0.cardId] }, record: Tally.of(games.records.filter { $0.deckId == deck.id }),
-                                 status: DeckRules.status(deck, cards: index), index: i) { classicDeck = deck }
+                                 status: DeckRules.status(deck, cards: index), index: i, hidden: opened?.id == deck.id) { pile in openDeck(deck, from: pile) }
                     }
                     NewDeckCell(index: decks.lists.count) { classicBuilder = true }
                     ShortlistCell(index: decks.lists.count + 1, kept: shortlist.ids.compactMap { index[$0] }) { shortlistShown = true }
@@ -142,8 +197,21 @@ struct RiftDecksView: View {
         }
     }
 
-    private func openLog(_ tile: String) {
-        logDeck = nil
+    private func openDeck(_ deck: Decklist, from pile: CGRect) {
+        guard opened == nil, pile.width > 0 else { return }
+        closingDeck = false
+        opened = OpenDeck(id: deck.id, pile: pile)
+        Haptics.light()
+    }
+
+    private func closeDeck() {
+        guard opened != nil, !closingDeck else { return }
+        tool = nil
+        closingDeck = true
+    }
+
+    private func openLog(_ tile: String, deck: UUID? = nil) {
+        logDeck = deck
         withAnimation(.rift(0.64)) { log = LogOpen(tile: tile) }
     }
 
@@ -182,12 +250,18 @@ private struct PileCell: View {
     let record: Tally
     let status: String
     let index: Int
-    let onOpen: () -> Void
+    /// Its deck is open: the pile is up there as the banner.
+    let hidden: Bool
+    let onOpen: (CGRect) -> Void
+    @State private var pile: CGRect = .zero
 
     var body: some View {
-        Button(action: onOpen) {
+        Button { onOpen(pile) } label: {
             VStack(spacing: 0) {
-                PileStack(deck: deck, legend: legend).frame(width: 120, height: 168)
+                PileStack(deck: deck, legend: legend)
+                    .frame(width: 120, height: 168)
+                    .opacity(hidden ? 0 : 1)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(decksSpace)) } action: { pile = $0 }
                 Text(deck.name).font(RiftFont.display(21)).foregroundStyle(.white).lineLimit(1).padding(.top, 10)
                 Text(record.games > 0 ? "\(record.text) · \(record.percent)" : "No games yet")
                     .font(RiftFont.text(11, .semibold))

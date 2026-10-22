@@ -27,20 +27,36 @@ struct ArtBox: View {
     var initial: String? = nil
     var initialSize: CGFloat = 110
     var focus: Alignment = .artTop
+    /// Shown while the full-size art loads: the pile's smaller copy, already fetched.
+    var previewWidth: CGFloat? = nil
     @Environment(\.displayScale) private var scale
 
     var body: some View {
         GeometryReader { geo in
-            CachedRemoteImage(url: card.flatMap { CardStyle.imageURL($0, widthPoints: imageWidth, scale: scale) }) { image in
-                image.resizable().scaledToFill().frame(width: geo.size.width, height: geo.size.height, alignment: focus).clipped()
+            CachedRemoteImage(url: url(imageWidth)) { image in
+                crop(image, geo.size)
             } placeholder: {
-                ZStack(alignment: .topTrailing) {
-                    LegendGlow(domains: card?.domains ?? [])
-                    let letter = (initial ?? card.map { String($0.title.prefix(1)) } ?? "").uppercased()
-                    if !letter.isEmpty {
-                        Text(letter).font(RiftFont.display(initialSize)).foregroundStyle(.black.opacity(0.32)).padding(.trailing, 6).lineLimit(1)
-                    }
+                if let previewWidth {
+                    CachedRemoteImage(url: url(previewWidth)) { image in crop(image, geo.size) } placeholder: { glow }
+                } else {
+                    glow
                 }
+            }
+        }
+    }
+
+    private func url(_ width: CGFloat) -> URL? { card.flatMap { CardStyle.imageURL($0, widthPoints: width, scale: scale) } }
+
+    private func crop(_ image: Image, _ size: CGSize) -> some View {
+        image.resizable().scaledToFill().frame(width: size.width, height: size.height, alignment: focus).clipped()
+    }
+
+    private var glow: some View {
+        ZStack(alignment: .topTrailing) {
+            LegendGlow(domains: card?.domains ?? [])
+            let letter = (initial ?? card.map { String($0.title.prefix(1)) } ?? "").uppercased()
+            if !letter.isEmpty {
+                Text(letter).font(RiftFont.display(initialSize)).foregroundStyle(.black.opacity(0.32)).padding(.trailing, 6).lineLimit(1)
             }
         }
     }
@@ -90,7 +106,7 @@ struct PileStack: View {
                     .offset(x: shift, y: shift)
             }
             ZStack(alignment: .topLeading) {
-                ArtBox(card: legend, imageWidth: 120, initial: String((legend?.title ?? deck.name).prefix(1)))
+                ArtBox(card: legend, imageWidth: 120, initial: String((legend?.title ?? deck.name).prefix(1)), focus: .center)
                 BottomShade(from: 0.55)
                 Text("\(DeckRules.total(deck.mainDeck))")
                     .font(RiftFont.display(13, weight: 800))

@@ -180,4 +180,144 @@ do {
     check(MatchLog.opponentShort("Darius - Hand of Noxus") == "Darius" && MatchLog.opponentShort("") == "Unknown", "short name")
 }
 
+/// SplitMix64: a seeded shuffle for the hand checks.
+struct SeededRandom: RandomNumberGenerator {
+    var state: UInt64
+    init(seed: UInt64) { state = seed }
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
+    }
+}
+
+func entry(_ id: String, _ name: String, _ count: Int) -> DecklistEntry { DecklistEntry(cardId: id, cardName: name, count: count) }
+
+// Draw odds, stats and the test hand (Android DeckMathTest).
+do {
+    check(abs(Odds.atLeast(deck: 39, copies: 3, drawn: 4, k: 1) - 0.2838) < 0.0001, "a 3-of in 4 cards")
+    check(abs(Odds.atLeast(deck: 39, copies: 39, drawn: 4, k: 1) - 1) < 1e-9, "every card")
+    check(Odds.atLeast(deck: 39, copies: 1, drawn: 4, k: 2) == 0, "more than there are")
+    check(Odds.binomial(5, 2) == 10, "binomial")
+
+    var deck = empty()
+    deck.champion = entry("ogn-027-298", "Darius - Trifarian", 1)
+    deck.mainDeck = [entry("ogn-004-298", "Cleave", 3), entry("ogn-011-298", "Magma Wurm", 1)]
+    deck.sideDeck = [entry("ogn-008-298", "Get Excited!", 2)]
+    let s = DeckStats.of(deck, cards: cards)
+    check(s.curve[1] == 3 && s.curve[5] == 1 && s.curve[7] == 1, "curve \(s.curve)")
+    check(s.types == [.init(name: "Unit", count: 2), .init(name: "Spell", count: 3), .init(name: "Gear", count: 0)], "types \(s.types)")
+    check(abs((s.averageEnergy ?? 0) - Double(3 * 1 + 5 + 8) / 5) < 1e-9, "average")
+    check(s.power.count == 1 && s.power[0].name == "Fury", "power \(s.power)")
+
+    var ten = empty()
+    ten.mainDeck = (1...10).map { entry("c\($0)", "C\($0)", 1) }
+    var random = SeededRandom(seed: 3)
+    var h = Hand.deal(ten, using: &random)
+    check(h.cards.count == 4 && h.pile.count == 6, "opening hand")
+    let first = h.cards[0]
+    h = h.toggle(first.id).hand.toggle(h.cards[1].id).hand
+    check(h.toggle(h.cards[2].id).note == "Mulligan up to 2 cards", "two at most")
+    let before = h.pile
+    h = h.mulligan()
+    check(h.mulliganUsed, "used")
+    check(Array(h.pile.dropLast()) == Array(before.dropFirst(2)) + [first.cardId], "to the bottom")
+    check(h.toggle(h.cards[0].id).note == "One mulligan per game", "once")
+    for _ in 0..<10 { h = h.draw() }
+    check(h.cards.count == Hand.max, "eight at most")
+    var random2 = SeededRandom(seed: 4)
+    let next = Hand.deal(ten, firstId: 4, using: &random2)
+    check(next.cards.map(\.id) == [4, 5, 6, 7] && next.nextId == 8, "a new hand has new ids")
+}
+
+// The deck screen's edits (Android DeckEditsTest).
+do {
+    var base = empty()
+    base.legend = entry("ogn-253-298", "Darius - Hand of Noxus", 1)
+    base.champion = entry("ogn-027-298", "Darius - Trifarian", 1)
+    base.mainDeck = [entry("ogn-243-298", "Darius - Executioner", 2)]
+    base.runes = [entry("ogn-007a-298", "Fury Rune (Alternate Art)", 5)]
+    let executioner = named("Darius - Executioner")
+    let swapped = DeckEdits.champion(base, executioner, at: t1)
+    check(swapped.champion?.cardId == "ogn-243-298", "new champion")
+    check(swapped.mainDeck.map { "\($0.cardId):\($0.count)" } == ["ogn-243-298:1", "ogn-027-298:1"], "the old one takes its place")
+    var sideOnly = base
+    sideOnly.sideDeck = base.mainDeck
+    sideOnly.mainDeck = []
+    let fromSide = DeckEdits.champion(sideOnly, executioner, at: t1)
+    check(fromSide.mainDeck.isEmpty && DeckRules.total(fromSide.sideDeck) == 2, "from the side")
+    check(DeckEdits.runeCount(base, domain: "Fury", cards: cards) == 5, "runes across printings")
+    let fields = all.filter { $0.isBattlefield }
+    var d = base
+    for field in fields { d = DeckEdits.toggleBattlefield(d, field, at: t1) ?? d }
+    var full = d
+    full.battlefields = Array(d.battlefields.dropLast()) + [entry("x", "X", 1)]
+    check(d.battlefields.count == 3 && DeckEdits.toggleBattlefield(full, fields[fields.count - 1], at: t1) == nil, "three at most")
+}
+
+// The builder's draft (Android BuilderTest).
+do {
+    let darius = named("Darius - Hand of Noxus")
+    let trifarian = named("Darius - Trifarian")
+    let trifarianAlt = named("Darius - Trifarian (Alternate Art)")
+    var start = Draft()
+    start.main = [entry("x", "X", 3)]
+    let d = Builder.pickLegend(start, darius)
+    check(d.main.isEmpty && d.name == "Darius deck" && d.runes == ["fury": 6, "order": 6], "a legend resets the draft")
+    check(Builder.evenSplit(["A", "B", "C"]) == ["a": 4, "b": 4, "c": 4], "even split")
+    var mine = d
+    mine.name = "Mine"
+    check(Builder.pickLegend(mine, darius).name == "Mine", "the same legend keeps the name")
+
+    let inPool = Builder.pool(d, all)
+    check(inPool.allSatisfy { $0.domains.allSatisfy { ["Fury", "Order", "Colorless"].contains($0) } }, "the legend's domains")
+    check(!inPool.contains { $0.isLegend || $0.isRune || $0.isBattlefield || $0.isToken }, "no legends, runes, battlefields or tokens")
+    check(inPool.firstIndex { $0.domains == ["Fury"] } == 0, "the cheapest Fury card first")
+    check(Set(Builder.champions(legend: darius, pool: all).map(\.id)).isSuperset(of: ["ogn-027-298", "ogn-243-298"]), "champions")
+    check(!Builder.legends(all).contains { $0.name.hasSuffix("(Signature)") }, "no signature legends")
+
+    var c = Builder.pickChampion(Builder.pickLegend(Draft(), darius), trifarian)
+    c = Builder.add(c, .main, trifarian)
+    c = Builder.add(c, .side, trifarianAlt)
+    check(Builder.copies(c, trifarian, cards: cards) == 3, "copies across printings and the champion")
+    check(Builder.blocker(c, .main, trifarianAlt, cards: cards) == "3 copies already", "the fourth copy")
+    c = Builder.remove(c, .side, trifarianAlt)
+    check(Builder.blocker(c, .main, trifarianAlt, cards: cards) == nil, "room again")
+    check(Builder.rune(c, "fury", 1).runeCount == 12 && Builder.rune(c, "fury", -1).runes["fury"] == 5, "rune steps")
+
+    let pool = Builder.pickLegend(Draft(), darius)
+    check(Builder.rune(pool, "fury", -1).runes == ["fury": 5, "order": 7], "one down is the other up")
+    check(Builder.rune(pool, "order", 1).runes == ["fury": 5, "order": 7], "one up is the other down")
+    var short = pool
+    short.runes = ["fury": 4, "order": 4]
+    check(Builder.rune(short, "fury", 1).runes == ["fury": 5, "order": 4] && Builder.rune(short, "fury", -1).runes == ["fury": 3, "order": 4], "a short pool")
+    var edge = pool
+    edge.runes = ["fury": 12, "order": 0]
+    check(Builder.rune(edge, "fury", 1).runes == edge.runes && Builder.rune(edge, "order", -1).runes == edge.runes, "the edges")
+    check(Builder.rune(edge, "fury", -1).runes == ["fury": 11, "order": 1], "off the edge")
+
+    var s = Builder.pickChampion(Builder.pickLegend(Draft(), darius), trifarian)
+    for field in all where field.isBattlefield { s = Builder.toggleBattlefield(s, field) }
+    s = Builder.add(s, .main, named("Cleave"))
+    let saved = Builder.toDeck(s, pool: all, at: t1)
+    check(saved.runes.map { "\($0.cardId):\($0.count)" } == ["rad-r01:6"], "only the Fury half has a rune card")
+    check(saved.battlefields.count == 3 && saved.createdAt == t1, "three fields")
+    let again = Builder.fromDeck(saved, cards: cards)
+    check(again.legend == s.legend && again.champion == s.champion && again.battlefields == s.battlefields && again.main == s.main && again.name == s.name, "round trip")
+    check(again.runes == ["fury": 6, "order": 0], "runes back")
+    let resaved = Builder.toDeck(again, pool: all, at: t2)
+    check(resaved.id == saved.id && resaved.createdAt == saved.createdAt, "the same deck")
+
+    var legacy = empty()
+    legacy.legend = entry("legacy-legend", "Old Legend", 1)
+    legacy.battlefields = [entry("legacy-bf", "Old Field", 1)]
+    legacy.runes = [entry("legacy-rune", "Old Rune", 12)]
+    let kept = Builder.fromDeck(legacy, cards: cards)
+    check(kept.keepBattlefields && kept.keepRunes, "kept as they are")
+    let back = Builder.toDeck(kept, pool: all, at: t1)
+    check(back.legend == legacy.legend && back.battlefields == legacy.battlefields && back.runes == legacy.runes, "unchanged")
+}
+
 print("deck rules ok (\(checks) checks)")

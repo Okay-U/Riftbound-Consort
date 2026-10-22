@@ -12,13 +12,17 @@ import UIKit
 actor ImageCache {
     static let shared = ImageCache()
 
-    private let memory: NSCache<NSURL, UIImage> = {
+    // NSCache is thread-safe, so the view can look an image up synchronously.
+    private nonisolated(unsafe) let memory: NSCache<NSURL, UIImage> = {
         let cache = NSCache<NSURL, UIImage>()
         cache.countLimit = 500
         cache.totalCostLimit = 256 * 1024 * 1024
         return cache
     }()
     private var inFlight: [URL: Task<UIImage?, Never>] = [:]
+
+    /// An image already in memory, without waiting a turn: a view showing it again does not flash its placeholder.
+    nonisolated func cached(_ url: URL) -> UIImage? { memory.object(forKey: url as NSURL) }
 
     func image(for url: URL) async -> UIImage? {
         if let hit = memory.object(forKey: url as NSURL) { return hit }
@@ -55,8 +59,8 @@ struct CachedRemoteImage<Content: View, Placeholder: View>: View {
 
     var body: some View {
         Group {
-            if let loaded {
-                content(Image(uiImage: loaded))
+            if let image = url.flatMap({ ImageCache.shared.cached($0) }) ?? loaded {
+                content(Image(uiImage: image))
             } else {
                 placeholder()
             }
