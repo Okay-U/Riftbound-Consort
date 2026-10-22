@@ -159,6 +159,9 @@ final class RiftCalendar: ObservableObject {
             }
             return (all, failures)
         }
+        // Cut off (the section or the tab left mid-load): the half collected would read as "no store events" for
+        // ten minutes; the next look loads again instead.
+        guard !Task.isCancelled else { return }
         failedStores = failed
         storeEvents = found.map(\.entry)
         loadedAt = Date()

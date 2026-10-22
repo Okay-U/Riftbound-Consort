@@ -25,7 +25,7 @@ struct RedesignRoot: View {
                 .tabItem { Label("Score", systemImage: "rectangle.portrait.bottomhalf.filled") }
                 .tag(TabKey.score)
 
-            RiftEventsView(visit: visits[TabKey.events, default: 0])
+            RiftEventsView()
                 .tabItem { Label("Events", systemImage: "calendar") }
                 .tag(TabKey.events)
 
