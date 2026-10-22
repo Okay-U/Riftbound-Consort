@@ -188,3 +188,38 @@ class CompeteDecodeTest {
         assertEquals("c", c.nextCursor)
     }
 }
+
+class StoreSearchTest {
+    private fun hit(name: String, key: String, value: String, lng: Double, lat: Double) = buildJsonObject {
+        put("properties", buildJsonObject { put("name", name); put("osm_key", key); put("osm_value", value) })
+        put("geometry", buildJsonObject { put("type", "Point"); put("coordinates", buildJsonArray { add(JsonPrimitive(lng)); add(JsonPrimitive(lat)) }) })
+    }
+
+    @Test
+    fun `a bare city name finds the city, not a village of that name`() {
+        // Photon's order for "Munich" (2026-10-22): the North Dakota village first.
+        val munich = listOf(
+            hit("Munich", "place", "village", -98.83, 48.67),
+            hit("München", "place", "city", 11.58, 48.14),
+            hit("Munich Re", "office", "insurance", 11.59, 48.16),
+        )
+        assertEquals(48.14 to 11.58, pickPlace(munich))
+        // An address keeps Photon's best hit, and so does a list with one place.
+        val street = listOf(hit("Leopoldstraße", "highway", "residential", 11.58, 48.16), hit("München", "place", "city", 11.58, 48.14))
+        assertEquals(48.16 to 11.58, pickPlace(street))
+        assertEquals(48.78 to 9.18, pickPlace(listOf(hit("Stuttgart", "place", "city", 9.18, 48.78), hit("Stuttgart", "place", "town", -91.55, 34.5))))
+        assertNull(pickPlace(emptyList()))
+    }
+
+    @Test
+    fun `the calendar marks registrations from the player's list, so a new one shows at once`() {
+        fun entry(id: String, at: Long) = TournamentEntry(tournament = TournamentSummary(id = id, startsAt = at))
+        val stores = listOf(entry("a", 3), entry("b", 1), entry("a", 3))
+        assertEquals(listOf("b" to false, "a" to false), mergeCalendar(emptyList(), stores).map { it.entry.tournament.id to it.registered })
+        // Registered at a store: marked, once; registered elsewhere: added.
+        assertEquals(
+            listOf("b" to false, "c" to true, "a" to true),
+            mergeCalendar(listOf(entry("a", 3), entry("c", 2)), stores).map { it.entry.tournament.id to it.registered },
+        )
+    }
+}

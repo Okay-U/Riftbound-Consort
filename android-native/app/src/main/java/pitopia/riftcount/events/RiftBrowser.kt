@@ -30,7 +30,8 @@ import kotlin.coroutines.resume
  * Riot's Riftbound content site and the two Riot sign-in hosts; anything else goes to the system browser.
  */
 object RiftPolicy {
-    const val HOME = "https://playriftbound.com/"
+    /** The events page, not the site's front page (Okay): lighter, and it asks to sign in. Riot adds the locale. */
+    const val HOME = "https://playriftbound.com/events?tab=my-events"
     const val ADD_PASSWORD = "https://account.riotgames.com/"
     const val REFRESH_PAGE = "https://playriftbound.com/en-US/events?tab=my-events"
     private val allowedHosts = listOf("playriftbound.com", "riftbound.leagueoflegends.com", "authenticate.riotgames.com", "auth.riotgames.com")

@@ -41,6 +41,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -74,22 +76,38 @@ object SearchPlace {
      */
     suspend fun geocode(text: String): Pair<Double, Double>? = withContext(Dispatchers.IO) {
         runCatching {
-            val c = URL("https://photon.komoot.io/api/?q=${URLEncoder.encode(text, "UTF-8")}&limit=1").openConnection() as HttpURLConnection
+            val c = URL("https://photon.komoot.io/api/?q=${URLEncoder.encode(text, "UTF-8")}&limit=5").openConnection() as HttpURLConnection
             c.connectTimeout = 10_000
             c.readTimeout = 10_000
             c.setRequestProperty("User-Agent", "Riftcount-Android")
             try {
                 if (c.responseCode != 200) return@runCatching null
                 val json = CompeteJson.parseToJsonElement(c.inputStream.bufferedReader().use { it.readText() }).jsonObject
-                val coords = json["features"]?.jsonArray?.firstOrNull()?.jsonObject?.get("geometry")?.jsonObject?.get("coordinates")?.jsonArray
-                val lng = coords?.getOrNull(0)?.jsonPrimitive?.doubleOrNull
-                val lat = coords?.getOrNull(1)?.jsonPrimitive?.doubleOrNull
-                if (lat != null && lng != null) lat to lng else null
+                pickPlace(json["features"]?.jsonArray?.map { it.jsonObject }.orEmpty())
             } finally {
                 c.disconnect()
             }
         }.getOrNull()
     }
+}
+
+/** Larger places first; anything else after them. */
+private val PlaceSizes = listOf("city", "town", "village", "suburb", "hamlet")
+
+/**
+ * The coordinates of Photon's answer. A bare name also matches smaller places called the same ("Munich" found a
+ * village in North Dakota before München), so when the best hit is a place, the largest place among the hits wins;
+ * an address keeps the best hit.
+ */
+internal fun pickPlace(features: List<JsonObject>): Pair<Double, Double>? {
+    fun prop(f: JsonObject, key: String) = f["properties"]?.jsonObject?.get(key)?.jsonPrimitive?.contentOrNull
+    fun isPlace(f: JsonObject) = prop(f, "osm_key") == "place"
+    val top = features.firstOrNull() ?: return null
+    val best = if (isPlace(top)) features.filter(::isPlace).minBy { f -> PlaceSizes.indexOf(prop(f, "osm_value")).let { if (it < 0) PlaceSizes.size else it } } else top
+    val coords = best["geometry"]?.jsonObject?.get("coordinates")?.jsonArray
+    val lng = coords?.getOrNull(0)?.jsonPrimitive?.doubleOrNull
+    val lat = coords?.getOrNull(1)?.jsonPrimitive?.doubleOrNull
+    return if (lat != null && lng != null) lat to lng else null
 }
 
 private val Types = listOf("LEARN_TO_PLAY" to "Learn to Play", "NEXUS_NIGHT" to "Nexus Night", "OPEN_PLAY" to "Open Play", "PRE_RIFT" to "Pre-Rift", "SUMMONER_SKIRMISH" to "Summoner Skirmish")

@@ -1,5 +1,6 @@
 package pitopia.riftcount.events
 
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -174,8 +175,14 @@ class EventsData(val api: RiftApi, val browser: RiftBrowser) {
         val startsAt: Long get() = entry.tournament.startsAt ?: Long.MAX_VALUE
     }
 
-    var calendar by mutableStateOf(emptyList<CalEvent>())
-        private set
+    /** The favourite stores' events as last loaded. */
+    private var storeEvents by mutableStateOf(emptyList<TournamentEntry>())
+
+    /**
+     * Registered events (always shown), then the favourite stores' others. Read from [upcoming] each time, so a
+     * registration or a drop shows on the rail and in the month at once (they kept the state of the last load).
+     */
+    val calendar: List<CalEvent> by derivedStateOf { mergeCalendar(upcoming, storeEvents) }
     var calendarLoading by mutableStateOf(false)
         private set
     var calendarError by mutableStateOf<String?>(null)
@@ -192,9 +199,6 @@ class EventsData(val api: RiftApi, val browser: RiftBrowser) {
         calendarError = null
         try {
             refresh()
-            val registered = upcoming.map { it.tournament.id }.toSet()
-            val collected = LinkedHashMap<String, CalEvent>()
-            upcoming.forEach { collected[it.tournament.id] = CalEvent(it, true) }
             val credentials = try {
                 RiotSession.valid(browser)
             } catch (_: RiftError) {
@@ -221,14 +225,11 @@ class EventsData(val api: RiftApi, val browser: RiftBrowser) {
                     }.awaitAll()
                 }
                 calendarFailedStores = found.count { it == null }
-                found.filterNotNull().flatten().forEach { e ->
-                    if (e.tournament.id !in collected) collected[e.tournament.id] = CalEvent(e, e.tournament.id in registered)
-                }
-            } else if (calendarError != null) {
-                // A failed refresh keeps the store events already shown.
-                calendar.forEach { if (it.entry.tournament.id !in collected) collected[it.entry.tournament.id] = it }
+                storeEvents = found.filterNotNull().flatten()
+            } else if (calendarError == null) {
+                // Signed out. A failed session refresh instead keeps the store events already shown.
+                storeEvents = emptyList()
             }
-            calendar = collected.values.sortedBy { it.startsAt }
             // Signed out there is nothing to keep: the first look after signing in loads at once.
             if (credentials != null) calendarAt = System.currentTimeMillis()
         } catch (e: CancellationException) {
@@ -320,4 +321,11 @@ class EventsData(val api: RiftApi, val browser: RiftBrowser) {
         private const val LOOKAHEAD_MS = 3 * 3_600_000L
         private const val CALENDAR_TTL_MS = 10 * 60_000L
     }
+}
+
+/** The calendar: the player's events marked registered, then the stores' others, once each, by start. */
+internal fun mergeCalendar(mine: List<TournamentEntry>, stores: List<TournamentEntry>): List<EventsData.CalEvent> {
+    val registered = mine.map { it.tournament.id }.toSet()
+    val others = stores.filter { it.tournament.id !in registered }.distinctBy { it.tournament.id }
+    return (mine.map { EventsData.CalEvent(it, true) } + others.map { EventsData.CalEvent(it, false) }).sortedBy { it.startsAt }
 }

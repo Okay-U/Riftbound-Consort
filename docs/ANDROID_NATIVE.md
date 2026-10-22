@@ -322,6 +322,13 @@ MATCH_PARENT params; `vh` is the pane height again and the sign-in looks like Ch
 the emulator stays slow (same with and without the rounded clip): its WebView/Chrome are 124 from 2024 on GPU
 emulation; judge smoothness on a phone.
 
+Events, round 2 (2026-10-22): the PlayRiftbound section starts on the site's events page (lighter than the front
+page, and it asks to sign in; Riot picks the locale). Favourite store cards keep two lines for every name, so they
+stand the same height. "Munich" found nothing: Photon's first hit was Munich, North Dakota; the geocoder now asks
+for five hits and takes the largest place among them when the best hit is a place (an address keeps the best hit).
+The rail and the month showed a new registration only after the store events reloaded (10 min): the calendar now
+reads registrations from the player's event list each time (`mergeCalendar`), so register / cancel / drop show at once.
+
 ## Open points
 - Before the final release: remove the PlayRiftbound log row from Settings (Okay 2026-10-22: kept while
   testing the Events tab).

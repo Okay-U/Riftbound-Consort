@@ -219,7 +219,8 @@ private fun FavoriteCard(store: Organizer, next: Long?, onClick: () -> Unit) {
                 .border(1.dp, Color.White.copy(alpha = 0.1f), FavShape).padding(14.dp),
         ) {
             Image(EvIcons.HeartFilled, null, Modifier.size(18.dp), colorFilter = ColorFilter.tint(Ev.Green))
-            BasicText(store.name, Modifier.padding(top = 8.dp), style = Ev.Display.copy(fontSize = 22.sp, lineHeight = 22.sp, color = Color.White), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            // Two lines kept for every name, so the cards stand the same height side by side.
+            BasicText(store.name, Modifier.padding(top = 8.dp), style = Ev.Display.copy(fontSize = 22.sp, lineHeight = 22.sp, color = Color.White), maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
             BasicText(
                 listOfNotNull(store.physicalAddress?.city, next?.let { "next ${Fmt.shortDate(it)}" } ?: "no events listed").joinToString(" · "),
                 Modifier.padding(top = 4.dp), style = RiftType.Body.copy(fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f)), maxLines = 1,
