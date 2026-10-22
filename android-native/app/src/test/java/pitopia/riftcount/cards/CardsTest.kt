@@ -33,6 +33,22 @@ class CardQueryTest {
     }
 
     @Test
+    fun `search finds the rules text too, names first, never the icon tokens`() {
+        val text = { plain: String -> Card.Text(plain = plain) }
+        val all = listOf(
+            Card(id = "1", name = "Sprite Fountain", text = text("When you play this, [Repeat] it.")),
+            Card(id = "2", name = "Repeater", text = text("Deal 2.")),
+            Card(id = "3", name = "Brambleback", text = text("[Buff] a friendly unit. Costs :rb_might: less.")),
+            Card(id = "4", name = "Vi - Kingpin", tags = listOf("Piltover")),
+        )
+        assertEquals(listOf("2", "1"), CardQuery.filter(all, "repeat", CardFilters(), CardSort.Set).map { it.id })
+        assertEquals(listOf("3"), CardQuery.filter(all, "Friendly", CardFilters(), CardSort.Set).map { it.id })
+        assertEquals(listOf("4"), CardQuery.filter(all, "piltover", CardFilters(), CardSort.Set).map { it.id })
+        assertEquals(emptyList<String>(), CardQuery.filter(all, "rb_might", CardFilters(), CardSort.Set).map { it.id })
+        assertEquals(1, CardQuery.count(all, "friendly", CardFilters()))
+    }
+
+    @Test
     fun `search, domains and types combine`() {
         val fury = CardQuery.filter(all, "", CardFilters(domains = setOf("Fury")), CardSort.Set)
         assertTrue(fury.isNotEmpty() && fury.all { c -> c.domains.any { it.equals("Fury", true) } })

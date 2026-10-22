@@ -285,6 +285,9 @@ offers "We play best of 3"). The summary's button reads Return to scoreboard. Be
 game's loser picks first or second on their half. The seam's dice button shows two thrown dice. The light
 along the report rail grows in width instead of being scaled, so its glow fades out softly.
 
+Cards, round 1 (2026-10-22): the search also reads the rules text (without its icon tokens) and the tags,
+so "Repeat" or "friendly" finds every card that says it; cards named so come first.
+
 ## Open points
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build

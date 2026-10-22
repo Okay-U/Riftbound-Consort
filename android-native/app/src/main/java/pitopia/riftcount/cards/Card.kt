@@ -3,6 +3,8 @@ package pitopia.riftcount.cards
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+private val IconToken = Regex(":rb_[a-z0-9_]+:")
+
 /** One printing from `cards.json` (riftcodex schema, built daily from Riot's gallery), as iOS reads it. */
 @Serializable
 data class Card(
@@ -23,6 +25,12 @@ data class Card(
     /** Previewed by Riot but not legal yet; the policy asks for a visible label. */
     val unreleased: Boolean? = null,
 ) {
+    /** What a search reads besides the name: the rules text without its icon tokens (`:rb_might:`), and the tags. */
+    val searchText: String by lazy {
+        val rules = text?.plain.orEmpty().replace(IconToken, " ").replace("&gt;", ">").replace("&lt;", "<").replace("&amp;", "&")
+        (listOf(rules) + tags.orEmpty()).joinToString(" ")
+    }
+
     @Serializable
     data class Attributes(val energy: Int? = null, val might: Int? = null, val power: Int? = null)
 

@@ -34,14 +34,20 @@ data class CardFilters(
 }
 
 object CardQuery {
-    fun filter(cards: List<Card>, query: String, f: CardFilters, sort: CardSort): List<Card> =
-        cards.filter { matches(it, query.trim(), f) }.sortedWith(comparator(sort))
+    /** Matching cards in [sort] order; with a search, the cards named so lead those that only say it in their text. */
+    fun filter(cards: List<Card>, query: String, f: CardFilters, sort: CardSort): List<Card> {
+        val q = query.trim()
+        val hits = cards.filter { matches(it, q, f) }.sortedWith(comparator(sort))
+        if (q.isEmpty()) return hits
+        val (named, said) = hits.partition { it.name.contains(q, ignoreCase = true) }
+        return named + said
+    }
 
     /** Hits without sorting, for the filter sheet's live "Show N cards" while a slider moves. */
     fun count(cards: List<Card>, query: String, f: CardFilters): Int = cards.count { matches(it, query.trim(), f) }
 
     private fun matches(c: Card, q: String, f: CardFilters) =
-        (q.isEmpty() || c.name.contains(q, ignoreCase = true)) &&
+        (q.isEmpty() || c.name.contains(q, ignoreCase = true) || c.searchText.contains(q, ignoreCase = true)) &&
             (f.domains.isEmpty() || c.domains.any { d -> f.domains.any { it.equals(d, true) } }) &&
             (f.types.isEmpty() || f.types.any { matchesType(c, it) }) &&
             (f.series.isEmpty() || f.series.any { c.set?.label?.contains(it, ignoreCase = true) == true }) &&
