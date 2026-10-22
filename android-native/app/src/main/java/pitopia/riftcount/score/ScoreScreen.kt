@@ -38,7 +38,7 @@ import pitopia.riftcount.ui.theme.RiftEase
 
 /** The Score tab. [bottomReserve] is the room the tab bar takes at the bottom; both halves end above it. */
 @Composable
-fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, cards: CardStore, link: TableLink?) {
+fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, cards: CardStore, match: MatchInfo?) {
     BackHandler(enabled = c.duel != null || c.picker != null || c.confirmRestart || c.state.asking >= 0) {
         when {
             c.picker != null -> c.closePicker()
@@ -52,10 +52,10 @@ fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, ca
     val swatches = List(slots) { PlayerColors.forSlot(it, slots) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val area = maxHeight - bottomReserve
-        if (c.state.isDuel) Duel(c, swatches, area, maxHeight, link) else FourPlayers(c, swatches, area)
+        if (c.state.isDuel) Duel(c, swatches, area, maxHeight, match) else FourPlayers(c, swatches, area)
         // Centred on the seam like the mock, so it never covers a player's own controls.
         BoardToast(c.toast, c::clearToast, Modifier.align(Alignment.TopCenter).offset(y = area / 2 - 20.dp))
-        if (c.confirmRestart) RestartDialog(c.state.gameNo, c.state.isSeries, c::cancelRestart, c::restart)
+        if (c.confirmRestart) RestartDialog(c.state.gameNo.takeIf { c.state.isSeries }, c::cancelRestart, c::restart)
         c.picker?.let { ResultPickerDialog(c, it, swatches.map { s -> s.color }) }
     }
     when (c.setupSlot) {
@@ -65,7 +65,7 @@ fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, ca
 }
 
 @Composable
-private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, screen: Dp, link: TableLink?) {
+private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, screen: Dp, match: MatchInfo?) {
     val s = c.state
     val d = c.duel
     val colors = swatches.map { it.color }
@@ -100,8 +100,8 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
         Half(c, OPPONENT, swatches, Modifier.weight(1f).graphicsLayer { rotationZ = 180f })
         Half(c, YOU, swatches, Modifier.weight(1f))
     }
-    Seam(c, link, Modifier.align(Alignment.TopCenter).offset(y = center - 27.dp))
-    if (s.showSummary) MatchSummary(c, colors, center, link)
+    Seam(c, match, Modifier.align(Alignment.TopCenter).offset(y = center - 27.dp))
+    if (s.showSummary) MatchSummary(c, colors, center, match?.link)
 }
 
 @Composable
@@ -129,14 +129,15 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
                 when {
                     s.showSummary -> Spacer(Modifier.height(54.dp))
                     !s.gameOver -> ActionRow(accent, ink, { c.score(slot, PointKind.Conquer) }, { c.score(slot, PointKind.Hold) }, { c.score(slot, PointKind.Effect) }, { c.fix(slot) })
-                    s.winner == slot -> NextGameButton("Next game · Game ${s.gameNo + 1}", accent, ink, c::nextGame)
+                    s.winner == slot -> NextGameButton(if (s.isSeries) "Next game · Game ${s.gameNo + 1}" else "Next game", accent, ink, c::nextGame)
                     else -> Spacer(Modifier.height(54.dp))
                 }
             }
         }
         if (d == null && s.winner == slot && !s.showSummary) {
-            val sub = if (s.isSeries) "Series ${wins[slot]}–${wins[1 - slot]}" else "${s.players[slot].score}–${s.players[1 - slot].score}"
-            ResultText("GAME ${s.gameNo}", sub, accent, Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
+            val score = "${s.players[slot].score}–${s.players[1 - slot].score}"
+            if (s.isSeries) ResultText("GAME ${s.gameNo}", "Series ${wins[slot]}–${wins[1 - slot]}", accent, Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
+            else ResultText("WIN", score, accent, Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
         }
         if (d == null && s.asking == slot) {
             FinalPointSheet(accent, ink, { c.finalPoint(true) }, { c.finalPoint(false) }, Modifier.align(Alignment.BottomCenter).padding(12.dp))

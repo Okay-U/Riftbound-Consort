@@ -58,12 +58,13 @@ import pitopia.riftcount.platform.haptic
 import pitopia.riftcount.score.ScoreController
 import pitopia.riftcount.score.ScoreScreen
 import pitopia.riftcount.events.DebugEvents
+import pitopia.riftcount.events.EvPage
 import pitopia.riftcount.events.EventsData
 import pitopia.riftcount.events.EventsScreen
 import pitopia.riftcount.events.EventsUi
 import pitopia.riftcount.events.RiftApi
 import pitopia.riftcount.events.RiftBrowser
-import pitopia.riftcount.events.tableLink
+import pitopia.riftcount.events.matchInfo
 import pitopia.riftcount.settings.Support
 import pitopia.riftcount.settings.PlayRiftboundLog
 import pitopia.riftcount.settings.SettingsScreen
@@ -158,7 +159,16 @@ fun AppShell() {
             label = "tab",
         ) { shown ->
             when (shown) {
-                Tab.Score -> ScoreScreen(score, barReserve, decks.lists, cards, if (AppSettings.matchMode.on && score.state.isDuel) events.tableLink(scope) else null)
+                Tab.Score -> ScoreScreen(
+                    score, barReserve, decks.lists, cards,
+                    if (!AppSettings.matchMode.on || !score.state.isDuel) null else events.matchInfo(scope, score::show) { entry ->
+                        // The seam's event line opens that event's page in the Events tab.
+                        eventsUi.section = 0
+                        eventsUi.stack.clear()
+                        eventsUi.push(EvPage.Event(entry))
+                        tab = Tab.Events
+                    },
+                )
                 Tab.Cards -> CardsScreen(cardsUi, cards, errata, decks, barReserve, onOverlay = { overlay(Tab.Cards, it) }) { card ->
                     decksUi.startBuilder(card)
                     tab = Tab.Decks

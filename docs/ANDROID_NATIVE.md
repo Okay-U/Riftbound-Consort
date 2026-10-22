@@ -269,6 +269,12 @@ Scoreboard, round 1 (2026-10-22):
   started live series can be reported. After it the next match is casual again. Only the live match
   shows the clock; a long press on its round and table pauses it.
 
+Scoreboard, round 3 (2026-10-22): casual counts nothing (no game number, no End; a win shows WIN and its
+score). With match mode on, the seam has a trophy that asks PlayRiftbound for the pairing now and answers in
+a toast (no live event, no pairing yet, bye, round reported, or the table), and its centre names the event
+before round 1, a bye or a reported round; a tap opens that event (iOS match strip). After a report the
+summary says to ask the scorekeeper for changes instead of offering the result picker.
+
 ## Open points
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build

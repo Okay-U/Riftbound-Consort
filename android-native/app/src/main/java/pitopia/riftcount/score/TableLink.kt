@@ -13,6 +13,8 @@ class TableLink(
     /** The event's format, 1 or 3 games. */
     val bestOf: Int,
     val reportable: Boolean,
+    /** Riot has a result for the match (from this phone or another). */
+    val reported: Boolean,
     /** Asks Riot again (the end of a series, a new match): the pairing may be reported meanwhile or newer. */
     val refresh: () -> Unit,
     /** Winner of each game ([YOU], [OPPONENT], -1 for a draw); returns the score sent, throws with Riot's answer. */
@@ -21,3 +23,17 @@ class TableLink(
 
 /** A series the scoreboard reported: its pairing, its games and the score sent ("2–1"). */
 data class SentReport(val tag: String, val log: List<GameResult>, val score: String)
+
+/** Match mode's PlayRiftbound for the scoreboard (iOS match strip); none with match mode off or four players. */
+class MatchInfo(
+    /** The pairing to play and report, once the round is up. */
+    val link: TableLink?,
+    /** What to say when there is nothing to play: the event before round 1, a bye, a reported round. */
+    val line: EventLine?,
+    val checking: Boolean,
+    /** Asks PlayRiftbound again (pairings go up between rounds) and says what came back. */
+    val check: () -> Unit,
+)
+
+/** "18:30 · Summoner Skirmish", "R3 · BYE", "R3 · T5 · Reported"; a tap opens the event. */
+class EventLine(val label: String, val text: String, val open: () -> Unit)

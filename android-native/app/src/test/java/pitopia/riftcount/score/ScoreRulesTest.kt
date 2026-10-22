@@ -99,18 +99,6 @@ class ScoreRulesTest {
     }
 
     @Test
-    fun `ending a casual game by hand counts a concession, a draw starts the next game`() {
-        val conceded = ScoreState().points(OPPONENT, 5).decided(YOU, t0)
-        assertEquals(YOU, conceded.winner)
-        assertEquals(listOf(GameResult(YOU)), conceded.log)
-        val drawn = ScoreState().points(OPPONENT, 5).decided(-1, t0)
-        assertEquals(-1, drawn.winner)
-        assertEquals(2, drawn.gameNo)
-        assertEquals(listOf(0, 0), drawn.players.map { it.score })
-        assertEquals(ScoreState(bestOf = 3), ScoreState(bestOf = 3).decided(YOU, t0))
-    }
-
-    @Test
     fun `undo walks back points and XP, at most fifty steps`() {
         val s = ScoreState().points(YOU, 2).xp(YOU, 1).xp(YOU, 1)
         assertEquals(2, s.players[YOU].xp)

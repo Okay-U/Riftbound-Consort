@@ -127,16 +127,6 @@ data class ScoreState(
         )
     }
 
-    /** Casual "End": the game in play goes to [slot] (a concession); -1, a draw, just starts the next one. */
-    fun decided(slot: Int, nowMs: Long): ScoreState {
-        if (isSeries || gameOver || ended || !isDuel) return this
-        if (slot >= 0) return copy(winner = slot, log = listOf(GameResult(slot)), asking = -1)
-        return copy(
-            players = players.map { Player() }, events = emptyList(), history = emptyList(),
-            gameNo = gameNo + 1, asking = -1, starter = -1, lastGameEndSeconds = clock.elapsedSeconds(nowMs),
-        )
-    }
-
     fun newMatch(): ScoreState = ScoreState(players = List(players.size) { Player() })
 
     /** One ↔ three games in a live match: the event's setting is not always what the table plays. */

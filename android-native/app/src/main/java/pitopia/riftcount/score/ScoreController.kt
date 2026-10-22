@@ -169,10 +169,11 @@ class ScoreController(
 
     // --- ending a match by hand ------------------------------------------------------------------
 
+    /** End or set the results of a live series, one row per game it can have. */
     fun openPicker(ending: Boolean) {
         val s = state
-        val games = if (s.isSeries) s.bestOf else 1
-        picker = ResultPicker(ending, List(games) { i -> s.log.getOrNull(i)?.winner }, if (s.isSeries) s.winsNeeded else 1)
+        if (!s.isSeries) return
+        picker = ResultPicker(ending, List(s.bestOf) { i -> s.log.getOrNull(i)?.winner }, s.winsNeeded)
     }
 
     fun choose(i: Int, v: Int) { picker = picker?.choose(i, v) }
@@ -182,11 +183,6 @@ class ScoreController(
         val p = picker ?: return
         val set = p.picks.takeWhile { it != null }.filterNotNull()
         if (set.isEmpty()) return
-        if (!state.isSeries) {
-            picker = null
-            apply(state.decided(set[0], now()), if (set[0] < 0) Haptic.Tick else null)
-            return
-        }
         val playing = state.log.size
         val log = set.mapIndexed { i, w -> state.log.getOrNull(i)?.takeIf { it.winner == w } ?: GameResult(w) }
         // The game being played when the match was ended counts too (a concession), like iOS Won/Lost.

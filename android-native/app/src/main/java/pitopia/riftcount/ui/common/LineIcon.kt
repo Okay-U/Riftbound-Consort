@@ -29,4 +29,5 @@ object ScoreIcons {
     val Close = lineIcon("M6 6l12 12M18 6L6 18", 17.dp, 2.4f)
     val Arrow = lineIcon("M5 12h14M13 6l6 6-6 6", 22.dp, 2.4f)
     val Check = lineIcon("M4 12l5 5L20 6", 22.dp, 2.6f)
+    val Trophy = lineIcon("M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0zM7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3", 19.dp)
 }

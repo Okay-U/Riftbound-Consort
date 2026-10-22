@@ -2,23 +2,61 @@ package pitopia.riftcount.events
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import pitopia.riftcount.score.EventLine
+import pitopia.riftcount.score.MatchInfo
 import pitopia.riftcount.score.OPPONENT
 import pitopia.riftcount.score.TableLink
 import pitopia.riftcount.score.YOU
 
-/** The scoreboard's view of the player's current pairing, or nil without one (no event, a bye, signed out). */
-fun EventsData.tableLink(scope: CoroutineScope): TableLink? {
-    val s = strip ?: return null
-    val p = s.pairing?.takeIf { !it.isBye } ?: return null
-    return TableLink(
-        tag = p.roundShort + (p.tableNumber?.let { " · T$it" } ?: ""),
-        table = p.tableNumber,
-        opponent = p.opponentName,
-        bestOf = p.bestOf,
-        reportable = p.isReportable,
-        refresh = { scope.launch { refreshStrip(force = true) } },
-        report = { winners -> reportSeries(s.entry.tournament.id, p, winners) },
-    )
+/**
+ * The scoreboard's view of the player's next event (iOS match strip): the pairing once the round is up, or a
+ * line for the event before round 1, a bye or a reported round; [say] tells the result of a manual check.
+ */
+fun EventsData.matchInfo(scope: CoroutineScope, say: (String) -> Unit, open: (TournamentEntry) -> Unit): MatchInfo {
+    val s = strip
+    val p = s?.pairing
+    val tag = p?.let { it.roundShort + (it.tableNumber?.let { n -> " · T$n" } ?: "") }
+    val link = if (s != null && p != null && tag != null && !p.isBye) {
+        TableLink(
+            tag = tag,
+            table = p.tableNumber,
+            opponent = p.opponentName,
+            bestOf = p.bestOf,
+            reportable = p.isReportable,
+            reported = p.isComplete,
+            refresh = { scope.launch { refreshStrip(force = true) } },
+            report = { winners -> reportSeries(s.entry.tournament.id, p, winners) },
+        )
+    } else {
+        null
+    }
+    val line = s?.let {
+        val go = { open(it.entry) }
+        when {
+            p == null -> EventLine(it.entry.tournament.startsAt?.let(Fmt::time) ?: "TODAY", it.entry.tournament.name, go)
+            p.isBye -> EventLine("${p.roundShort} · BYE", "Bye this round", go)
+            p.isComplete -> EventLine(tag.orEmpty(), "Reported", go)
+            else -> null
+        }
+    }
+    return MatchInfo(link, line, stripRefreshing) {
+        scope.launch {
+            refreshStrip(force = true)
+            say(checked())
+        }
+    }
+}
+
+/** A manual check's answer, short enough for the board's toast. */
+private fun EventsData.checked(): String {
+    if (stripError != null) return "Couldn't reach PlayRiftbound"
+    val s = strip ?: return "No live event · shows up to 3 h before yours"
+    val p = s.pairing ?: return "No pairing yet"
+    return when {
+        p.isBye -> "Bye this round"
+        p.isComplete -> "${p.roundShort} reported · next round not paired yet"
+        else -> "Table ${p.tableNumber ?: "?"} · vs ${p.opponentName ?: "?"}"
+    }
 }
 
 /**

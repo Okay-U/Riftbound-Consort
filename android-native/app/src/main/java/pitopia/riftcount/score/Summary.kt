@@ -100,9 +100,15 @@ fun MatchSummary(c: ScoreController, colors: List<Color>, centerY: Dp, link: Tab
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Pill("Start a new match", { link?.refresh(); c.newMatch() }, Modifier.height(46.dp), fill = accent, ink = inkOn(accent))
                     Spacer(Modifier.height(4.dp))
-                    LinkText("Wrong results? Set them yourself") { c.openPicker(ending = false) }
-                    // The event says one game, the table plays three: game 1 then no longer ends the match.
-                    if (s.bestOf == 1 && !s.ended && c.reportedSeries() == null) LinkText("We play best of 3") { c.toggleFormat() }
+                    when {
+                        c.reportedSeries() != null -> Note("Wrong result? Ask the scorekeeper to change it.")
+                        live?.reported == true -> Note("Already reported on PlayRiftbound. Wrong result? Ask the scorekeeper to change it.")
+                        else -> {
+                            LinkText("Wrong results? Set them yourself") { c.openPicker(ending = false) }
+                            // The event says one game, the table plays three: game 1 then no longer ends the match.
+                            if (s.bestOf == 1 && !s.ended) LinkText("We play best of 3") { c.toggleFormat() }
+                        }
+                    }
                 }
             }
         }
@@ -118,6 +124,15 @@ private fun RailIn(modifier: Modifier, color: Color, glow: Color?, delayMs: Int 
             .graphicsLayer { scaleX = t.value; transformOrigin = TransformOrigin(0f, 0.5f) }
             .let { if (glow != null) it.dropShadow(RoundedCornerShape(2.dp), Shadow(16.dp, glow, spread = 2.dp)) else it }
             .background(color, RoundedCornerShape(2.dp)),
+    )
+}
+
+/** Plain words under the summary's buttons where a link would lead nowhere. */
+@Composable
+private fun Note(text: String) {
+    BasicText(
+        text, Modifier.padding(horizontal = 32.dp, vertical = 6.dp),
+        style = RiftType.Body.copy(fontSize = 13.sp, lineHeight = 18.sp, color = Color.White.copy(alpha = 0.72f), textAlign = TextAlign.Center),
     )
 }
 
@@ -137,11 +152,12 @@ private fun DialogText(title: String, text: String) {
 }
 
 @Composable
-fun RestartDialog(gameNo: Int, series: Boolean, onKeep: () -> Unit, onRestart: () -> Unit) {
+/** [gameNo] of a live series; casual games have no number. */
+fun RestartDialog(gameNo: Int?, onKeep: () -> Unit, onRestart: () -> Unit) {
     DialogFrame(onKeep) {
         DialogText(
-            "Restart game $gameNo?",
-            if (series) "Both scores and XP go back to 0. The series and the match clock stay as they are, and Undo brings the game back."
+            if (gameNo != null) "Restart game $gameNo?" else "Restart this game?",
+            if (gameNo != null) "Both scores and XP go back to 0. The series and the match clock stay as they are, and Undo brings the game back."
             else "Both scores and XP go back to 0, and Undo brings the game back.",
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
