@@ -3,9 +3,8 @@ package pitopia.riftcount.score
 import kotlinx.serialization.Serializable
 import pitopia.riftcount.data.ScoreEvent
 
-/** Points to win a game in a duel, games to win a best-of-three match. */
+/** Points to win a game in a duel. */
 const val TARGET = 8
-const val GAMES_TO_WIN = 2
 private const val UNDO_DEPTH = 50
 private const val XP_MAX = 99
 
@@ -28,7 +27,8 @@ data class GameResult(val winner: Int, val scores: List<Int>? = null)
 /**
  * The scoreboard, immutable: every action returns a new state. Rules follow the iOS app (undo of
  * 50 steps including XP, a score never below 0, unchanged scores are not recorded) and the chosen mock
- * (a duel ends at 8, the 8th point by conquering is asked for, best of three).
+ * (a duel ends at 8, the 8th point by conquering is asked for). Casual by default, every game on its own;
+ * a best of three by hand, or a live PlayRiftbound match in its event's format (Okay, 2026-10-22).
  */
 @Serializable
 data class ScoreState(
@@ -44,10 +44,17 @@ data class ScoreState(
     val lastGameEndSeconds: Int = 0,
     /** The match was ended by hand ("End the match"): the summary shows, scoring stops. */
     val ended: Boolean = false,
+    /** 0 casual; 1 or 3 a best-of match with its series, summary and report. */
+    val bestOf: Int = 0,
+    /** The PlayRiftbound pairing ("R3 · T5") this match was started for; null for any other. */
+    val liveTag: String? = null,
 ) {
     val isDuel get() = players.size == 2
+    val isSeries get() = isDuel && bestOf > 0
+    /** Games to win the match: one of a best of one, two of a best of three. */
+    val winsNeeded get() = (bestOf + 1) / 2
     val gameOver get() = winner >= 0
-    val matchOver get() = isDuel && seriesWins().any { it >= GAMES_TO_WIN }
+    val matchOver get() = isSeries && seriesWins().any { it >= winsNeeded }
     val canUndo get() = history.isNotEmpty() && !gameOver && !ended
     val showSummary get() = matchOver || ended
 
@@ -109,17 +116,44 @@ data class ScoreState(
         return copy(players = players.map { Player() }, events = emptyList(), history = pushed(), asking = -1)
     }
 
-    /** After a won game: the next game of the series. The match clock keeps running (Bo3, as on iOS). */
+    /** After a won game: the next one. A series keeps its games, a casual game nothing; the clock runs on (iOS). */
     fun nextGame(nowMs: Long): ScoreState {
         if (!gameOver || matchOver || ended) return this
         return copy(
             players = players.map { Player() }, events = emptyList(), history = emptyList(),
+            log = if (isSeries) log else emptyList(),
             gameNo = gameNo + 1, winner = -1, asking = -1, starter = -1,
             lastGameEndSeconds = clock.elapsedSeconds(nowMs),
         )
     }
 
-    fun newMatch(): ScoreState = ScoreState(players = List(players.size) { Player() })
+    /** Casual "End": the game in play goes to [slot] (a concession); -1, a draw, just starts the next one. */
+    fun decided(slot: Int, nowMs: Long): ScoreState {
+        if (isSeries || gameOver || ended || !isDuel) return this
+        if (slot >= 0) return copy(winner = slot, log = listOf(GameResult(slot)), asking = -1)
+        return copy(
+            players = players.map { Player() }, events = emptyList(), history = emptyList(),
+            gameNo = gameNo + 1, asking = -1, starter = -1, lastGameEndSeconds = clock.elapsedSeconds(nowMs),
+        )
+    }
+
+    /** A best of three started by hand stays one; after a live match the next is casual again. */
+    fun newMatch(): ScoreState = ScoreState(players = List(players.size) { Player() }, bestOf = if (liveTag == null) bestOf else 0)
+
+    /**
+     * Casual ↔ best of three by hand, or one ↔ three games in a live match (the event's setting is not
+     * always what the table plays). Casual and series swap at the game on the board: a won casual game
+     * becomes game 1.
+     */
+    fun withBestOf(n: Int): ScoreState {
+        if (!isDuel || n == bestOf || ended) return this
+        if (bestOf > 0 && n > 0) return copy(bestOf = n)
+        return copy(bestOf = n, log = if (gameOver) log.takeLast(1) else emptyList(), gameNo = 1)
+    }
+
+    /** A fresh match for a PlayRiftbound pairing in the event's format; who goes first stays as rolled. */
+    fun startLive(tag: String, bestOf: Int): ScoreState =
+        ScoreState(players = List(players.size) { Player() }, starter = starter, bestOf = if (bestOf == 1) 1 else 3, liveTag = tag)
 
     fun withPlayerCount(count: Int): ScoreState {
         val n = if (count == 4) 4 else 2

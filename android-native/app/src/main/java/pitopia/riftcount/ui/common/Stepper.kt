@@ -2,6 +2,7 @@ package pitopia.riftcount.ui.common
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.tween
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -81,13 +84,16 @@ fun StepCount(count: Int, height: Dp, modifier: Modifier = Modifier, color: Colo
         transitionSpec = {
             (fadeIn(tween(620, easing = RiftEase)) + slideInVertically(tween(620, easing = RiftEase)) { (it * 0.4f).toInt() })
                 .togetherWith(fadeOut(tween(420, easing = StepOut)) + slideOutVertically(tween(420, easing = StepOut)) { -(it * 0.4f).toInt() })
+                // Not clipped to the number's box: the blur and the slide reach past it.
+                .using(SizeTransform(clip = false))
         },
         contentAlignment = Alignment.Center,
         label = "count",
     ) { n ->
         val blur by transition.animateDp(label = "blur") { if (it == EnterExitState.Visible) 0.dp else 8.dp }
         Box(Modifier.size(width, height), contentAlignment = Alignment.Center) {
-            BasicText("$n$suffix", Modifier.blur(blur, BlurredEdgeTreatment.Unbounded), style = style, maxLines = 1, softWrap = false)
+            // The blur only draws inside its own layer: room around the digits, or it ends in a box.
+            BasicText("$n$suffix", Modifier.wrapContentSize(unbounded = true).blur(blur, BlurredEdgeTreatment.Unbounded).padding(14.dp), style = style, maxLines = 1, softWrap = false)
         }
     }
 }

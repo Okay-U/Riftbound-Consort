@@ -36,7 +36,7 @@ class ScoreRulesTest {
 
     @Test
     fun `a won game blocks points and undo until the next game`() {
-        val won = ScoreState().points(OPPONENT, 3).points(YOU, 8)
+        val won = ScoreState(bestOf = 3).points(OPPONENT, 3).points(YOU, 8)
         assertTrue(won.gameOver)
         assertFalse(won.canUndo)
         assertEquals(won, won.score(OPPONENT, PointKind.Hold, t0))
@@ -51,11 +51,74 @@ class ScoreRulesTest {
 
     @Test
     fun `two won games end the best of three, a new match resets everything`() {
-        val over = ScoreState().points(YOU, 8).nextGame(t0).points(OPPONENT, 8).nextGame(t0).points(YOU, 8)
+        val over = ScoreState(bestOf = 3).points(YOU, 8).nextGame(t0).points(OPPONENT, 8).nextGame(t0).points(YOU, 8)
         assertTrue(over.matchOver)
         assertEquals(over, over.nextGame(t0))
-        val fresh = over.newMatch()
-        assertEquals(ScoreState(), fresh)
+        // A best of three started by hand stays one for the next match.
+        assertEquals(ScoreState(bestOf = 3), over.newMatch())
+    }
+
+    @Test
+    fun `casual games stand alone and never end a match`() {
+        val won = ScoreState().points(YOU, 8)
+        assertTrue(won.gameOver)
+        assertFalse(won.matchOver)
+        val next = won.nextGame(t0)
+        assertEquals(2, next.gameNo)
+        assertEquals(emptyList<GameResult>(), next.log)
+        assertFalse(next.points(YOU, 8).nextGame(t0).points(YOU, 8).matchOver)
+    }
+
+    @Test
+    fun `a best of one ends with its game`() {
+        val over = ScoreState(bestOf = 1).points(OPPONENT, 8)
+        assertTrue(over.matchOver)
+        assertEquals(1, over.winsNeeded)
+    }
+
+    @Test
+    fun `switching casual and best of three keeps the game on the board`() {
+        val playing = ScoreState().points(YOU, 3)
+        val series = playing.withBestOf(3)
+        assertEquals(listOf(0, 3), series.players.map { it.score })
+        assertEquals(1, series.gameNo)
+        // A casual game already won becomes game 1 of the series.
+        val afterWin = ScoreState().points(YOU, 8).nextGame(t0).points(OPPONENT, 8).withBestOf(3)
+        assertEquals(listOf(1, 0), afterWin.seriesWins())
+        assertEquals(1, afterWin.gameNo)
+        assertFalse(afterWin.matchOver)
+        val back = afterWin.nextGame(t0).points(YOU, 2).withBestOf(0)
+        assertEquals(listOf(0, 0), back.seriesWins())
+        assertEquals(listOf(0, 2), back.players.map { it.score })
+    }
+
+    @Test
+    fun `a live match starts in the event's format and can switch between one and three games`() {
+        val rolled = ScoreState().points(YOU, 2).withStarter(OPPONENT, t0)
+        val live = rolled.startLive("R3 · T5", bestOf = 1)
+        assertEquals(1, live.bestOf)
+        assertEquals("R3 · T5", live.liveTag)
+        assertEquals(listOf(0, 0), live.players.map { it.score })
+        assertEquals(OPPONENT, live.starter) // who goes first was rolled before
+        // The table plays best of three although the event says one: game 1 no longer ends the match.
+        val wonFirst = live.points(YOU, 8)
+        assertTrue(wonFirst.matchOver)
+        assertFalse(wonFirst.withBestOf(3).matchOver)
+        assertEquals(3, live.startLive("R3 · T5", bestOf = 3).bestOf)
+        // After a live match the next one is casual again.
+        assertEquals(ScoreState(), wonFirst.newMatch())
+    }
+
+    @Test
+    fun `ending a casual game by hand counts a concession, a draw starts the next game`() {
+        val conceded = ScoreState().points(OPPONENT, 5).decided(YOU, t0)
+        assertEquals(YOU, conceded.winner)
+        assertEquals(listOf(GameResult(YOU)), conceded.log)
+        val drawn = ScoreState().points(OPPONENT, 5).decided(-1, t0)
+        assertEquals(-1, drawn.winner)
+        assertEquals(2, drawn.gameNo)
+        assertEquals(listOf(0, 0), drawn.players.map { it.score })
+        assertEquals(ScoreState(bestOf = 3), ScoreState(bestOf = 3).decided(YOU, t0))
     }
 
     @Test

@@ -70,10 +70,9 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
     val d = c.duel
     val colors = swatches.map { it.color }
     val center = area / 2
-    val sweep = if (d?.choice != null) 120.dp else 210.dp
     val target = when {
-        d != null && d.winner == YOU -> sweep
-        d != null && d.winner == OPPONENT -> area - sweep
+        d != null && d.winner == YOU -> 210.dp
+        d != null && d.winner == OPPONENT -> area - 210.dp
         d != null -> center
         s.showSummary -> s.seriesWins().let { w -> if (w[YOU] > w[OPPONENT]) 64.dp else if (w[OPPONENT] > w[YOU]) area - 64.dp else center }
         s.gameOver -> if (s.winner == YOU) 64.dp else area - 64.dp
@@ -102,17 +101,6 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
         Half(c, YOU, swatches, Modifier.weight(1f))
     }
     Seam(c, link, Modifier.align(Alignment.TopCenter).offset(y = center - 27.dp))
-    if (d != null && d.winner >= 0 && d.choice != null) {
-        val starter = d.starter()
-        val roll = { slot: Int -> d.dice[slot].value ?: 0 }
-        DuelBanner(
-            title = "${c.shortName(starter)} ${if (c.shortName(starter) == "You") "start" else "starts"}",
-            text = "${c.shortName(d.winner)} rolled ${roll(d.winner)} against ${roll(1 - d.winner)} and chose to go ${if (d.choice == DuelState.Choice.First) "first" else "second"}.",
-            accent = colors[starter], ink = swatches[starter].ink,
-            onAgain = c::rollAgain, onStart = c::startGame,
-            modifier = Modifier.align(Alignment.TopCenter).offset(y = center - 80.dp).padding(horizontal = 16.dp),
-        )
-    }
     if (s.showSummary) MatchSummary(c, colors, center, link)
 }
 
@@ -132,7 +120,7 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
                 DuelSide(c, d, slot, accent, ink, Modifier.fillMaxSize())
             } else {
                 TopLine(
-                    c.legend(slot), accent, ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) }, wins[slot], seriesPips = true,
+                    c.legend(slot), accent, ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) }, wins[slot], if (s.isSeries) s.winsNeeded else 0,
                     shown = !s.gameOver && !s.showSummary, onName = { c.openSetup(slot) },
                 )
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -147,7 +135,8 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
             }
         }
         if (d == null && s.winner == slot && !s.showSummary) {
-            ResultText("GAME ${s.gameNo}", "Series ${wins[slot]}–${wins[1 - slot]}", accent, Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
+            val sub = if (s.isSeries) "Series ${wins[slot]}–${wins[1 - slot]}" else "${s.players[slot].score}–${s.players[1 - slot].score}"
+            ResultText("GAME ${s.gameNo}", sub, accent, Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
         }
         if (d == null && s.asking == slot) {
             FinalPointSheet(accent, ink, { c.finalPoint(true) }, { c.finalPoint(false) }, Modifier.align(Alignment.BottomCenter).padding(12.dp))
@@ -163,7 +152,7 @@ private fun DuelSide(c: ScoreController, d: DuelState, slot: Int, accent: Color,
     val lost = d.winner >= 0 && !won
     val others = if (d.dice.size == 2) c.shortName(1 - slot) else "the others"
     val hint = when {
-        won || d.tie || (lost && (d.choice != null || d.dice.size > 2)) -> null
+        won || d.tie || (lost && d.dice.size > 2) -> null
         die.rolling -> "Rolling"
         die.value == null -> if (d.dice.size == 2) "Tap your half to roll" else "Tap your side to roll"
         d.winner < 0 -> "Waiting for $others"
@@ -172,14 +161,13 @@ private fun DuelSide(c: ScoreController, d: DuelState, slot: Int, accent: Color,
     }
     val head = when {
         d.tie -> "Tie · roll again"
-        won && d.choice != null -> c.shortName(slot).let { n -> "$n ${if (n == "You") "go" else "goes"} ${if (d.choice == DuelState.Choice.First) "first" else "second"}" }
         won -> "Higher roll"
         else -> null
     }
     val name = c.shortName(slot).let { if (slot == YOU && d.dice.size == 2 && it != "You") "$it · you" else it }
     DuelHalf(
         name, d.type, die, accent, ink, hint, head, if (d.tie) Color.White else accent,
-        choosing = won && d.choice == null && d.dice.size == 2, highlight = won,
+        choosing = won && d.dice.size == 2, highlight = won,
         onRoll = { c.roll(slot) }, onFirst = { c.choose(DuelState.Choice.First) }, onSecond = { c.choose(DuelState.Choice.Second) },
         modifier = modifier, dieSize = dieSize,
     )
@@ -206,7 +194,7 @@ private fun BoxScope.FourPlayers(c: ScoreController, swatches: List<Swatch>, are
                             if (d != null) {
                                 DuelSide(c, d, slot, sw.color, sw.ink, Modifier.fillMaxSize(), dieSize = 110f)
                             } else {
-                                TopLine(c.legend(slot), sw.color, sw.ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) }, 0, seriesPips = false)
+                                TopLine(c.legend(slot), sw.color, sw.ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) }, 0, 0)
                                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                                     ScoreNumber(s.players[slot].score, sw.color, won = false, label = s.players[slot].score.let { n -> "${haves(c.legend(slot))} $n ${if (n == 1) "point" else "points"}" }, showTarget = false, sizeDp = 112f)
                                 }

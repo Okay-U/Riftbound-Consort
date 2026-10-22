@@ -16,8 +16,11 @@ import pitopia.riftcount.data.Prefs
 import pitopia.riftcount.data.SwiftJson
 import pitopia.riftcount.platform.Haptic
 
-/** Picker behind "End the match" and "Set them yourself": one result per game (1 you, 0 opponent, -1 draw). */
-data class ResultPicker(val ending: Boolean, val picks: List<Int?>) {
+/**
+ * Picker behind "End the match" and "Set them yourself": one result per game (1 you, 0 opponent, -1 draw),
+ * as many games as the format has; [need] wins decide it.
+ */
+data class ResultPicker(val ending: Boolean, val picks: List<Int?>, val need: Int) {
     fun decidedAt(): Int {
         var me = 0
         var them = 0
@@ -25,7 +28,7 @@ data class ResultPicker(val ending: Boolean, val picks: List<Int?>) {
             if (v == null) return -1
             if (v == YOU) me++
             if (v == OPPONENT) them++
-            if (me >= GAMES_TO_WIN || them >= GAMES_TO_WIN) return i
+            if (me >= need || them >= need) return i
         }
         return -1
     }
@@ -123,6 +126,29 @@ class ScoreController(
     fun toggleClock() = apply(state.toggleClock(now()), Haptic.Tick)
     fun nextGame() = apply(state.nextGame(now()), Haptic.Tick)
 
+    /** Tap on the game in the seam: casual ↔ best of three, or in a live match one ↔ three games. */
+    fun toggleFormat() {
+        val s = state
+        val next = if (s.liveTag != null) (if (s.bestOf == 1) 3 else 1) else (if (s.bestOf == 0) 3 else 0)
+        apply(s.withBestOf(next), Haptic.Tick)
+        if (state.bestOf != next) return
+        show(
+            when (next) {
+                0 -> "Casual · every game on its own"
+                1 -> "Best of 1 · one game decides"
+                else -> "Best of 3 · first to two games"
+            },
+        )
+    }
+
+    /** "Start match" in the seam: a fresh match for the PlayRiftbound pairing, in its event's format. */
+    fun startLive(link: TableLink) {
+        picker = null
+        closeDuel()
+        apply(state.startLive(link.tag, link.bestOf), Haptic.Success)
+        show("Live match · ${link.tag} · best of ${state.bestOf}")
+    }
+
     fun finalPoint(scoreIt: Boolean) {
         val slot = state.asking
         apply(state.confirmFinalPoint(scoreIt, now()), Haptic.Tick)
@@ -152,8 +178,9 @@ class ScoreController(
     // --- ending a match by hand ------------------------------------------------------------------
 
     fun openPicker(ending: Boolean) {
-        val picks = List(3) { i -> state.log.getOrNull(i)?.winner }
-        picker = ResultPicker(ending, picks)
+        val s = state
+        val games = if (s.isSeries) s.bestOf else 1
+        picker = ResultPicker(ending, List(games) { i -> s.log.getOrNull(i)?.winner }, if (s.isSeries) s.winsNeeded else 1)
     }
 
     fun choose(i: Int, v: Int) { picker = picker?.choose(i, v) }
@@ -163,6 +190,11 @@ class ScoreController(
         val p = picker ?: return
         val set = p.picks.takeWhile { it != null }.filterNotNull()
         if (set.isEmpty()) return
+        if (!state.isSeries) {
+            picker = null
+            apply(state.decided(set[0], now()), if (set[0] < 0) Haptic.Tick else null)
+            return
+        }
         val playing = state.log.size
         val log = set.mapIndexed { i, w -> state.log.getOrNull(i)?.takeIf { it.winner == w } ?: GameResult(w) }
         // The game being played when the match was ended counts too (a concession), like iOS Won/Lost.
@@ -212,7 +244,11 @@ class ScoreController(
         }
     }
 
-    fun choose(choice: DuelState.Choice) { duel = duel?.copy(choice = choice) }
+    /** The winner of the roll picks first or second, and the game starts (no second question). */
+    fun choose(choice: DuelState.Choice) {
+        duel = duel?.copy(choice = choice) ?: return
+        startGame()
+    }
 
     fun rollAgain() { val d = duel ?: return; stopTumbles(); duel = DuelState.start(d.dice.size, d.type) }
 

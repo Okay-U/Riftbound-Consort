@@ -2,6 +2,7 @@ package pitopia.riftcount.score
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDp
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -111,6 +113,8 @@ fun DieGraphic(type: DieType, die: Die, accent: Color, highlight: Boolean, sizeD
                 val outMs = if (fast) 130 else 380
                 (fadeIn(tween(inMs, easing = RiftEase)) + slideInVertically(tween(inMs, easing = RiftEase)) { (it * 0.14f).toInt() })
                     .togetherWith(fadeOut(tween(outMs)) + slideOutVertically(tween(outMs)) { -(it * 0.14f).toInt() })
+                    // Not clipped to the number's box: the blur and the slide reach past it.
+                    .using(SizeTransform(clip = false))
             },
             contentAlignment = Alignment.Center,
             label = "die",
@@ -118,7 +122,8 @@ fun DieGraphic(type: DieType, die: Die, accent: Color, highlight: Boolean, sizeD
             val blur by transition.animateDp(label = "dieBlur") { if (it == EnterExitState.Visible) 0.dp else 10.dp }
             BasicText(
                 v?.toString() ?: "?",
-                Modifier.blur(blur, BlurredEdgeTreatment.Unbounded),
+                // The blur only draws inside its own layer: room around the digits, or it ends in a box.
+                Modifier.wrapContentSize(unbounded = true).blur(blur, BlurredEdgeTreatment.Unbounded).padding(24.dp),
                 style = TextStyle(
                     fontFamily = RiftType.Display, fontWeight = FontWeight.Black, fontSize = numberSize, lineHeight = numberSize,
                     fontFeatureSettings = "tnum", color = if (v == null) Color.White.copy(alpha = 0.35f) else if (highlight) accent else Color.White,

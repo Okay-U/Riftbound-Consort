@@ -1,12 +1,17 @@
 package pitopia.riftcount.score
 
 /**
- * The PlayRiftbound pairing the scoreboard plays in match mode (iOS match strip): the seam shows the round and
- * table instead of the game, End becomes Report, and the match summary sends the series to Riot.
+ * The player's PlayRiftbound pairing in match mode (iOS match strip). Until its match is started the seam
+ * shows the table and opponent with Start match; then the round and table instead of the game, End becomes
+ * Report, and the match summary sends the series to Riot.
  */
 class TableLink(
     /** "R3 · T5". */
     val tag: String,
+    val table: Int?,
+    val opponent: String?,
+    /** The event's format, 1 or 3 games. */
+    val bestOf: Int,
     val reportable: Boolean,
     /** Asks Riot again (the end of a series, a new match): the pairing may be reported meanwhile or newer. */
     val refresh: () -> Unit,

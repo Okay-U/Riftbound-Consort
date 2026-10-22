@@ -2,6 +2,7 @@ package pitopia.riftcount.score
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDp
@@ -17,8 +18,12 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +33,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -35,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
@@ -42,8 +49,10 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -52,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import pitopia.riftcount.ui.common.Pill
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.theme.RiftEase
@@ -69,7 +79,8 @@ fun TopLine(
     xp: Int,
     onXp: (Int) -> Unit,
     gamesWon: Int,
-    seriesPips: Boolean,
+    /** Games to win the series, one dot each; 0 without a series. */
+    pips: Int,
     shown: Boolean = true,
     onName: (() -> Unit)? = null,
 ) {
@@ -92,12 +103,12 @@ fun TopLine(
         Row(verticalAlignment = Alignment.CenterVertically) {
             BasicText("XP $xp", style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = Color.White.copy(alpha = 0.84f)))
             Spacer(Modifier.width(5.dp))
-            XpButton("−", "Spend one XP", shown) { onXp(-1) }
+            XpButton("−", "Spend one XP", shown, accent, ink) { onXp(-1) }
             Spacer(Modifier.width(5.dp))
-            XpButton("+", "Gain one XP", shown) { onXp(1) }
-            if (seriesPips) {
+            XpButton("+", "Gain one XP", shown, accent, ink) { onXp(1) }
+            if (pips > 0) {
                 Spacer(Modifier.width(12.dp))
-                repeat(GAMES_TO_WIN) { i ->
+                repeat(pips) { i ->
                     if (i > 0) Spacer(Modifier.width(6.dp))
                     Box(Modifier.size(8.dp).background(if (i < gamesWon) accent else Color.White.copy(alpha = 0.2f), CircleShape))
                 }
@@ -107,14 +118,14 @@ fun TopLine(
 }
 
 @Composable
-private fun XpButton(text: String, label: String, enabled: Boolean, onClick: () -> Unit) {
-    Pressable(
-        onClick,
-        Modifier.size(30.dp).background(Color.Black.copy(alpha = 0.35f), CircleShape).border(1.dp, Color.White.copy(alpha = 0.24f), CircleShape),
-        enabled = enabled,
-        label = label,
-    ) {
-        BasicText(text, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White))
+private fun XpButton(text: String, label: String, enabled: Boolean, accent: Color, ink: Color, onClick: () -> Unit) {
+    LitPress(onClick, Modifier.size(30.dp), label, enabled) { lit ->
+        Box(
+            Modifier.matchParentSize()
+                .background(lerp(Color.Black.copy(alpha = 0.35f), accent, 0.9f * lit), CircleShape)
+                .border(1.dp, lerp(Color.White.copy(alpha = 0.24f), accent, lit), CircleShape),
+        )
+        BasicText(text, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lerp(Color.White, ink, lit)))
     }
 }
 
@@ -144,6 +155,8 @@ fun ScoreNumber(value: Int, accent: Color, won: Boolean, label: String, modifier
                         fadeOut(tween(650, easing = Standard)) + slideOutVertically(tween(650, easing = Standard)) { -(it * 0.26f).toInt() } +
                             scaleOut(tween(650, easing = Standard), targetScale = 0.92f),
                     )
+                    // Not clipped to the number's box: the blur and the slide reach past it.
+                    .using(SizeTransform(clip = false))
             },
             contentAlignment = Alignment.Center,
             label = "score",
@@ -155,7 +168,8 @@ fun ScoreNumber(value: Int, accent: Color, won: Boolean, label: String, modifier
                     EnterExitState.PostExit -> 14.dp
                 }
             }
-            BasicText(v.toString(), Modifier.blur(blur, BlurredEdgeTreatment.Unbounded), style = style)
+            // The blur only draws inside its own layer: room around the digits, or it ends in a box.
+            BasicText(v.toString(), Modifier.wrapContentSize(unbounded = true).blur(blur, BlurredEdgeTreatment.Unbounded).padding(32.dp), style = style)
         }
         if (showTarget) {
             BasicText(
@@ -187,10 +201,10 @@ private fun Drop(value: Int, accent: Color, sizeDp: Float) {
 @Composable
 fun ActionRow(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Unit, onEffect: () -> Unit, onFix: () -> Unit, height: Float = 54f) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), height, accent, ink, onConquer)
-        ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), height, null, Color.White, onHold)
-        ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), height, null, Color.White, onEffect)
-        ActionButton("Fix", "−1", "Correct, minus one point", Modifier.weight(1f), height, null, Color.White, onFix)
+        ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), height, true, accent, ink, onConquer)
+        ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), height, false, accent, ink, onHold)
+        ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), height, false, accent, ink, onEffect)
+        ActionButton("Fix", "−1", "Correct, minus one point", Modifier.weight(1f), height, false, accent, ink, onFix)
     }
 }
 
@@ -199,31 +213,58 @@ fun ActionRow(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Un
 fun ActionGrid(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Unit, onEffect: () -> Unit, onFix: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), 40f, accent, ink, onConquer)
-            ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), 40f, null, Color.White, onHold)
+            ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), 40f, true, accent, ink, onConquer)
+            ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), 40f, false, accent, ink, onHold)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), 40f, null, Color.White, onEffect)
-            ActionButton("Fix", "−1", "Correct, minus one point", Modifier.weight(1f), 40f, null, Color.White, onFix)
+            ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), 40f, false, accent, ink, onEffect)
+            ActionButton("Fix", "−1", "Correct, minus one point", Modifier.weight(1f), 40f, false, accent, ink, onFix)
         }
     }
 }
 
+/**
+ * Lights up under the finger and fades out after the tap (Okay, 2026-10-22: every tap needs an answer), and
+ * shrinks a little like the mock's `:active`. [content] draws the button for a light of 0 to 1.
+ */
 @Composable
-private fun ActionButton(title: String, delta: String, label: String, modifier: Modifier, height: Float, accent: Color?, ink: Color, onClick: () -> Unit) {
+private fun LitPress(onClick: () -> Unit, modifier: Modifier, label: String, enabled: Boolean = true, content: @Composable BoxScope.(Float) -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val light = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(pressed) { if (pressed) light.animateTo(1f, tween(60)) else light.animateTo(0f, tween(520, easing = RiftEase)) }
+    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, tween(250, easing = RiftEase), label = "press")
+    Box(
+        modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clickable(source, indication = null, enabled = enabled, onClickLabel = label, role = Role.Button) {
+                // A quick tap is over before the press lights up fully: flash once from full.
+                scope.launch { light.snapTo(1f); light.animateTo(0f, tween(520, easing = RiftEase)) }
+                onClick()
+            },
+        contentAlignment = Alignment.Center,
+    ) { content(light.value) }
+}
+
+/** Conquer is filled in the half's colour and flares when tapped; the others fill with it for a moment. */
+@Composable
+private fun ActionButton(title: String, delta: String, label: String, modifier: Modifier, height: Float, filled: Boolean, accent: Color, ink: Color, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)
-    val base = modifier.height(height.dp)
-    val styled = if (accent != null) {
-        base.dropShadow(shape, Shadow(radius = 26.dp, color = accent.copy(alpha = 0.45f))).background(accent, shape)
-    } else {
-        base.background(Color.Black.copy(alpha = 0.38f), shape).border(1.dp, Color.White.copy(alpha = 0.2f), shape)
-    }
-    Pressable(onClick, styled, label = label) {
+    LitPress(onClick, modifier.height(height.dp), label) { lit ->
+        val glow = if (filled) 0.45f + 0.35f * lit else 0.5f * lit
+        Box(
+            Modifier.matchParentSize()
+                .let { if (glow > 0f) it.dropShadow(shape, Shadow(radius = (26 + 12 * lit).dp, color = accent.copy(alpha = glow))) else it }
+                .background(if (filled) lerp(accent, Color.White, 0.3f * lit) else lerp(Color.Black.copy(alpha = 0.38f), accent, 0.9f * lit), shape)
+                .let { if (filled) it else it.border(1.dp, lerp(Color.White.copy(alpha = 0.2f), accent, lit), shape) },
+        )
+        val text = if (filled) ink else lerp(Color.White, ink, lit)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            BasicText(title, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 15.sp, color = ink))
+            BasicText(title, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 15.sp, color = text))
             BasicText(
                 delta,
-                style = RiftType.Body.copy(fontWeight = FontWeight.Medium, fontSize = 10.sp, lineHeight = 12.sp, color = ink.copy(alpha = if (accent != null) 0.62f else 0.66f)),
+                style = RiftType.Body.copy(fontWeight = FontWeight.Medium, fontSize = 10.sp, lineHeight = 12.sp, color = text.copy(alpha = if (filled) 0.62f else 0.66f)),
             )
         }
     }

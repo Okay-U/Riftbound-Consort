@@ -10,6 +10,9 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,16 +34,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import pitopia.riftcount.ui.common.Pill
-import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.RoundIcon
 import pitopia.riftcount.ui.common.ScoreIcons
 import pitopia.riftcount.ui.theme.RiftColors
@@ -48,14 +52,17 @@ import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
 /**
- * The pill on the territory line: dice, undo, match clock, restart, end. In the duel: die type, roll, close.
- * In match mode ([link]) the clock's tag is the round and table and End becomes Report.
+ * The pill on the territory line: dice, undo, game and clock, restart, end. In the duel: die type, roll, close.
+ * With a PlayRiftbound pairing ([link]) not yet started it shows the table and opponent with Start match;
+ * once started, the round and table, and End becomes Report.
  */
 @Composable
 fun Seam(c: ScoreController, link: TableLink?, modifier: Modifier = Modifier) {
     val s = c.state
     val d = c.duel
-    val gone = s.showSummary || (d != null && d.winner >= 0 && (d.choice != null || !s.isDuel))
+    val gone = s.showSummary || (d != null && d.winner >= 0 && !s.isDuel)
+    val live = link?.takeIf { it.tag == s.liveTag }
+    val waiting = link?.takeIf { s.isDuel && it.reportable && it.tag != s.liveTag }
     val shown by animateFloatAsState(if (gone) 0f else 1f, tween(500, easing = RiftEase), label = "seam")
     val shape = RoundedCornerShape(50)
     Box(
@@ -80,11 +87,23 @@ fun Seam(c: ScoreController, link: TableLink?, modifier: Modifier = Modifier) {
                         SeamIcon(ScoreIcons.Dice, RiftColors.You)
                     }
                     RoundIcon({ c.undo() }, "Undo last point", enabled = s.canUndo && !gone) { SeamIcon(ScoreIcons.Undo) }
-                    ClockBox(s, link?.tag, onToggle = { c.toggleClock() })
-                    RoundIcon({ c.askRestart() }, "Restart this game", enabled = !s.gameOver && !gone) { SeamIcon(ScoreIcons.Restart) }
+                    ClockBox(
+                        s, live?.tag, waiting,
+                        onTap = { if (waiting != null) c.startLive(waiting) else if (s.isDuel) c.toggleFormat() else c.toggleClock() },
+                        onLongPress = { c.toggleClock() },
+                    )
+                    // Waiting for Start match, the table and opponent need the room; restart comes back with the match.
+                    if (waiting == null) RoundIcon({ c.askRestart() }, "Restart this game", enabled = !s.gameOver && !gone) { SeamIcon(ScoreIcons.Restart) }
                     if (s.isDuel) {
                         Box(Modifier.size(1.dp, 26.dp).background(Color.White.copy(alpha = 0.16f)))
-                        Pill(if (link?.reportable == true) "Report" else "End", { c.openPicker(ending = true) }, Modifier.height(42.dp), fill = Color.White.copy(alpha = 0.13f), enabled = !gone)
+                        if (waiting != null) {
+                            Pill("Start match", { c.startLive(waiting) }, Modifier.height(42.dp), fill = RiftColors.You, ink = Color.Black, enabled = !gone)
+                        } else {
+                            Pill(
+                                if (live?.reportable == true) "Report" else "End", { c.openPicker(ending = true) }, Modifier.height(42.dp),
+                                fill = Color.White.copy(alpha = 0.13f), enabled = !gone && (s.isSeries || !s.gameOver),
+                            )
+                        }
                     }
                 }
             }
@@ -96,9 +115,12 @@ fun Seam(c: ScoreController, link: TableLink?, modifier: Modifier = Modifier) {
 private fun SeamIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color = Color.White) =
     Image(icon, contentDescription = null, colorFilter = ColorFilter.tint(tint))
 
-/** Game number (or round and table in match mode) and the match clock; tap pauses and resumes it (iOS). */
+/**
+ * The game and the match clock. Tap switches casual ↔ best of three (one ↔ three games in a live match),
+ * long press pauses the clock. Before a live match starts: its table and opponent, and tap starts it.
+ */
 @Composable
-private fun ClockBox(s: ScoreState, tag: String?, onToggle: () -> Unit) {
+private fun ClockBox(s: ScoreState, tag: String?, waiting: TableLink?, onTap: () -> Unit, onLongPress: () -> Unit) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     // Redraw exactly when the shown second changes, not on a fixed tick (as iOS does).
     LaunchedEffect(s.clock) {
@@ -110,13 +132,45 @@ private fun ClockBox(s: ScoreState, tag: String?, onToggle: () -> Unit) {
     }
     val text = clockText(s.clock.elapsedSeconds(now))
     val paused = !s.clock.isRunning && s.clock.accumulatedMs > 0
-    Pressable(onToggle, Modifier.widthIn(min = 72.dp).semantics { contentDescription = "Match clock $text" + if (paused) ", paused" else "" }, label = if (s.clock.isRunning) "Pause the clock" else "Start the clock") {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, tween(250, easing = RiftEase), label = "press")
+    val label = when {
+        waiting != null -> waiting.table?.let { "TABLE $it" } ?: waiting.tag.uppercase()
+        paused -> "PAUSED"
+        tag != null -> tag.uppercase()
+        !s.isDuel -> "${s.players.size} PLAYERS"
+        s.isSeries -> "BO${s.bestOf} · GAME ${s.gameNo}"
+        else -> "GAME ${s.gameNo}"
+    }
+    val tapLabel = when {
+        waiting != null -> "Start the live match"
+        !s.isDuel -> if (s.clock.isRunning) "Pause the clock" else "Start the clock"
+        s.liveTag != null -> if (s.bestOf == 1) "Play best of three" else "Play best of one"
+        else -> if (s.isSeries) "Play casual games" else "Play best of three"
+    }
+    Box(
+        Modifier.widthIn(min = 72.dp, max = 132.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .combinedClickable(
+                source, indication = null, role = Role.Button, onClickLabel = tapLabel,
+                onLongClickLabel = if (s.clock.isRunning) "Pause the clock" else "Start the clock",
+                onLongClick = onLongPress, hapticFeedbackEnabled = false, onClick = onTap,
+            )
+            .semantics { contentDescription = if (waiting != null) "$label, ${waiting.opponent ?: ""}" else "$label, match clock $text" + if (paused) ", paused" else "" },
+        contentAlignment = Alignment.Center,
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             BasicText(
-                if (paused) "PAUSED" else tag?.uppercase() ?: if (s.isDuel) "GAME ${s.gameNo}" else "${s.players.size} PLAYERS",
-                style = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, letterSpacing = 0.14.em, color = if (paused) RiftColors.Gold else Color.White.copy(alpha = 0.72f)),
+                label,
+                style = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, letterSpacing = 0.14.em, color = if (paused && waiting == null) RiftColors.Gold else Color.White.copy(alpha = 0.72f)),
+                maxLines = 1,
             )
-            BasicText(text, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 18.sp, fontFeatureSettings = "tnum", color = Color.White))
+            BasicText(
+                if (waiting != null) "vs ${waiting.opponent ?: "?"}" else text,
+                style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = if (waiting != null) 14.sp else 16.sp, lineHeight = 18.sp, fontFeatureSettings = "tnum", color = Color.White),
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

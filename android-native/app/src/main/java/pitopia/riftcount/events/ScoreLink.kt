@@ -12,6 +12,9 @@ fun EventsData.tableLink(scope: CoroutineScope): TableLink? {
     val p = s.pairing?.takeIf { !it.isBye } ?: return null
     return TableLink(
         tag = p.roundShort + (p.tableNumber?.let { " · T$it" } ?: ""),
+        table = p.tableNumber,
+        opponent = p.opponentName,
+        bestOf = p.bestOf,
         reportable = p.isReportable,
         refresh = { scope.launch { refreshStrip(force = true) } },
         report = { winners -> reportSeries(s.entry.tournament.id, p, winners) },

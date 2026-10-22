@@ -65,14 +65,16 @@ fun MatchSummary(c: ScoreController, colors: List<Color>, centerY: Dp, link: Tab
         val railWidth = maxWidth - 56.dp
         SoftIn(Modifier.fillMaxWidth().offset(y = centerY - 139.dp), delayMs = 700, durationMs = 1200) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                BasicText("BEST OF 3", style = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, letterSpacing = 0.18.em, color = Color.White.copy(alpha = 0.72f)))
+                BasicText("BEST OF ${s.bestOf}", style = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, letterSpacing = 0.18.em, color = Color.White.copy(alpha = 0.72f)))
                 Spacer(Modifier.height(2.dp))
                 BasicText(headline, style = TextStyle(fontFamily = RiftType.Display, fontWeight = FontWeight.Black, fontSize = 36.sp, lineHeight = 36.sp, letterSpacing = 0.06.em, color = accent))
             }
         }
-        val reporting = c.reportedSeries() != null || link?.reportable == true
+        // Only the series started for the pairing goes to Riot, never a best of three played for practice.
+        val live = link?.takeIf { it.tag == s.liveTag }
+        val reporting = c.reportedSeries() != null || live?.reportable == true
         if (reporting) SoftIn(Modifier.fillMaxSize(), delayMs = 900, durationMs = 700) {
-            Box(Modifier.fillMaxSize()) { ReportRail(c, colors, accent, railLeft, railWidth, centerY, link) }
+            Box(Modifier.fillMaxSize()) { ReportRail(c, colors, accent, railLeft, railWidth, centerY, live) }
         } else {
             RailIn(Modifier.offset(x = railLeft, y = centerY - 2.dp).size(railWidth, 4.dp), Color.White.copy(alpha = 0.18f), null)
             RailIn(Modifier.offset(x = railLeft, y = centerY - 2.dp).size(railWidth, 4.dp), accent, accent, delayMs = 1300)
@@ -99,6 +101,8 @@ fun MatchSummary(c: ScoreController, colors: List<Color>, centerY: Dp, link: Tab
                     Pill("Start a new match", { link?.refresh(); c.newMatch() }, Modifier.height(46.dp), fill = accent, ink = inkOn(accent))
                     Spacer(Modifier.height(4.dp))
                     LinkText("Wrong results? Set them yourself") { c.openPicker(ending = false) }
+                    // The event says one game, the table plays three: game 1 then no longer ends the match.
+                    if (s.bestOf == 1 && !s.ended && c.reportedSeries() == null) LinkText("We play best of 3") { c.toggleFormat() }
                 }
             }
         }
