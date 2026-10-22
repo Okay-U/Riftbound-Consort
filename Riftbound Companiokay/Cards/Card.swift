@@ -13,6 +13,8 @@ nonisolated struct Card: Identifiable, Codable, Hashable, Sendable {
     let id: String
     let name: String
     let riftboundId: String?
+    /// Printed collector code, "OGN-253/298".
+    let publicCode: String?
     let collectorNumber: Int?
     let attributes: CardAttributes?
     let classification: CardClassification?
@@ -28,6 +30,7 @@ nonisolated struct Card: Identifiable, Codable, Hashable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id, name, unreleased
         case riftboundId     = "riftbound_id"
+        case publicCode      = "public_code"
         case collectorNumber = "collector_number"
         case attributes, classification, text, set, media, tags, orientation, metadata
     }

@@ -23,7 +23,7 @@ struct RedesignRoot: View {
                 .tabItem { Label("Events", systemImage: "calendar") }
                 .tag(TabKey.events)
 
-            CardsTabView()
+            RiftCardsView()
                 .tabItem { Label("Cards", systemImage: "rectangle.portrait.on.rectangle.portrait") }
                 .tag(TabKey.cards)
 

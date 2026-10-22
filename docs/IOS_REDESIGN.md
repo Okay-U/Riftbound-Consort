@@ -71,8 +71,15 @@ reviews in Xcode.
      the classic report sheet), the result picker. The strip now carries the round chip and its clock's
      end. For Okay's review: "Open the event?" opens the event's PlayRiftbound page in Events (like the
      classic strip; the native event screen joins with phase 6); the result picker is a native sheet.
-3. **Cards** (`CardsFinal`): grid with the rising tiles, tile grows into the detail, filter sheet with the
-   sliders, Add to deck with the builder rules, shortlist.
+3. **Cards** (`CardsFinal`) · done 2026-10-22: header with the count, search with the green ring, All + six
+   domain discs (Riot's rune glyphs, generated from the Android vectors as template assets), Set · Energy ·
+   Type, Filter with its badge, the grid whose first 15 tiles rise in, the tile growing into the detail
+   (matched geometry: name and type line, stats, errata box over the struck printed text, rules with keyword
+   chips and italic reminders, flavour, artist, code, tags), filter sheet (shortlist, type, series, rarity
+   chips, two-thumb ranges, live "Show N cards"), Add to deck with the builder rules (`DeckRules.swift`,
+   `sh tools/check-decks/run.sh` runs the Android `DeckRulesTest` on its fixture) and the shortlist. Tiles
+   load Riot's CDN WebP at tile width. `Card` gains `publicCode`. For Okay's review: "New deck with this
+   card" joins with the new builder (phase 4); the filter and add sheets are native sheets.
 4. **Decks** (`DecksMix`): table of piles, the pile opening into the deck, test hand, odds, stats, match log
    and game review, the seven-stop builder rail, shortlist spot.
 5. **Settings + onboarding** (`SettingsHybrid`): flip tiles, player colours, help, about, the fonts in

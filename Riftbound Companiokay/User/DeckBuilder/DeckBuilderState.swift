@@ -445,6 +445,7 @@ final class DeckBuilderState: ObservableObject {
                 id: entry.cardId,
                 name: entry.cardName,
                 riftboundId: nil,
+                publicCode: nil,
                 collectorNumber: nil,
                 attributes: nil,
                 classification: nil,
