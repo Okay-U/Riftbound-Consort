@@ -60,7 +60,7 @@ struct StoresPane: View {
                     }
                 }
                 EvCaption(left: "Find stores")
-                StoreFinder(onStore: { onSheet(.store($0)) })
+                StoreFinder(active: active, onStore: { onSheet(.store($0)) })
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)
@@ -207,6 +207,8 @@ private struct StoreHit: Identifiable {
 
 /// The finder: a place, the radius light rail, stores with upcoming events nearest first.
 private struct StoreFinder: View {
+    /// The Stores section shows: the search runs then, not for a section off screen.
+    let active: Bool
     let onStore: (CompeteOrganizer) -> Void
     @AppStorage("riftSearchPlace") private var place = ""
     @AppStorage("riftSearchLat") private var latitude: Double = 0
@@ -255,8 +257,9 @@ private struct StoreFinder: View {
         }
         .onAppear {
             if draft.isEmpty { draft = place }
-            if !known { message = "Enter a city to see stores running events nearby." } else if hits == nil { search() }
+            if !known { message = "Enter a city to see stores running events nearby." }
         }
+        .task(id: active) { if active, known, hits == nil, !loading { search() } }
     }
 
     private func locate() {
