@@ -59,8 +59,13 @@ struct LegendPicture: View {
 /// Behind an art half's number: the mock's dark radial shade (an ellipse 75 % of the width and half the height
 /// across), so the score reads on any picture.
 struct LegendShade: View {
+    /// How far the half's colours run on past its outer edge (under the status bar or the tab bar): the shade's
+    /// rim runs on with them, or its edge shows as a stripe.
+    var extend: CGFloat = 0
+
     var body: some View {
         GeometryReader { geo in
+            let half = geo.size.height - extend
             // The ellipse's frame keeps its shape and is 8 % larger, so it covers the whole half.
             EllipticalGradient(
                 stops: [
@@ -70,8 +75,11 @@ struct LegendShade: View {
                 ],
                 center: .center, startRadiusFraction: 0, endRadiusFraction: 0.5 / 1.08
             )
-            .frame(width: geo.size.width * 1.5 * 1.08, height: geo.size.height * 1.08)
-            .position(x: geo.size.width / 2, y: geo.size.height * 0.46)
+            .frame(width: geo.size.width * 1.5 * 1.08, height: half * 1.08)
+            .position(x: geo.size.width / 2, y: half * 0.46)
+            Color.black.opacity(0.35)
+                .frame(width: geo.size.width, height: extend)
+                .position(x: geo.size.width / 2, y: half + extend / 2)
         }
         .clipped()
         .allowsHitTesting(false)

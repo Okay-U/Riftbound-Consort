@@ -41,7 +41,7 @@ struct RedesignScoreView: View {
             ZStack(alignment: .top) {
                 if c.state.isDuel {
                     DuelBoard(
-                        c: c, area: area, topInset: geo.safeAreaInsets.top, match: match,
+                        c: c, area: area, insets: geo.safeAreaInsets, match: match,
                         checking: riftMatch.isRefreshing, onCheck: check,
                         onOpenEvent: match?.webURL == nil ? nil : { askingEvent = true },
                         onReport: { reporting = ReportTarget(tournamentID: $0.tournamentID, pairing: $0.pairing) }
@@ -124,7 +124,7 @@ private func haves(_ name: String) -> String { name == "You" ? "You have" : "\(n
 private struct DuelBoard: View {
     @ObservedObject var c: ScoreController
     let area: CGFloat
-    let topInset: CGFloat
+    let insets: EdgeInsets
     let match: MatchInfo?
     let checking: Bool
     let onCheck: () -> Void
@@ -152,14 +152,15 @@ private struct DuelBoard: View {
         }()
         ZStack(alignment: .top) {
             TerritoryFields(
-                line: lineTarget(s, roll, center: center) + topInset, middle: center + topInset,
+                line: lineTarget(s, roll, center: center) + insets.top, middle: center + insets.top,
                 seats: seats, pictures: art,
                 lineColor: leader < 0 ? .white.opacity(0.7) : colors[leader]
             )
             .ignoresSafeArea()
             VStack(spacing: 0) {
-                Half(c: c, slot: Seat.opponent, colors: colors, art: art[Seat.opponent] != nil).rotationEffect(.degrees(180))
-                Half(c: c, slot: Seat.you, colors: colors, art: art[Seat.you] != nil)
+                // Turned, the far half's bottom edge is the screen's top.
+                Half(c: c, slot: Seat.opponent, colors: colors, art: art[Seat.opponent] != nil, extend: insets.top).rotationEffect(.degrees(180))
+                Half(c: c, slot: Seat.you, colors: colors, art: art[Seat.you] != nil, extend: insets.bottom)
             }
             .frame(height: area)
             Seam(c: c, match: match, checking: checking, onCheck: onCheck, onOpenEvent: onOpenEvent, onReport: onReport)
@@ -231,6 +232,8 @@ private struct Half: View {
     let colors: [Color]
     /// Its legend's picture is behind it: a shade behind the number and the mock's pills for art.
     var art = false
+    /// How far its field runs on past its outer edge, so the shade does too.
+    var extend: CGFloat = 0
     /// A tap on the score asks the action pills to light up.
     @State private var cue = 0
 
@@ -291,7 +294,7 @@ private struct Half: View {
             .frame(maxHeight: .infinity, alignment: .bottom)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { if art { LegendShade() } }
+        .background { if art { LegendShade(extend: extend).padding(.bottom, -extend) } }
     }
 
     @ViewBuilder private func bottomRow(_ s: ScoreState, accent: Color) -> some View {
