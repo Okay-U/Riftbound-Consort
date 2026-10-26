@@ -22,6 +22,8 @@ object AppSettings {
     val keepScreenOn = Flag("keepScreenOn", true)
     val trueBlack = Flag("trueBlack", true)
     val matchMode = Flag("matchModeEnabled", true)
+    /** The legends' splash art behind the scoreboard halves (iOS the same key), off until switched on. */
+    val legendArt = Flag("legendArt", false)
     val didOnboard = Flag("didOnboard", false)
     val didOnboardEvents = Flag("didOnboardEvents", false)
     val didSeeBuilderTip = Flag("didSeeBuilderTip", false)

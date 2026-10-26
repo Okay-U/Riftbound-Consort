@@ -90,6 +90,13 @@ class ScoreController(
     /** First name for sentences: "Darius starts", "You start". */
     fun shortName(slot: Int): String = legend(slot).substringBefore(" · ")
 
+    /** The splash of your deck's legend or the opponent's (Legend art); null while that legend is unknown. */
+    fun legendArtUrl(slot: Int): String? = when {
+        !state.isDuel -> null
+        slot == YOU -> decks.find(deckId)?.legend?.cardName?.let(LegendArt::url)
+        else -> LegendArt.url(opponent)
+    }
+
     // --- scoring ---------------------------------------------------------------------------------
 
     fun score(slot: Int, kind: PointKind) = apply(state.score(slot, kind, now()), Haptic.Tick)

@@ -18,16 +18,30 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import pitopia.riftcount.cards.Card
 import pitopia.riftcount.cards.SearchField
+import pitopia.riftcount.data.AppSettings
 import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.decks.Mini
 import pitopia.riftcount.decks.OnOffChip
 import pitopia.riftcount.decks.PickRow
 import pitopia.riftcount.decks.SheetText
 import pitopia.riftcount.decks.SheetTitle
+import pitopia.riftcount.settings.Group
+import pitopia.riftcount.settings.SettingsIcons
+import pitopia.riftcount.settings.ToggleRow
 import pitopia.riftcount.ui.common.Sheet
 import pitopia.riftcount.ui.theme.RiftType
 
 private val Label = RiftType.Caption.copy(fontSize = 10.5.sp, letterSpacing = 0.14.em, color = Color.White.copy(alpha = 0.6f))
+
+/** Legend art, the same switch as the Settings tile: off by default. */
+@Composable
+private fun LegendArtSwitch() {
+    Group(Modifier.padding(bottom = 8.dp)) {
+        ToggleRow("Legend art", SettingsIcons.Art, "The legends' splash art behind their halves", divider = false, on = AppSettings.legendArt.on) {
+            AppSettings.legendArt.on = it
+        }
+    }
+}
 
 /** Your deck and the turn order (iOS `GameSetupSheet`): the deck names your half and goes into the match log. */
 @Composable
@@ -35,6 +49,7 @@ fun DeckPickSheet(c: ScoreController, decks: List<Decklist>, index: Map<String, 
     Sheet("Your deck", onDismiss) { close ->
         BasicText("Your deck", style = SheetTitle)
         BasicText("Its legend names your half; finished games go into its match log.", Modifier.padding(top = 4.dp, bottom = 12.dp), style = SheetText)
+        LegendArtSwitch()
         PickRow("No deck", "Games count for all decks only", c.deckId.isEmpty()) {
             c.pickDeck("")
             close()
@@ -68,6 +83,7 @@ fun OpponentPickSheet(c: ScoreController, legends: List<String>, pool: List<Card
         SearchField(query, placeholder = "Search legends", inset = 0.dp) { query = it }
         Spacer(Modifier.height(12.dp))
         if (query.isBlank()) {
+            LegendArtSwitch()
             PickRow("Unknown", null, c.opponent.isBlank()) {
                 c.pickOpponent("")
                 close()
