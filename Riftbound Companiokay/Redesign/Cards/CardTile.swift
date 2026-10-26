@@ -73,7 +73,8 @@ private struct Stamp: View {
     }
 }
 
-/// The mock's stand-in art: two glows in the card's colours on near black, and the domain's rune.
+/// The mock's stand-in art: two glows in the card's colours on near black, and the domain's rune. A card
+/// without any art (one the feed no longer has, in a deck) names itself on it.
 private struct PlaceholderArt: View {
     let card: Card
 
@@ -102,6 +103,14 @@ private struct PlaceholderArt: View {
                     .opacity(0.38)
                     .frame(width: geo.size.width * 0.53)
                     .position(x: geo.size.width / 2, y: geo.size.height * 0.395)
+                if card.media?.imageUrl == nil {
+                    Text(card.name)
+                        .font(RiftFont.text(12, .bold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .lineLimit(2)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                }
             }
         }
     }
