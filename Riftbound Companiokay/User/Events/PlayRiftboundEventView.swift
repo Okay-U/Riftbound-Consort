@@ -4,8 +4,7 @@
 //
 //  Native event screen on PlayRiftbound data: header (store, name, when, who),
 //  details, registered players. Registering, dropping and the store's contact
-//  card are not approved for the session client, so those open the event page
-//  in the PlayRiftbound segment.
+//  card open the event page in the PlayRiftbound segment.
 //
 
 import SwiftUI

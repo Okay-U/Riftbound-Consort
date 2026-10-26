@@ -3,7 +3,7 @@
 //  Riftbound Companiokay
 //
 //  Response types for the PlayRiftbound (Riot "Compete") GraphQL operations the
-//  app is approved to use with the player's own session. Shapes follow the
+//  app calls with the player's own session. Shapes follow the
 //  persisted documents recorded in docs/PLAYRIFTBOUND.md; every field the app
 //  does not need is left out, unknown fields are ignored by Decodable.
 //
