@@ -353,6 +353,11 @@ a binder; Energy groups each cost by set; Type stays by energy (`CardQuery.compa
 are bare like the Skip app's grid (the shade with name and type line covered the card's bottom); ERRATA / PREVIEW
 stamps stay in the corner and the Cards grid names each card in a line under it.
 
+Planned, not built (Okay's picks 2026-10-26, both platforms): the board's base look becomes colour model C (solid
+seat colours, white Conquer) and each half can show its legend's Data Dragon splash, clipped at the territory line,
+behind a "Legend art" switch (off by default, in both setup sheets and Settings). Full spec in the redesign branch's
+`docs/IOS_REDESIGN.md` ("Planned: score tile look"); mocks on https://claude.ai/artifact/68cipuSRxXGtdgqTKkvXL2.
+
 ## Code review before release (2026-10-22)
 One pass, five reviewers in parallel (Android by area, plus the new iOS commits), every finding checked against
 the code before fixing; no second full round (fd73591, efe9349, df62e13). Fixed: a later round with the same games
