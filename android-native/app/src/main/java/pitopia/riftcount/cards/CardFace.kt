@@ -27,6 +27,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -59,6 +60,15 @@ fun CardFace(card: Card, errata: Boolean, art: ImageBitmap?, modifier: Modifier 
                 Modifier.align(EmblemAlignment).fillMaxWidth(0.53f).aspectRatio(1f).graphicsLayer { alpha = 0.38f },
                 colorFilter = ColorFilter.tint(CardStyle.domainColor(domain)),
             )
+            // A card without any art (one the feed no longer has, in a deck) names itself on it.
+            if (card.media?.imageUrl == null) {
+                BasicText(
+                    card.name,
+                    Modifier.align(Alignment.BottomStart).padding(8.dp),
+                    style = RiftType.Body.copy(fontSize = 12.sp, lineHeight = 13.4.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.9f)),
+                    maxLines = 2, overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         if (errata || card.isPreview) {
             Row(
