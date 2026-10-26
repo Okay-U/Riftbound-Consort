@@ -86,7 +86,7 @@ struct ActionRow: View {
     let accent: Color
     /// Its half shows Legend art: the mock's pills for art.
     var art = false
-    /// Bumped by a tap on the score: the +1 pills light up together (Okay, 2026-10-26).
+    /// Bumped by a tap on the score: a ring runs out from all +1 pills at once (Okay, 2026-10-27).
     var cue = 0
     let onConquer: () -> Void
     let onHold: () -> Void
@@ -147,8 +147,8 @@ struct ActionGrid: View {
 /// Colour model C: Conquer is white with ink in the half's colour, the others dark with a light rim; over Legend
 /// art the mock's pills: Conquer filled in the half's colour and glowing, the others black 50 %. A tapped pill
 /// lights up in the half's colour for a moment. Liquid Glass on iOS 26 (Okay, 2026-10-22), the mock's
-/// capsules before. A tap on the score makes the +1 pills breathe together in a soft halo of that colour
-/// (`cue`; Okay, 2026-10-26): points go here, not on the number.
+/// capsules before. A tap on the score sends a ring of that colour out from the +1 pills at once and they give
+/// a little (`cue`; Okay's pick, mock "C · Ripple", 2026-10-27): points go here, not on the number.
 private struct ActionButton: View {
     let title: String
     let delta: String
@@ -161,26 +161,27 @@ private struct ActionButton: View {
     /// Answers the cue; Fix stays out of it.
     var cued = false
     let action: () -> Void
-    /// The cue's light, 0 to 1: it rises and falls twice, the same moment in every pill.
-    @State private var glow: CGFloat = 0
-    @State private var pulse: Task<Void, Never>?
 
     var body: some View {
         button
-            .background {
-                Capsule().fill(accent).blur(radius: 14).scaleEffect(1 + 0.14 * glow).opacity(0.75 * glow)
-            }
-            .scaleEffect(1 + 0.03 * glow)
-            .onChange(of: cue) {
-                guard cued else { return }
-                pulse?.cancel()
-                pulse = Task {
-                    for _ in 0..<2 {
-                        withAnimation(.easeInOut(duration: 0.38)) { glow = 1 }
-                        guard (try? await Task.sleep(for: .milliseconds(380))) != nil else { return }
-                        withAnimation(.easeInOut(duration: 0.52)) { glow = 0 }
-                        guard (try? await Task.sleep(for: .milliseconds(520))) != nil else { return }
+            // Once per cue, 0.85 s: the ring runs out 20 % wider and 60 % taller and fades, the pill dips and springs.
+            .keyframeAnimator(initialValue: Ripple(), trigger: cued ? cue : 0) { content, r in
+                content
+                    .scaleEffect(r.press)
+                    .background {
+                        Capsule()
+                            .stroke(accent, lineWidth: 2.5)
+                            .shadow(color: accent, radius: 9)
+                            .scaleEffect(x: 1 + 0.2 * r.ring, y: 1 + 0.6 * r.ring)
+                            .opacity(r.ring > 0 ? 1 - r.ring : 0)
                     }
+            } keyframes: { _ in
+                let give = UnitCurve.bezier(startControlPoint: UnitPoint(x: 0.2, y: 0.7), endControlPoint: UnitPoint(x: 0.2, y: 1))
+                KeyframeTrack(\.ring) { LinearKeyframe(1, duration: 0.85, timingCurve: give) }
+                KeyframeTrack(\.press) {
+                    LinearKeyframe(0.965, duration: 0.136, timingCurve: give)
+                    LinearKeyframe(1.03, duration: 0.272, timingCurve: give)
+                    LinearKeyframe(1, duration: 0.442, timingCurve: give)
                 }
             }
     }
@@ -189,22 +190,20 @@ private struct ActionButton: View {
         let ink = art ? accent.ink : accent.deep(0.75)
         if #available(iOS 26, *) {
             LitButton(accessibility: label, pressedScale: 1, action: action) { pressed in
-                let lit = max(pressed, 0.4 * glow)
                 face(color: filled ? ink : .white)
-                    .glassEffect(.regular.tint(fill(lit)).interactive(), in: Capsule())
+                    .glassEffect(.regular.tint(fill(pressed)).interactive(), in: Capsule())
                     .shadow(color: accent.opacity(glow(pressed)), radius: 13 + 6 * pressed)
             }
         } else {
             LitButton(accessibility: label, action: action) { pressed in
-                let lit = max(pressed, 0.4 * glow)
                 face(color: filled ? ink : Color.white.mix(with: accent.ink, by: pressed))
                     .background {
                         Capsule()
-                            .fill(fill(lit))
+                            .fill(fill(pressed))
                             .shadow(color: accent.opacity(glow(pressed)), radius: 13 + 6 * pressed)
                     }
                     .overlay {
-                        if !filled { Capsule().stroke(Color.white.opacity(art ? 0.2 : 0.28).mix(with: accent, by: lit), lineWidth: 1) }
+                        if !filled { Capsule().stroke(Color.white.opacity(art ? 0.2 : 0.28).mix(with: accent, by: pressed), lineWidth: 1) }
                     }
             }
         }
@@ -228,6 +227,12 @@ private struct ActionButton: View {
         .frame(height: height)
         .contentShape(Capsule())
     }
+}
+
+/// The cue's two values: the ring's way out (0 to 1) and the pill's scale.
+private struct Ripple {
+    var ring: CGFloat = 0
+    var press: CGFloat = 1
 }
 
 /// "WIN · 8–3" over the winner's half, softly in after the line has swept.

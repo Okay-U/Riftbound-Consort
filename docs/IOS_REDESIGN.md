@@ -237,9 +237,11 @@ Middle · 4 ways). Okay wants some feedback work done first.
 1. The seam's flag is a text button, "Reset Score" ("Reset" where a pairing leaves no room on a narrow
    phone: `ViewThatFits`, Android `FirstThatFits`). It opens the same menu, now led by Reset score, then I won
    and I lost; the tour says so.
-2. The score tap's cue: the three +1 pills no longer light up one after the other but breathe together, twice
-   (0.38 s up, 0.52 s down, ease in and out), in a blurred halo of the half's colour with a soft tint and a 3 %
-   swell; a press keeps its own light.
+2. The score tap's cue: the three +1 pills no longer light up one after the other. A first try breathed twice
+   in a halo ("too jerky, and twice with a pause is not good"); from three mocks (canvas page "Score tap · 3
+   ways": bloom, sheen, ripple) Okay picked C · Ripple: once, on all three at once, a ring of the half's colour
+   (2.5 pt, a soft glow) runs out 20 % wider and 60 % taller and fades while the pill dips to 96.5 % and springs
+   to 103 %, 0.85 s on the curve (0.2, 0.7, 0.2, 1) (`keyframeAnimator`, `Ripple`).
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.
