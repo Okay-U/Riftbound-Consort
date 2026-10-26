@@ -1,7 +1,7 @@
 # PlayRiftbound integration
 
 Single reference for everything about Riot's organized-play platform: the plan, the in-app
-browser, the approved session client, and what the site's public code reveals. Replaces
+browser, the session client, and what the site's public code reveals. Replaces
 `RIOT_PLATFORM_PLAN.md`, `IN_APP_BROWSER.md` and `PLAYRIFTBOUND_SITE_MAP.md` (2026-09-07).
 
 ## 1. Situation
@@ -16,9 +16,12 @@ browser, the approved session client, and what the site's public code reveals. R
   brackets-in-app, skill indicators, metagame data prohibited; an API key must never ship in a
   binary; Legal Jibber Jabber ties App Store presence to a valid key. Okay's developer
   application is filed (`riot.txt` on okay-u.github.io).
-- Riot gave Okay written approval (2026-09-07, held by Okay, not in the repo) for an approved
-  app to read `PlayerTournaments` and `GetCompeteTournamentForRiftboundPlayer` and call
-  `SubmitGameResults` on behalf of the signed-in player using their own Riot session.
+- **No approval from Riot** (Okay, 2026-10-26). The developer application has waited in Riot's
+  queue for about two months without an answer; an earlier note here of a written approval dated
+  2026-09-07 was wrong. Every `/api/gql` call the app makes (reads, Report, register / cancel /
+  drop, favourites, search, store calendar) uses the player's own session at Okay's risk, his
+  explicit choice. Nothing (docs, App Review notes, privacy policy, store texts) may claim Riot's
+  permission.
 
 ## 2. Plan
 
@@ -26,7 +29,7 @@ browser, the approved session client, and what the site's public code reveals. R
 |---|---|---|---|
 | 0 | before Sept 14 | "New Events" segment in the Events tab: domain-locked browser to PlayRiftbound, both platforms. Locator segments get a date-gated sunset notice. Ship as 3.3.x. | iOS done on `feature/playriftbound-browser`, device-tested (login, persistence, card gallery). Android port next. Sunset notice open. |
 | 1 | Sept 14+ | Okay walks the live player flow from Xcode. Capture: URL paths (debug log), one request/response per GraphQL operation via Safari Web Inspector (endpoint, header names, query text vs persisted hash, cookie names). Never share cookie values. | open |
-| 2 | after 1 | **Session client** (approved scope, §4). Match-mode strip and Report button return, fed by the Compete GraphQL. Navigation-only deep links as fallback. | open |
+| 2 | after 1 | **Session client** (§4). Match-mode strip and Report button return, fed by the Compete GraphQL. Navigation-only deep links as fallback. | open |
 | 3 | if Riot grants a content API key | Gateway for the card catalogue (§6); riftcodex removed per policy. | open |
 | later | | Delete `CardeioLocatorAPI`, `LocatorAuthService`, email/password `LoginView`, carde.io models, on both platforms, after a module-wide dead-code check. | open |
 
@@ -82,7 +85,7 @@ there). Never `evaluateJavaScript`, user scripts, or message handlers in the bro
 **Known gaps.** Events onboarding tour still describes a Locator-only tab. `LoginView` title says
 "Events" under the Stores/Profile segments. Both wait for the final tab shape after Sept 14.
 
-## 4. Session client (approved scope)
+## 4. Session client (no approval, Okay's risk)
 
 Purpose: match-mode strip (table, opponent, round) and Report button on the scoreboard, fed by
 Riot's platform, without the player leaving the app.
@@ -104,7 +107,8 @@ Riot's platform, without the player leaving the app.
   `riotgames.com` hosts; rank or leaderboard views built on Riot data.
 - **Paperwork.** Privacy policy §4 reworded (session cookies stored by the system web view in
   the app sandbox; the app sends the player's own requests with them). App Store Notes for
-  Review cite Riot's approval.
+  Review describe it as it is (the player's own PlayRiftbound session, Riot's developer
+  application pending) and never claim Riot's permission.
 
 ## 5. What the site's public code reveals
 
@@ -127,10 +131,10 @@ Shapes may change at launch.
 | Operation | Kind | Purpose |
 |---|---|---|
 | `CompeteTournamentSearch` | query | event finder with filter / sort / cursor paging |
-| `PlayerTournaments` | query | my upcoming + past registrations (**approved**) |
+| `PlayerTournaments` | query | my upcoming + past registrations |
 | `PlayerRegisteredTournamentIds` | query | ids of my registrations |
-| `GetCompeteTournamentForRiftboundPlayer` | query | one tournament: stages > sections > rounds > matches, standings, registrants (**approved**) |
-| `SubmitGameResults` | mutation | player result report (**approved**) |
+| `GetCompeteTournamentForRiftboundPlayer` | query | one tournament: stages > sections > rounds > matches, standings, registrants |
+| `SubmitGameResults` | mutation | player result report |
 | `DropCompetePlayerFromTournament` | mutation | drop |
 | `GetCompetePlayer` / `AddCompetePlayer` / `UpdateCompetePlayer` | query/mutation | Compete player profile |
 | `FavoriteOrganizer` / `UnfavoriteOrganizer` / `FavoritedOrganizers` | mutation/query | favourite stores |
@@ -730,7 +734,7 @@ query FavoritedOrganizers {
 
 ## 8. Native event views on PlayRiftbound data (plan, 2026-10-06)
 
-Rebuild of the old Events screens on the approved operations. Reference: Okay's screenshots of the
+Rebuild of the old Events screens on the site's own operations. Reference: Okay's screenshots of the
 site (event list, my events, upcoming event, live/past event with its four tabs). We copy the
 site's *moments* in our own design; none of Riot's assets (Poro art, icons) are used.
 
@@ -746,7 +750,7 @@ their code are deleted in the same release.
 | | Distance to store, "Favorisierte Shops" list | needs location + `FavoritedOrganizers` | drop distance; stores list = web |
 | **Upcoming event** | header (store, name, date, time, players n/cap), Register / Drop button | tournament query + registrants; **Register/Drop = deep link** to the event page in the web view | available |
 | | Details card: description, program chip, date, `format • 1v1 • Swiss`, `N Runden • Bo • price` | `description`, `tournamentProgram.programName`, `config.format/playerFormat/structure/roundCount/matchFormat`, `entryFee` | available |
-| | Contact card: address, website, email, phone | `OrganizerSummary` (not approved) | web deep link, or ask Riot to add the op |
+| | Contact card: address, website, email, phone | `OrganizerSummary` | web deep link, or ask Riot to add the op |
 | | Registered players with "(you)" marker | `tournamentRegistrants` + our own participant id | available |
 | **Live / past event, tab "Your matches"** | Finale card: final placement + celebration | latest `endOfRoundStandings.rank` that lists our team, or the bracket result in a top cut (the document has no section `ranks`); own illustration | available |
 | | Previous matches: per round card `Table N · Round N`, both players with seed badge `#n` and record `W-L-D` at that time, game-score boxes, winner highlighted | table = sorted match id; seed = `tournamentParticipants[].position`; record = previous round's standings (0-0-0 in round 1); games won = count of `games[].teamOutcomes` WIN per team | available |
@@ -755,7 +759,7 @@ their code are deleted in the same release.
 | **Tab "Roster"** | players with ACTIVE / DROPPED badge | `tournamentParticipants` (status) before/after start, `tournamentRegistrants` before | available |
 | Round clock | site shows MM:SS from `startedAt + roundDuration` minutes (default 60), counts past zero | same | available |
 | Can-I-Draw (ours) | | `DrawCalc` on standings + `config.roundCount` | available |
-| **Find an event** | location, type/format filters, distance, sort, favorites-only, map | `CompeteTournamentSearch` is public but not in the approval; map = Google | web view |
+| **Find an event** | location, type/format filters, distance, sort, favorites-only, map | `CompeteTournamentSearch` is public; map = Google | web view |
 
 ### Riot asks worth one message (all read-only, public or player-own)
 `OrganizerSummary` (store contact card), `FavoritedOrganizers` (favourite stores list),
@@ -832,8 +836,9 @@ Worker (or equivalent) on a personal domain Okay chooses:
 ## 7. Review and policy notes
 
 - Apple 4.2 (repackaged website) is not a risk given the native feature set. 5.2.2 (third-party
-  content needs permission) is the exposure: describe the browser and the approved session client
-  in Notes for Review. 4.8 does not apply (no app account, Riot's own sign-in on Riot's page).
-- Riot TOS §7.1 (third-party programs interacting with Riot Services) is what the approval covers;
-  stay inside the approved three operations.
+  content needs permission) is the exposure: describe the browser and the session client as they
+  are in Notes for Review. Without Riot's permission Apple may ask for it and pull the feature or
+  the app (Okay's risk). 4.8 does not apply (no app account, Riot's own sign-in on Riot's page).
+- Riot TOS §7.1 (third-party programs interacting with Riot Services): no approval covers the
+  app; Riot can block the client at any time. Okay's risk, chosen 2026-10-26.
 - Never add a ranking or leaderboard view on Riot data; never retain metagame data.

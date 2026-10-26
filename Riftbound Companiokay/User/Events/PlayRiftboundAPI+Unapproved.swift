@@ -2,7 +2,7 @@
 //  PlayRiftboundAPI+Unapproved.swift
 //  Riftbound Companiokay
 //
-//  Operations beyond the three in Riot's written approval (docs/PLAYRIFTBOUND.md §4).
+//  Operations beyond the reads and the report (docs/PLAYRIFTBOUND.md §4).
 //  Shapes verified against the live site on 2026-10-09.
 //
 

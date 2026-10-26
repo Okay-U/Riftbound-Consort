@@ -3,8 +3,8 @@
 //  Riftbound Companiokay
 //
 //  Feeds the Scoreboard strip from PlayRiftbound: the player's next registered
-//  event and, once rounds exist, their current pairing. Uses only the approved
-//  operations with the player's own session. Read-only; reporting stays on the
+//  event and, once rounds exist, their current pairing, read with the player's
+//  own session. Read-only; reporting stays on the
 //  site until the result-submission shape is known.
 //
 

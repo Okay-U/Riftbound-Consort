@@ -3,7 +3,7 @@
 //  Riftbound Companiokay
 //
 //  The player's registrations on PlayRiftbound (upcoming and past), read with
-//  their own session through the approved `PlayerTournaments` query. Backs the
+//  their own session through the `PlayerTournaments` query. Backs the
 //  native Events segment.
 //
 

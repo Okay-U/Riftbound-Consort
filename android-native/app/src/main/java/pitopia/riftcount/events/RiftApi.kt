@@ -74,7 +74,7 @@ class OperationIds(private val fetchFeed: suspend () -> Map<String, String>) {
             "GetCompeteTournamentForRiftboundPlayer" to "e56d6d93e4f8fa287557521535544350e5cc9baafd78ba69f9f592873b090e57",
             "GetCompeteRbRefreshPoller" to "459dbd58b231ad1767b999a1bf987836123ac86a0b5110e166de15b69723ba0d",
             "SubmitGameResults" to "4f304b3a523f27d1abde2291d1b9e836e7b524f9e455d70b548680170e91c430",
-            // Beyond the three operations in Riot's written approval (docs/PLAYRIFTBOUND.md §4):
+            // Beyond the reads and the report (docs/PLAYRIFTBOUND.md §4):
             "CompeteTournamentSearch" to "acbcbba681a9c9a8063f792f7d665ba1eda81b19528b6af19e523f0c2061bec2",
             "RegisterCompetePlayer" to "7372d50ddebea493bd6aefdfce20666c7030d272252c0714fdcb2f63a92f9089",
             "DeregisterCompetePlayer" to "c2c3984c2c050f1f9ab54e5fb373e99e645e91cf010ee4a681b80089826b63d2",
@@ -132,7 +132,7 @@ object HttpTransport : Transport {
 class RiftApi(private val transport: Transport, private val log: PlayRiftboundLog, private val appVersion: String) {
     val ids = OperationIds { fetchFeed() }
 
-    // --- approved operations -----------------------------------------------------------------------
+    // --- reads and the report ----------------------------------------------------------------------
 
     suspend fun myTournaments(credentials: Credentials, upcoming: Int = 50, past: Int = 50): PlayerTournamentsData =
         query("PlayerTournaments", buildJsonObject { put("upcomingFirst", upcoming); put("pastFirst", past) }, credentials, PlayerTournamentsData.serializer())
@@ -160,7 +160,7 @@ class RiftApi(private val transport: Transport, private val log: PlayRiftboundLo
         mutate("SubmitGameResults", buildJsonObject { put("input", input) }, credentials)
     }
 
-    // --- beyond the approval ------------------------------------------------------------------------
+    // --- beyond the reads and the report ------------------------------------------------------------
 
     class SearchFilter(
         val latitude: Double,
