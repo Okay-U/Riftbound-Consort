@@ -63,6 +63,12 @@ android {
         }
     }
 
+    // Debug tools (fake live event, PlayRiftbound log) live in src/debug; release and staging get the stub.
+    sourceSets {
+        getByName("release").kotlin.directories += "src/nondebug/java"
+        getByName("staging").kotlin.directories += "src/nondebug/java"
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
