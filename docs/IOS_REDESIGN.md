@@ -170,7 +170,7 @@ Both platforms, step by step:
    card like the classic grid (ERRATA / PREVIEW stamps stay in the corner); the Cards grid names each card
    in a line under it. Everywhere else (piles, galleries, builder, hand) the card speaks for itself.
 
-### Planned: score tile look (Okay's picks 2026-10-26, both platforms; colour C built, legend art next)
+### Score tile look (Okay's picks 2026-10-26, built on both platforms the same day)
 
 Mocks on the canvas https://claude.ai/artifact/68cipuSRxXGtdgqTKkvXL2 (pages Tile colours, Legend art,
 Middle · 4 ways). Okay wants some feedback work done first.
@@ -211,8 +211,8 @@ Middle · 4 ways). Okay wants some feedback work done first.
     glow covers the cut, so the leader gets more of their picture. Over the art: the seat tint at 22 %,
     the art at brightness 0.72, a dark radial shade behind the number and a soft text shadow. Art halves
     keep variant 1's pills: Conquer filled in the seat colour with its glow, the others black 50 %.
-- **Steps:** 1 iOS colour C (done, 2b48ccb) · 2 Android colour C (done, 7f86ff1) · 3 iOS legend art (done) ·
-  4 Android legend art · 5 docs and memory. One commit per step; Okay checks each.
+- **Steps:** 1 iOS colour C (2b48ccb) · 2 Android colour C (7f86ff1) · 3 iOS legend art (140d9e4) · 4 Android
+  legend art (a052c70) · 5 docs and memory. All done; Okay checks each.
 
 ## Feedback round 2 (Okay, 2026-10-26)
 
