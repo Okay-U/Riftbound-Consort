@@ -44,9 +44,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -227,24 +229,35 @@ private fun CardGrid(ui: CardsUi, errata: ErrataStore, columns: Int, tilePx: Int
             val coords = remember { arrayOfNulls<LayoutCoordinates>(1) }
             val art by rememberCardArt(card, tilePx)
             val t = rememberEntrance(i, ui.generation, ui.generationAt)
-            Pressable(
-                // The whole tile, also when the grid edge cuts it: boundsInRoot() would clip it.
-                onClick = { coords[0]?.takeIf { it.isAttached }?.let { onOpen(card, Rect(it.positionInRoot(), it.size.toSize())) } },
-                modifier = Modifier.aspectRatio(CARD_ASPECT)
-                    .onGloballyPositioned { coords[0] = it }
-                    .graphicsLayer {
-                        val v = t.value
-                        alpha = if (card.id == hiddenId) 0f else v
-                        translationY = 16.dp.toPx() * (1f - v)
-                        scaleX = 0.96f + 0.04f * v
-                        scaleY = scaleX
-                        val blur = 6.dp.toPx() * (1f - v)
-                        renderEffect = softBlur(blur)
-                    }
-                    .semantics { contentDescription = tileLabel(card) },
-                pressedScale = 0.96f,
+            // The name under the card, not on it: the card shows whole (Okay, 2026-10-26).
+            Column(
+                Modifier.graphicsLayer {
+                    val v = t.value
+                    alpha = v
+                    translationY = 16.dp.toPx() * (1f - v)
+                    scaleX = 0.96f + 0.04f * v
+                    scaleY = scaleX
+                    val blur = 6.dp.toPx() * (1f - v)
+                    renderEffect = softBlur(blur)
+                },
             ) {
-                CardFace(card, errata.forCard(card) != null, art, Modifier.fillMaxSize())
+                Pressable(
+                    // The whole tile, also when the grid edge cuts it: boundsInRoot() would clip it.
+                    onClick = { coords[0]?.takeIf { it.isAttached }?.let { onOpen(card, Rect(it.positionInRoot(), it.size.toSize())) } },
+                    modifier = Modifier.aspectRatio(CARD_ASPECT)
+                        .onGloballyPositioned { coords[0] = it }
+                        .graphicsLayer { alpha = if (card.id == hiddenId) 0f else 1f }
+                        .semantics { contentDescription = tileLabel(card) },
+                    pressedScale = 0.96f,
+                ) {
+                    CardFace(card, errata.forCard(card) != null, art, Modifier.fillMaxSize())
+                }
+                BasicText(
+                    card.name,
+                    Modifier.padding(start = 2.dp, end = 2.dp, top = 5.dp).clearAndSetSemantics {},
+                    style = RiftType.Body.copy(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.78f)),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

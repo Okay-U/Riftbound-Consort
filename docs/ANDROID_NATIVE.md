@@ -349,7 +349,9 @@ like iOS sheets; short of that it slides back.
 
 Cards, round 3 (2026-10-26): Set sorted each set by energy, so its first rows looked just like Energy (both open
 with the 0-energy Seals; a friend of Okay's found it). Set is now release order in each set's own numbering, like
-a binder; Energy groups each cost by set; Type stays by energy (`CardQuery.comparator`, iOS the same).
+a binder; Energy groups each cost by set; Type stays by energy (`CardQuery.comparator`, iOS the same). Card faces
+are bare like the Skip app's grid (the shade with name and type line covered the card's bottom); ERRATA / PREVIEW
+stamps stay in the corner and the Cards grid names each card in a line under it.
 
 ## Code review before release (2026-10-22)
 One pass, five reviewers in parallel (Android by area, plus the new iOS commits), every finding checked against
