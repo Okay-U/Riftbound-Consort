@@ -151,13 +151,22 @@ struct RiftCardsView: View {
         Button {
             openCard(card)
         } label: {
-            ZStack {
-                if open?.id != card.id {
-                    CardTile(card: card, errata: errata.erratum(for: card) != nil, imageWidth: width)
-                        .matchedGeometryEffect(id: card.id, in: hero)
+            // The name under the card, not on it: the card shows whole (Okay, 2026-10-26).
+            VStack(alignment: .leading, spacing: 5) {
+                ZStack {
+                    if open?.id != card.id {
+                        CardTile(card: card, errata: errata.erratum(for: card) != nil, imageWidth: width)
+                            .matchedGeometryEffect(id: card.id, in: hero)
+                    }
                 }
+                .frame(width: width, height: width / cardAspect)
+                Text(card.name)
+                    .font(RiftFont.text(11, .semibold))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .lineLimit(1)
+                    .padding(.horizontal, 2)
+                    .frame(width: width, alignment: .leading)
             }
-            .frame(width: width, height: width / cardAspect)
         }
         .buttonStyle(PressScale(scale: 0.96))
         .modifier(TileEntrance(index: index, play: Date().timeIntervalSince(generationAt) < 0.4))

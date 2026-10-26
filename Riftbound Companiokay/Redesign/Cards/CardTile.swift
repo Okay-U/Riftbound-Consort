@@ -2,10 +2,11 @@
 //  CardTile.swift
 //  Riftbound Companiokay
 //
-//  A card as the grid shows it (Android `CardFace.kt`): Riot's art in the mock's frame, a shade with the
-//  name and a type line (rarity gem, kind, ERRATA / PREVIEW stamps). Battlefields turn -90° to fill the
-//  portrait frame. While the art loads, the mock's two glows in the card's colours stand in. The tile
-//  fills the size it is given, so it can grow from the grid into the detail.
+//  A card as the grid shows it (Android `CardFace.kt`): Riot's card in the mock's frame, bare like the
+//  classic grid (Okay, 2026-10-26: the shade with name and type line covered it), ERRATA / PREVIEW stamps
+//  in its corner. Battlefields turn -90° to fill the portrait frame. While the art loads, the mock's two
+//  glows in the card's colours stand in. The tile fills the size it is given, so it can grow from the grid
+//  into the detail.
 //
 
 import SwiftUI
@@ -18,7 +19,7 @@ struct CardTile: View {
     let errata: Bool
     /// The width the art is fetched for (Riot's CDN sends it at that size).
     let imageWidth: CGFloat
-    /// The frame and labels over the art; the detail's hero shows the bare card.
+    /// The stamps over the art; the detail's hero shows the card without them.
     var labels = true
     @Environment(\.displayScale) private var scale
 
@@ -37,11 +38,12 @@ struct CardTile: View {
                 } placeholder: {
                     PlaceholderArt(card: card)
                 }
-                if labels {
-                    LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black.opacity(0.62), location: 0.54), .init(color: .black.opacity(0.94), location: 1)],
-                                   startPoint: .top, endPoint: .bottom)
-                        .frame(height: h * 0.64)
-                    nameplate
+                if labels && (errata || card.isPreview) {
+                    HStack(spacing: 4) {
+                        if errata { Stamp(text: "ERRATA", ink: RiftColor.gold) }
+                        if card.isPreview { Stamp(text: "PREVIEW", ink: .white) }
+                    }
+                    .padding(6)
                 }
             }
             .frame(width: w, height: h)
@@ -51,25 +53,6 @@ struct CardTile: View {
         .overlay(shape.stroke(.white.opacity(0.14), lineWidth: 1))
     }
 
-    private var nameplate: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(card.name)
-                .font(RiftFont.text(12, .bold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-            HStack(spacing: 5) {
-                Gem(color: CardStyle.rarityColor(card.rarityName))
-                Text(CardStyle.kind(card).uppercased())
-                    .caps(8.5, tracking: 0.12)
-                    .foregroundStyle(.white.opacity(0.66))
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                if errata { Stamp(text: "ERRATA", ink: RiftColor.gold) }
-                if card.isPreview { Stamp(text: "PREVIEW", ink: .white) }
-            }
-        }
-        .padding(8)
-    }
 }
 
 private struct Stamp: View {
@@ -83,7 +66,9 @@ private struct Stamp: View {
             .foregroundStyle(ink)
             .padding(.horizontal, 4)
             .padding(.vertical, 1)
+            // Dark under the tint: the stamp sits on the bare card.
             .background(ink.opacity(0.2), in: RoundedRectangle(cornerRadius: 3))
+            .background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 3))
             .fixedSize()
     }
 }

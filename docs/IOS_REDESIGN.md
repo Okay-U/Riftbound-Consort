@@ -166,6 +166,9 @@ Both platforms, step by step:
 3. **Sheets (Android only):** the store sheet (every sheet) closes when pulled down; iOS sheets already do.
 4. **Cards sort:** Set sorted each set by energy, so its first rows looked like Energy's. Set is now
    release order in each set's own numbering (a binder); Energy groups each cost by set; Type by energy.
+5. **Card tiles:** the shade with name and type line covered the bottom of every card. Tiles show the bare
+   card like the classic grid (ERRATA / PREVIEW stamps stay in the corner); the Cards grid names each card
+   in a line under it. Everywhere else (piles, galleries, builder, hand) the card speaks for itself.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.
