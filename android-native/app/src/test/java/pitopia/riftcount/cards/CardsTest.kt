@@ -69,6 +69,15 @@ class CardQueryTest {
     }
 
     @Test
+    fun `set is release order by number, energy groups each cost by set`() {
+        fun card(id: String, set: String, number: Int, energy: Int) =
+            Card(id = id, name = id, collectorNumber = number, attributes = Card.Attributes(energy = energy), set = Card.CardSet(label = set))
+        val cards = listOf(card("sfd1", "Spiritforged", 1, 0), card("ogn2", "Origins", 2, 0), card("ogn1", "Origins", 1, 5), card("ogn3", "Origins", 3, 1))
+        assertEquals(listOf("ogn1", "ogn2", "ogn3", "sfd1"), CardQuery.filter(cards, "", CardFilters(), CardSort.Set).map { it.id })
+        assertEquals(listOf("ogn2", "sfd1", "ogn3", "ogn1"), CardQuery.filter(cards, "", CardFilters(), CardSort.Energy).map { it.id })
+    }
+
+    @Test
     fun `a slider at its cap has no upper limit`() {
         val anyCost = CardQuery.filter(all, "", CardFilters(energy = 0..CardFilters.ENERGY_CAP), CardSort.Set)
         assertEquals(all.size, anyCost.size)
