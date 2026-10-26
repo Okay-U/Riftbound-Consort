@@ -93,7 +93,7 @@ struct RiftTour: View {
                     ("Conquer, hold, effect", "One tap per point; the 8th by conquering is checked"),
                     ("Track XP", "Gain and spend XP right on your half"),
                     ("Who goes first", "Roll the dice in the middle, D6 or D20"),
-                    ("Won or lost", "The flag ends a game by hand, after a concession"),
+                    ("Reset or end", "Reset Score starts over, or ends a game after a concession"),
                     ("Pick decks", "Tap a name to choose your deck and your opponent's legend"),
                     ("Undo", "Rewind step by step when you misclick"),
                  ]),

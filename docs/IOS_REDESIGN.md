@@ -225,5 +225,14 @@ Middle · 4 ways). Okay wants some feedback work done first.
    noted, nothing goes to Riot. `tools/fake-live-event/build.sh` packs the answers into
    `FakeLiveEventData.swift` (and Android's assets). All of it is `#if DEBUG`: release builds have none.
 
+## Feedback round 3 (Okay, 2026-10-26, both platforms)
+
+1. The seam's flag is a text button, "Reset Score" ("Reset" where a pairing leaves no room on a narrow
+   phone: `ViewThatFits`, Android `FirstThatFits`). It opens the same menu, now led by Reset score, then I won
+   and I lost; the tour says so.
+2. The score tap's cue: the three +1 pills no longer light up one after the other but breathe together, twice
+   (0.38 s up, 0.52 s down, ease in and out), in a blurred halo of the half's colour with a soft tint and a 3 %
+   swell; a press keeps its own light.
+
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.

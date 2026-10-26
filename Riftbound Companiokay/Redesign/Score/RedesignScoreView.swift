@@ -63,16 +63,16 @@ struct RedesignScoreView: View {
         }
         .background(page.ignoresSafeArea())
         .statusBarHidden()
-        .confirmationDialog(c.state.isDuel ? "End or restart this game?" : "Restart this game?", isPresented: $c.gameMenu, titleVisibility: .visible) {
+        .confirmationDialog(c.state.isDuel ? "Reset the score or end the game?" : "Reset the score?", isPresented: $c.gameMenu, titleVisibility: .visible) {
+            Button("Reset score", role: .destructive) { c.restart() }
             if c.state.isDuel {
                 Button("I won") { c.end(winner: Seat.you) }
                 Button("I lost") { c.end(winner: Seat.opponent) }
             }
-            Button("Restart this game", role: .destructive) { c.restart() }
             Button("Keep playing", role: .cancel) {}
         } message: {
             Text(c.state.isDuel
-                 ? "Won or lost ends the game as it stands, for a concession or points the board missed. Restart sets both scores and XP back to 0, and Undo brings them back."
+                 ? "Reset sets both scores and XP back to 0, and Undo brings them back. Won or lost ends the game as it stands, for a concession or points the board missed."
                  : "All scores and XP go back to 0, and Undo brings them back.")
         }
         .alert("Open the event?", isPresented: $askingEvent) {

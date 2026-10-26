@@ -2,7 +2,7 @@
 //  Seam.swift
 //  Riftbound Companiokay
 //
-//  The pill on the territory line (Android `Seam.kt`): dice, undo and the game menu (won, lost, restart);
+//  The pill on the territory line (Android `Seam.kt`): dice, undo and Reset Score (reset, won, lost);
 //  during the roll its die type, Roll both and close. Match mode adds the PlayRiftbound check and the event
 //  line (event before round 1, bye, reported round), or for a pairing its round, table, opponent or round
 //  clock with a green Report. Liquid Glass on iOS 26.
@@ -45,7 +45,15 @@ struct Seam: View {
         .animation(.rift(0.42), value: roll != nil)
     }
 
+    /// "Reset Score", or "Reset" where a pairing leaves no room for it (narrow phones).
     private func board(_ s: ScoreState, gone: Bool) -> some View {
+        ViewThatFits(in: .horizontal) {
+            row(s, gone: gone, reset: "Reset Score")
+            row(s, gone: gone, reset: "Reset")
+        }
+    }
+
+    private func row(_ s: ScoreState, gone: Bool, reset: String) -> some View {
         let link = match?.link
         let line = link == nil ? match?.line : nil
         let ask = gone ? nil : onOpenEvent
@@ -57,8 +65,8 @@ struct Seam: View {
             } else if let line {
                 LineBox(line: line, onOpen: ask)
             }
-            // Won, lost or restart behind a flag, so it never passes for Undo (Okay, 2026-10-26).
-            RoundIcon(symbol: "flag", label: s.isDuel ? "End or restart this game" : "Restart this game", enabled: !s.gameOver && !gone) { c.openGameMenu() }
+            // Reset, won or lost behind words, so it never passes for Undo (Okay, 2026-10-26: text, not a flag).
+            Pill(text: reset, height: 42, enabled: !s.gameOver && !gone) { c.openGameMenu() }
             if let link {
                 SeamDivider()
                 Pill(text: "Report", height: 42, fill: RiftColor.you, ink: .black, enabled: !gone) { onReport(link) }
