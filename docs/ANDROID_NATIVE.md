@@ -353,6 +353,10 @@ a binder; Energy groups each cost by set; Type stays by energy (`CardQuery.compa
 are bare like the Skip app's grid (the shade with name and type line covered the card's bottom); ERRATA / PREVIEW
 stamps stay in the corner and the Cards grid names each card in a line under it.
 
+Decks, round 4 (2026-10-26): a tap on a shortlist card opens it as the Cards tab does (the tile flies into the
+detail inside the sheet's window, back closes it), with Add to deck; "New deck with this card" from there closes
+the shortlist and starts the builder.
+
 Planned, not built (Okay's picks 2026-10-26, both platforms): the board's base look becomes colour model C (solid
 seat colours, white Conquer) and each half can show its legend's Data Dragon splash, clipped at the territory line,
 behind a "Legend art" switch (off by default, in both setup sheets and Settings). Full spec in the redesign branch's
