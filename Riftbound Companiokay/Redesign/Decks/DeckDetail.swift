@@ -48,33 +48,38 @@ struct RiftDeckDetail: View {
 
     var body: some View {
         let legend = deck.legend.flatMap { cards[$0.cardId] }
-        GeometryReader { geo in
-            let own = geo.frame(in: .named(decksSpace))
-            let safeTop = geo.safeAreaInsets.top
-            ZStack(alignment: .topLeading) {
-                page
-                    .opacity(shown ? 1 : 0)
-                    .animation(.linear(duration: 0.42), value: shown)
-                if !atHero {
-                    morphLayer(legend, from: pile.offsetBy(dx: -own.minX, dy: -own.minY),
-                               to: CGRect(x: 0, y: 0, width: geo.size.width, height: Self.heroHeight + safeTop))
-                }
-                ScrollView {
-                    VStack(spacing: 0) {
-                        hero(legend, width: geo.size.width, safeTop: safeTop)
-                        tools
-                        championBlock
-                        fieldsBlock
-                        pileTabs(legend)
+        // The outer reader keeps the safe area, so it knows the status bar and the home indicator; one that
+        // ignores it reads 0 there (the buttons sat under the clock, Okay 2026-10-26). The deck runs under both.
+        GeometryReader { outer in
+            let safeTop = outer.safeAreaInsets.top
+            let safeBottom = outer.safeAreaInsets.bottom
+            GeometryReader { geo in
+                let own = geo.frame(in: .named(decksSpace))
+                ZStack(alignment: .topLeading) {
+                    page
+                        .opacity(shown ? 1 : 0)
+                        .animation(.linear(duration: 0.42), value: shown)
+                    if !atHero {
+                        morphLayer(legend, from: pile.offsetBy(dx: -own.minX, dy: -own.minY),
+                                   to: CGRect(x: 0, y: 0, width: geo.size.width, height: Self.heroHeight + safeTop))
                     }
-                    .padding(.bottom, 40 + geo.safeAreaInsets.bottom)
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            hero(legend, width: geo.size.width, safeTop: safeTop)
+                            tools
+                            championBlock
+                            fieldsBlock
+                            pileTabs(legend)
+                        }
+                        .padding(.bottom, 40 + safeBottom)
+                    }
+                    .scrollIndicators(.hidden)
+                    // The banner runs under the status bar; the hero pads its own controls.
+                    .ignoresSafeArea()
                 }
-                .scrollIndicators(.hidden)
-                // The banner runs under the status bar; the hero pads its own controls.
-                .ignoresSafeArea()
             }
+            .ignoresSafeArea()
         }
-        .ignoresSafeArea()
         .onAppear {
             // A turn later, once the fly-outs know where they land.
             Task {
