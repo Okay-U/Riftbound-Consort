@@ -178,7 +178,8 @@ Okay's review:
   in this app), the two OFL fonts with their licence texts.
 - Bug and wish: the mock's two fields; the mail app opens to contact-okaydev@proton.me with "[Bug]" /
   "[Feature]" subjects (iOS) and the app and Android version under the text.
-- PlayRiftbound log: reads the iOS/Skip file, newest first, Copy (iOS export text) and Clear.
+- PlayRiftbound log: reads the iOS/Skip file, newest first, Copy (iOS export text) and Clear. Debug builds
+  only since 2026-10-26 (Settings › Debug); release writes no log.
 - Tours (no mock, built from its parts): six pages with this app's tabs (Events instead of Dice, True
   black instead of Live Activity) on first launch; the Events tour (iOS text) the first time Events
   opens; both from Settings. Back goes a page back, on the first page it closes. The builder tip shows
@@ -219,8 +220,8 @@ Decisions, for Okay's review:
 - Times in the phone language's format (24 h in German). Rules links stay in the browser (their PDF host
   is outside the allowlist).
 - The slide-to-report knob starts at the left edge, so it is excluded from Android's back gesture.
-- Debuggable builds answer from recorded data while `files/Documents/fake_compete/` exists
-  (`DebugEvents`); release and staging builds always use the network.
+- Debug builds can answer from a made-up live event instead (Settings › Debug, see "Fake live event" in
+  the review rounds); release and staging builds always use the network.
 Tests: `CompeteBracketTest` (the iOS test target: sections, titles, placements, 2v2 names, pending round,
 Swiss final, report vs status, live standings), `DrawCalcTest`, `CompeteDecodeTest`, `RiftPolicyTest`,
 `OperationIdsTest`. Emulator with fake data: every screen against the mock, report from the event page
@@ -357,6 +358,13 @@ Decks, round 4 (2026-10-26): a tap on a shortlist card opens it as the Cards tab
 detail inside the sheet's window, back closes it), with Add to deck; "New deck with this card" from there closes
 the shortlist and starts the builder.
 
+Fake live event (2026-10-26, so event mode can be tried without a live event): debug builds have Settings › Debug ›
+Fake live event. It restarts the app, then every PlayRiftbound call is answered on the phone from a made-up Summoner
+Skirmish (round 3 running, your table open, best of 3), every time moved to the moment of the switch; a report or
+registration is only noted and changes the later answers, nothing goes to Riot. `tools/fake-live-event/build.sh`
+writes the answers (`src/debug/assets/fake_compete`, iOS the same event). The PlayRiftbound log row moved there
+too. Release and staging compile the stub in `src/nondebug`: no Debug section, no log, always the network.
+
 Planned, not built (Okay's picks 2026-10-26, both platforms): the board's base look becomes colour model C (solid
 seat colours, white Conquer) and each half can show its legend's Data Dragon splash, clipped at the territory line,
 behind a "Legend art" switch (off by default, in both setup sheets and Settings). Full spec in the redesign branch's
@@ -373,8 +381,6 @@ legend's champion tag, a sideboard of up to 10. Clean areas: domain lock, cookie
 standings, the old app's preferences, the card feed and image cache.
 
 ## Open points
-- Before the final release: remove the PlayRiftbound log row from Settings (Okay 2026-10-22: kept while
-  testing the Events tab).
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build
   follows the mock and also keeps a manual end via Restart/Report.

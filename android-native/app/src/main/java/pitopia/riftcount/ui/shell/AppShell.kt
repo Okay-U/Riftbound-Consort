@@ -91,7 +91,7 @@ fun AppShell() {
     val browser = remember { RiftBrowser(context) }
     val events = remember {
         val dir = File(context.filesDir, "Documents")
-        EventsData(RiftApi(DebugEvents.transport(context, dir), PlayRiftboundLog(File(dir, PlayRiftboundLog.FILE)), Support.version(context).substringBefore(' ')), browser)
+        EventsData(RiftApi(DebugEvents.transport(context), PlayRiftboundLog(File(dir, PlayRiftboundLog.FILE)), Support.version(context).substringBefore(' ')), browser)
     }
     val eventsUi = remember { EventsUi() }
     DisposableEffect(Unit) { onDispose { browser.destroy() } }

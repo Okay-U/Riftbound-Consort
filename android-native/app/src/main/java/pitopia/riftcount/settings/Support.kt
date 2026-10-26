@@ -19,6 +19,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import pitopia.riftcount.data.SwiftDateSerializer
 import pitopia.riftcount.data.SwiftJson
+import pitopia.riftcount.events.DebugEvents
 
 /** Riot's rules documents (iOS `RulesLibrary`): every row opens Riot's own page, so nothing goes stale. */
 object RulesLibrary {
@@ -148,20 +149,23 @@ class PlayRiftboundLog(private val file: File) {
         file.delete()
     }
 
-    /** iOS `record`: one call, the last [LIMIT] kept; the detail is cut to 600 characters. */
-    suspend fun record(operation: String, method: String, outcome: String, detail: String?, startedMs: Long) = withContext(Dispatchers.IO) {
-        lock.withLock {
-            val now = System.currentTimeMillis()
-            val entry = LogEntry(
-                UUID.randomUUID().toString().uppercase(), now, operation, method, outcome.take(120),
-                detail?.take(600), (now - startedMs).toInt(),
-            )
-            val all = (runCatching { SwiftJson.decodeFromString(ListSerializer(LogEntry.serializer()), file.readText()) }.getOrDefault(emptyList()) + entry).takeLast(LIMIT)
-            runCatching {
-                file.parentFile?.mkdirs()
-                val tmp = File(file.parentFile, file.name + ".tmp")
-                tmp.writeText(SwiftJson.encodeToString(ListSerializer(LogEntry.serializer()), all))
-                tmp.renameTo(file)
+    /** iOS `record`: one call, the last [LIMIT] kept; the detail is cut to 600 characters. Debug builds only. */
+    suspend fun record(operation: String, method: String, outcome: String, detail: String?, startedMs: Long) {
+        if (!DebugEvents.TOOLS) return
+        withContext(Dispatchers.IO) {
+            lock.withLock {
+                val now = System.currentTimeMillis()
+                val entry = LogEntry(
+                    UUID.randomUUID().toString().uppercase(), now, operation, method, outcome.take(120),
+                    detail?.take(600), (now - startedMs).toInt(),
+                )
+                val all = (runCatching { SwiftJson.decodeFromString(ListSerializer(LogEntry.serializer()), file.readText()) }.getOrDefault(emptyList()) + entry).takeLast(LIMIT)
+                runCatching {
+                    file.parentFile?.mkdirs()
+                    val tmp = File(file.parentFile, file.name + ".tmp")
+                    tmp.writeText(SwiftJson.encodeToString(ListSerializer(LogEntry.serializer()), all))
+                    tmp.renameTo(file)
+                }
             }
         }
     }

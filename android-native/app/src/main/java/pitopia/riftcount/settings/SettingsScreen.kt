@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import java.io.File
 import kotlinx.coroutines.delay
 import pitopia.riftcount.data.AppSettings
+import pitopia.riftcount.events.DebugEvents
 import pitopia.riftcount.platform.Haptic
 import pitopia.riftcount.platform.haptic
 import pitopia.riftcount.score.ScoreController
@@ -146,13 +147,25 @@ private fun ColumnScope.MainList(score: ScoreController, colorsRev: Int, toaster
     }
     Section("About", 460) {
         LinkRow("Acknowledgments", SettingsIcons.Heart, divider = false) { open(SubPage.Ack) }
-        LinkRow("PlayRiftbound log", SettingsIcons.Log) { open(SubPage.Log) }
         LinkRow("Report a bug", SettingsIcons.Bug) { open(SubPage.Bug) }
         LinkRow("Wish a feature", SettingsIcons.Wish) { open(SubPage.Wish) }
         LinkRow("Share Riftcount with friends", SettingsIcons.Share, external = true) { outside(Support.share(context)) }
         LinkRow("Rate it on Google Play", SettingsIcons.Star, external = true) { outside(Support.rate(context)) }
         LinkRow("Buy me a coffee", SettingsIcons.Coffee, external = true) { outside(Support.open(context, Support.KOFI)) }
         LinkRow("Support and privacy", SettingsIcons.Shield, external = true) { outside(Support.open(context, Support.PRIVACY)) }
+    }
+    // Debug builds only; release and staging have no debug tools (DebugEvents stub).
+    if (DebugEvents.TOOLS) {
+        val fake = remember { DebugEvents.isOn(context) }
+        Section("Debug", 500) {
+            LinkRow(
+                "Fake live event", SettingsIcons.Bug,
+                if (fake) "On · a made-up event, round 3 running, your table open. Tap for PlayRiftbound again (the app restarts)."
+                else "Off · tap for a made-up live event answered on this phone, nothing goes to Riot (the app restarts).",
+                divider = false,
+            ) { DebugEvents.switch(context, !fake) }
+            LinkRow("PlayRiftbound log", SettingsIcons.Log) { open(SubPage.Log) }
+        }
     }
     Rise(true, 530, Modifier.padding(top = 30.dp, bottom = 10.dp)) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
