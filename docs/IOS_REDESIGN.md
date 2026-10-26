@@ -170,5 +170,35 @@ Both platforms, step by step:
    card like the classic grid (ERRATA / PREVIEW stamps stay in the corner); the Cards grid names each card
    in a line under it. Everywhere else (piles, galleries, builder, hand) the card speaks for itself.
 
+### Planned: score tile look (Okay's picks 2026-10-26, both platforms, not built yet)
+
+Mocks on the canvas https://claude.ai/artifact/68cipuSRxXGtdgqTKkvXL2 (pages Tile colours, Legend art,
+Middle · 4 ways). Okay wants some feedback work done first.
+
+- **Colour model C ("Solid colour") is the board's base look.** Each field is the seat colour darkened to
+  about 50 % (darker where white text would drop below 4.5:1, checked for all 16 player colours). Conquer is
+  white with dark seat-colour ink; the other pills are black 24 % with a white 28 % rim, no glow. Four
+  players get it too, the leading seat a little lighter, never art.
+- **Legend art per half:** variant 1 ("art under a shade") with middle d ("the line uncovers the leader").
+  - A half shows its legend's picture when the "Legend art" switch is on, its legend is known (your deck's
+    legend, the opponent legend picked in the setup) and the picture has loaded. Otherwise that half uses C.
+    Mixed boards are fine: a deck but no opponent legend gives art on your half only.
+  - The switch is one setting, **off by default**, in both game setup sheets (deck and opponent) and as a
+    tile in Settings.
+  - Pictures (storage option A): Data Dragon's base splash,
+    `https://ddragon.leagueoflegends.com/cdn/img/champion/centered/<Key>_0.jpg`. Key = the champion's name
+    without non-letters, except Kai'Sa → `Kaisa`, LeBlanc → `Leblanc`, Kha'Zix → `Khazix`, Renata Glasc →
+    `Renata` (57 legend champions on 2026-10-26). Loaded through the existing image caches (iOS
+    `CachedRemoteImage`, Android `CardImages`) and prefetched as soon as the deck or the opponent legend is
+    picked; a picture that cannot load leaves its half on C. No app size, new legends work by themselves.
+  - Layout: the picture is fixed to the screen and anchored at the middle, reaches about 90 pt past it
+    with a 70 pt fade, and is clipped at the territory line (in the draw phase, no relayout); the line's
+    glow covers the cut, so the leader gets more of their picture. Over the art: the seat tint at 22 %,
+    the art at brightness 0.72, a dark radial shade behind the number and a soft text shadow. Art halves
+    keep variant 1's pills: Conquer filled in the seat colour with its glow, the others black 50 %.
+- **Steps:** 1 iOS colour C · 2 Android colour C · 3 iOS legend art (key map with a small check, loading
+  and prefetch, the layer, the switch, the fallback) · 4 Android legend art · 5 docs and memory. One commit
+  per step; Okay checks each.
+
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.
