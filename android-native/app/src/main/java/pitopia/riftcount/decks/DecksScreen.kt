@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import pitopia.riftcount.cards.CardStore
+import pitopia.riftcount.cards.ErrataStore
 import pitopia.riftcount.data.AppSettings
 import pitopia.riftcount.data.DeckText
 import pitopia.riftcount.data.Decklist
@@ -41,7 +42,7 @@ private val MorphBack = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
 /** The Decks tab: the table of piles with everything that opens from it. */
 @Composable
-fun DecksScreen(ui: DecksUi, decks: DecklistStore, games: GameRecordStore, cards: CardStore, bottomReserve: Dp, onOverlay: (Boolean) -> Unit) {
+fun DecksScreen(ui: DecksUi, decks: DecklistStore, games: GameRecordStore, cards: CardStore, errata: ErrataStore, bottomReserve: Dp, onOverlay: (Boolean) -> Unit) {
     val index = cards.index
     val pool = cards.cards
     val toaster = remember { Toaster() }
@@ -233,7 +234,12 @@ fun DecksScreen(ui: DecksUi, decks: DecklistStore, games: GameRecordStore, cards
             },
         ) { editing = null }
     }
-    if (shortlistShown) ShortlistSheet(index) { shortlistShown = false }
+    if (shortlistShown) {
+        ShortlistSheet(index, errata, decks, onNewDeck = { card ->
+            shortlistShown = false
+            ui.startBuilder(card)
+        }) { shortlistShown = false }
+    }
     if (importing) {
         ImportDialog(pool, onImport = { parsed ->
             val name = parsed.legend?.let { "Imported · ${it.title}" } ?: "Imported deck"

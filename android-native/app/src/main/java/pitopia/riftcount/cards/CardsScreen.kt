@@ -88,7 +88,8 @@ class CardsUi {
 
 private class OpenCard(val card: Card, val from: Rect)
 
-private val CloseEase = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+/** The card detail's way back into its tile; the shortlist's detail uses it too. */
+internal val CloseEase = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
 @Composable
 fun CardsScreen(

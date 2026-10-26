@@ -167,7 +167,7 @@ fun AppShell() {
                     decksUi.startBuilder(card)
                     tab = Tab.Decks
                 }
-                Tab.Decks -> DecksScreen(decksUi, decks, games, cards, barReserve) { overlay(Tab.Decks, it) }
+                Tab.Decks -> DecksScreen(decksUi, decks, games, cards, errata, barReserve) { overlay(Tab.Decks, it) }
                 Tab.Settings -> SettingsScreen(score, docs.file(PlayRiftboundLog.FILE), barReserve, onTour = { tour = it }) {
                     overlay(Tab.Settings, it)
                 }
