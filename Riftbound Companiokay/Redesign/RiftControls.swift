@@ -3,10 +3,11 @@
 //  Riftbound Companiokay
 //
 //  The redesign's small controls (Android `ui/common`): pills, round icons, the lit press of the score
-//  buttons, the mocks' soft and rising entrances.
+//  buttons, the mocks' soft and rising entrances, the swipe back from the left edge.
 //
 
 import SwiftUI
+import UIKit
 
 /// Shrinks a little while pressed (the mocks' `:active { scale(.94) }`), no highlight.
 struct PressScale: ButtonStyle {
@@ -161,5 +162,51 @@ extension View {
     /// Caps labels of the mocks: Barlow with wide tracking.
     func caps(_ size: CGFloat = 11, tracking: CGFloat = 0.14, weight: Font.Weight = .semibold) -> some View {
         font(RiftFont.text(size, weight)).tracking(size * tracking)
+    }
+}
+
+/// The system's swipe back from the left edge, for screens that open over a tab instead of being pushed
+/// (Okay, 2026-10-26: Cards and Decks had none). A screen-edge recognizer leaves taps and scrolling alone;
+/// it goes back once the finger has come 60pt in, or on a quick flick.
+private struct EdgeSwipe: UIGestureRecognizerRepresentable {
+    let enabled: Bool
+    let action: () -> Void
+
+    /// Next to the scroll views and buttons underneath: alone, it could lose the touch to a scroll view's pan.
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            true
+        }
+    }
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
+
+    func makeUIGestureRecognizer(context: Context) -> UIScreenEdgePanGestureRecognizer {
+        let pan = UIScreenEdgePanGestureRecognizer()
+        pan.edges = .left
+        pan.delegate = context.coordinator
+        return pan
+    }
+
+    func updateUIGestureRecognizer(_ pan: UIScreenEdgePanGestureRecognizer, context: Context) {
+        pan.isEnabled = enabled
+    }
+
+    func handleUIGestureRecognizerAction(_ pan: UIScreenEdgePanGestureRecognizer, context: Context) {
+        let moved = pan.translation(in: pan.view).x
+        let flick = pan.velocity(in: pan.view).x > 600
+        guard (pan.state == .changed && moved > 60) || (pan.state == .ended && moved > 20 && flick) else { return }
+        // Ends this swipe, so it goes back one step only.
+        pan.isEnabled = false
+        pan.isEnabled = enabled
+        action()
+    }
+}
+
+extension View {
+    /// Back by a swipe in from the left edge while `enabled`. Always attached, so switching it on and off
+    /// never rebuilds the screen underneath.
+    func edgeSwipeBack(enabled: Bool, _ action: @escaping () -> Void) -> some View {
+        gesture(EdgeSwipe(enabled: enabled, action: action))
     }
 }

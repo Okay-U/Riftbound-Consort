@@ -96,6 +96,8 @@ struct RiftDecksView: View {
                 }
             }
             .coordinateSpace(.named(decksSpace))
+            // The builder keeps its Back and Close: a slip from the edge must not close a draft.
+            .edgeSwipeBack(enabled: builder.draft == nil && (review != nil || log != nil || opened != nil), back)
             .background(page.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .toolbar(opened == nil && log == nil && review == nil && builder.draft == nil ? .visible : .hidden, for: .tabBar)
@@ -238,6 +240,17 @@ struct RiftDecksView: View {
 
     private func closeLog() {
         withAnimation(.timingCurve(0.2, 0, 0, 1, duration: 0.5)) { log = nil }
+    }
+
+    /// The swipe back from the edge: the top screen closes, like its back button.
+    private func back() {
+        if review != nil {
+            withAnimation(.rift(0.62)) { review = nil }
+        } else if log != nil {
+            closeLog()
+        } else {
+            closeDeck()
+        }
     }
 }
 

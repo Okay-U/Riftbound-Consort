@@ -79,6 +79,7 @@ struct RiftCardsView: View {
                 }
             }
         }
+        .edgeSwipeBack(enabled: open != nil, close)
         .background(page.ignoresSafeArea())
         .toolbar(open == nil ? .visible : .hidden, for: .tabBar)
         .onAppear {
