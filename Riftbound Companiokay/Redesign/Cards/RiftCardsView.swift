@@ -186,6 +186,16 @@ struct RiftCardsView: View {
         generationAt = Date()
     }
 
+    /// Set is release order, each set in its own numbering like a binder (sorted by energy as well it looked
+    /// just like Energy, Okay 2026-10-26); Energy groups each cost by set; Type by energy.
+    private static func secondary(_ sort: CardSort) -> CardSort? {
+        switch sort {
+        case .set: return nil
+        case .energy: return .set
+        case .type: return .energy
+        }
+    }
+
     /// Filtering 1400 cards per keystroke or slider step is wasted work: wait for a pause.
     private func apply() async {
         let key = queryKey
@@ -193,7 +203,7 @@ struct RiftCardsView: View {
             try? await Task.sleep(for: .milliseconds(120))
             guard !Task.isCancelled else { return }
         }
-        shown = cards.filtered(query: query, filters: filters, primarySort: sort, secondarySort: .energy, shortlist: key.kept)
+        shown = cards.filtered(query: query, filters: filters, primarySort: sort, secondarySort: Self.secondary(sort), shortlist: key.kept)
         if key.applied != appliedKey {
             if appliedKey != nil {
                 if filtering { replayPending = true } else { replay() }

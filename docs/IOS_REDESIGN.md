@@ -163,6 +163,9 @@ Both platforms, step by step:
    moved to the root for the sheet.
 2. **Wayfinding:** a tap on a score number (players tap it for points) lights that half's +1 pills in a
    wave from Conquer, with a small bump; no point, no haptic.
+3. **Sheets (Android only):** the store sheet (every sheet) closes when pulled down; iOS sheets already do.
+4. **Cards sort:** Set sorted each set by energy, so its first rows looked like Energy's. Set is now
+   release order in each set's own numbering (a binder); Energy groups each cost by set; Type by energy.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.
