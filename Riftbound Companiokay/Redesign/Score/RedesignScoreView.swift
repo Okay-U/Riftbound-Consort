@@ -326,7 +326,11 @@ private struct FourBoard: View {
                     // The far row is turned as a whole, so its seats keep their places for the players across.
                     HStack(spacing: 0) {
                         ForEach(row == 0 ? [1, 0] : [2, 3], id: \.self) { slot in
-                            seat(slot, s: s, roll: roll, accent: colors[slot], leading: top > 0 && s.players[slot].score == top)
+                            // Back to two players, SwiftUI updates these rows once more with the duel's state
+                            // before it takes the table away: seats that state lacks draw nothing (it crashed).
+                            if s.players.indices.contains(slot) {
+                                seat(slot, s: s, roll: roll, accent: colors[slot], leading: top > 0 && s.players[slot].score == top)
+                            }
                         }
                     }
                     .rotationEffect(.degrees(row == 0 ? 180 : 0))
