@@ -45,7 +45,6 @@ import kotlinx.coroutines.launch
 import pitopia.riftcount.ui.common.DialogFrame
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.Sheet
-import pitopia.riftcount.ui.common.Toaster
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
@@ -64,7 +63,7 @@ private enum class Game { Me, Opponent, Draw }
  * open and right before sending, so marks never go to a re-paired match.
  */
 @Composable
-fun ReportDialog(data: EventsData, tournamentId: String, start: Pairing, toaster: Toaster, onDone: () -> Unit) {
+fun ReportDialog(data: EventsData, tournamentId: String, start: Pairing, say: (String) -> Unit, onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
     var pairing by remember { mutableStateOf(start) }
     var games by remember { mutableStateOf(List<Game?>(maxOf(1, minOf(start.bestOf, start.gameIds.size))) { null }) }
@@ -117,7 +116,7 @@ fun ReportDialog(data: EventsData, tournamentId: String, start: Pairing, toaster
                     return@launch
                 }
                 if (pairing.isComplete) {
-                    toaster.show("Already reported on PlayRiftbound" + (pairing.scoreText?.let { ": You $it $opponent" } ?: ""))
+                    say("Already reported on PlayRiftbound" + (pairing.scoreText?.let { ": You $it $opponent" } ?: ""))
                     onDone()
                     return@launch
                 }
@@ -149,7 +148,7 @@ fun ReportDialog(data: EventsData, tournamentId: String, start: Pairing, toaster
                     // The site renews its token on a page load; once, then again.
                     data.api.submitGameResults(tournamentId, results, RiotSession.renewed(data.browser))
                 }
-                toaster.show("Reported to PlayRiftbound · $me–$them")
+                say("Reported to PlayRiftbound · $me–$them")
                 runCatching { data.tournament(tournamentId, force = true) }
                 data.refreshStrip(force = true)
                 onDone()

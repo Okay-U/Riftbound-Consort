@@ -78,9 +78,6 @@ fun TopLine(
     starter: Boolean,
     xp: Int,
     onXp: (Int) -> Unit,
-    gamesWon: Int,
-    /** Games to win the series, one dot each; 0 without a series. */
-    pips: Int,
     shown: Boolean = true,
     onName: (() -> Unit)? = null,
 ) {
@@ -106,13 +103,6 @@ fun TopLine(
             XpButton("−", "Spend one XP", shown, accent, ink) { onXp(-1) }
             Spacer(Modifier.width(5.dp))
             XpButton("+", "Gain one XP", shown, accent, ink) { onXp(1) }
-            if (pips > 0) {
-                Spacer(Modifier.width(12.dp))
-                repeat(pips) { i ->
-                    if (i > 0) Spacer(Modifier.width(6.dp))
-                    Box(Modifier.size(8.dp).background(if (i < gamesWon) accent else Color.White.copy(alpha = 0.2f), CircleShape))
-                }
-            }
         }
     }
 }

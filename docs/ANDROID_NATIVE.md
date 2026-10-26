@@ -334,6 +334,14 @@ picked or scored, so it greeted the board hours (or a restart) later. It is aske
 (`chooserSinceMs`); older saved states never ask. Tab bar icons: Score upright like the board (two halves, a score
 in each; the lying one read as a football pitch), Decks with three layers, Settings a gear (was a sun).
 
+Scoreboard, round 7 (Okay at the table, 2026-10-26, both platforms): Start match and the best of 1 / 3 mode got
+in the way, the slide to report stuck halfway, a game ended by a concession (or points nobody tracked) had no
+way to finish, and restart looked like undo. Now every game stands alone; no series, summary, light rail or
+result picker (`Summary.kt` is `BoardDialogs.kt`, `ReportRail.kt` and `ResultPicker` are gone). With a pairing
+the seam shows round and table over the opponent (the round clock once it runs) and a green Report that opens
+the Events report dialog (`TableLink.report`). The restart arrow became a flag: I won / I lost end the game as
+it stands and record it, Restart sets it to 0 (undoable).
+
 ## Code review before release (2026-10-22)
 One pass, five reviewers in parallel (Android by area, plus the new iOS commits), every finding checked against
 the code before fixing; no second full round (fd73591, efe9349, df62e13). Fixed: a later round with the same games

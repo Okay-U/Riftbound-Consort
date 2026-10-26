@@ -30,72 +30,38 @@ class ScoreRulesTest {
         assertEquals(7, declined.players[YOU].score)
         val won = asked.confirmFinalPoint(scoreIt = true, nowMs = t0)
         assertEquals(YOU, won.winner)
-        assertEquals(listOf(GameResult(YOU, listOf(0, 8))), won.log)
         assertEquals(YOU, atSeven.score(YOU, PointKind.Hold, t0).winner)
     }
 
     @Test
     fun `a won game blocks points and undo until the next game`() {
-        val won = ScoreState(bestOf = 3).points(OPPONENT, 3).points(YOU, 8)
+        val won = ScoreState().points(OPPONENT, 3).points(YOU, 8)
         assertTrue(won.gameOver)
         assertFalse(won.canUndo)
         assertEquals(won, won.score(OPPONENT, PointKind.Hold, t0))
         assertEquals(won, won.undo())
         assertEquals(won, won.restart())
         val next = won.nextGame(t0)
-        assertEquals(2, next.gameNo)
         assertEquals(listOf(0, 0), next.players.map { it.score })
-        assertEquals(listOf(0, 1), next.seriesWins())
         assertFalse(next.gameOver)
+        assertTrue(next.history.isEmpty())
+        assertEquals(ScoreState(), ScoreState().nextGame(t0)) // no next game while playing
     }
 
     @Test
-    fun `two won games end the best of three, a new match resets everything`() {
-        val over = ScoreState(bestOf = 3).points(YOU, 8).nextGame(t0).points(OPPONENT, 8).nextGame(t0).points(YOU, 8)
-        assertTrue(over.matchOver)
-        assertEquals(over, over.nextGame(t0))
-        assertEquals(ScoreState(), over.newMatch())
-    }
-
-    @Test
-    fun `casual games stand alone and never end a match`() {
-        val won = ScoreState().points(YOU, 8)
-        assertTrue(won.gameOver)
-        assertFalse(won.matchOver)
-        val next = won.nextGame(t0)
-        assertEquals(2, next.gameNo)
-        assertEquals(emptyList<GameResult>(), next.log)
-        assertFalse(next.points(YOU, 8).nextGame(t0).points(YOU, 8).matchOver)
-    }
-
-    @Test
-    fun `a best of one ends with its game`() {
-        val over = ScoreState(bestOf = 1).points(OPPONENT, 8)
-        assertTrue(over.matchOver)
-        assertEquals(1, over.winsNeeded)
-    }
-
-    @Test
-    fun `a series exists only for a live match, casual cannot become one`() {
-        val playing = ScoreState().points(YOU, 3)
-        assertEquals(playing, playing.withBestOf(3))
-    }
-
-    @Test
-    fun `a live match starts in the event's format and can switch between one and three games`() {
-        val rolled = ScoreState().points(YOU, 2).withStarter(OPPONENT, t0)
-        val live = rolled.startLive("R3 · T5", bestOf = 1)
-        assertEquals(1, live.bestOf)
-        assertEquals("R3 · T5", live.liveTag)
-        assertEquals(listOf(0, 0), live.players.map { it.score })
-        assertEquals(OPPONENT, live.starter) // who goes first was rolled before
-        // The table plays best of three although the event says one: game 1 no longer ends the match.
-        val wonFirst = live.points(YOU, 8)
-        assertTrue(wonFirst.matchOver)
-        assertFalse(wonFirst.withBestOf(3).matchOver)
-        assertEquals(3, live.startLive("R3 · T5", bestOf = 3).bestOf)
-        // After a live match the next one is casual again.
-        assertEquals(ScoreState(), wonFirst.newMatch())
+    fun `won or lost by hand ends the game as it stands`() {
+        val playing = ScoreState().points(YOU, 5).points(OPPONENT, 3, PointKind.Conquer)
+        val conceded = playing.end(YOU)
+        assertEquals(YOU, conceded.winner)
+        assertEquals(listOf(3, 5), conceded.players.map { it.score })
+        assertEquals(OPPONENT, playing.end(OPPONENT).winner)
+        assertEquals(conceded, conceded.end(OPPONENT)) // decided once
+        assertEquals(OPPONENT, conceded.nextGame(t0).chooser) // the loser picks who starts next
+        val asked = ScoreState().points(YOU, 7).score(YOU, PointKind.Conquer, t0)
+        assertEquals(-1, asked.end(YOU).asking)
+        val four = ScoreState().withPlayerCount(4)
+        assertEquals(four, four.end(2)) // four players have no winner
+        assertEquals(playing, playing.end(5))
     }
 
     @Test
@@ -142,24 +108,19 @@ class ScoreRulesTest {
     }
 
     @Test
-    fun `the match clock starts on the first point, pauses, and times each game`() {
+    fun `the clock starts on the first point and times each game`() {
         val first = ScoreState().score(YOU, PointKind.Hold, t0)
         assertTrue(first.clock.isRunning)
-        val paused = first.toggleClock(t0 + 90_000)
-        assertEquals(90, paused.clock.elapsedSeconds(t0 + 500_000))
-        val resumed = paused.toggleClock(t0 + 500_000)
-        assertEquals(100, resumed.clock.elapsedSeconds(t0 + 510_000))
-        val won = resumed.points(YOU, 7, at = t0 + 600_000)
-        assertEquals(190, won.gameSeconds(t0 + 600_000))
+        val won = first.points(YOU, 7, at = t0 + 190_000)
+        assertEquals(190, won.gameSeconds(t0 + 190_000))
         val next = won.nextGame(t0 + 600_000)
         assertTrue(next.clock.isRunning)
-        // A casual game counts from its own first point: the minute before it (or a day) is not its time.
+        // Every game counts from its own first point: the minute before it (or a day) is not its time.
         val started = next.points(OPPONENT, 1, at = t0 + 660_000)
         assertEquals(0, started.events.single().elapsedSeconds)
         assertEquals(60, started.points(OPPONENT, 7, at = t0 + 720_000).gameSeconds(t0 + 720_000))
-        // A live match keeps one clock: its next game counts from the end of the last one.
-        val live = ScoreState(bestOf = 3).points(YOU, 8, at = t0 + 60_000).nextGame(t0 + 60_000)
-        assertEquals(120, live.points(OPPONENT, 8, at = t0 + 180_000).gameSeconds(t0 + 180_000))
+        // A game ended by hand before its first point counts from the end of the last one.
+        assertEquals(30, next.end(YOU).gameSeconds(t0 + 630_000))
     }
 
     @Test

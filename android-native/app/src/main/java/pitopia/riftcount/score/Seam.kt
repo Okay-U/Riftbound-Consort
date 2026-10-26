@@ -14,9 +14,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -58,25 +54,25 @@ import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
 /**
- * The pill on the territory line: dice, undo, restart. In the duel: die type, roll, close. Casual play counts
- * nothing more; match mode ([match]) adds the PlayRiftbound check, the event line (event before round 1, bye,
- * reported round), and for a pairing its table and opponent with Start match. A started live match shows its
- * round, table and clock, with Report or End.
+ * The pill on the territory line: dice, undo and the game menu (won, lost, restart). In the duel: die type,
+ * roll, close. Match mode ([match]) adds the PlayRiftbound check and the event line (event before round 1, bye,
+ * reported round), or for a pairing its round, table, opponent or round clock with a green Report.
  */
 @Composable
 fun Seam(c: ScoreController, match: MatchInfo?, modifier: Modifier = Modifier) {
     val s = c.state
     val d = c.duel
-    val gone = s.showSummary || (d != null && d.winner >= 0 && !s.isDuel)
+    val gone = d != null && d.winner >= 0 && !s.isDuel
     val link = match?.link
-    val live = link?.takeIf { it.tag == s.liveTag }
-    val waiting = link?.takeIf { s.isDuel && it.reportable && it.tag != s.liveTag }
-    val line = match?.line?.takeIf { s.liveTag == null && waiting == null }
+    val line = match?.line?.takeIf { link == null }
     // The centre always leads to the event, after a question: a slip must not take the scoreboard away.
     var asking by remember { mutableStateOf(false) }
     val event = match?.event
     if (asking && event != null) OpenEventDialog(event, onStay = { asking = false }) { asking = false; match.openEvent() }
     val ask = if (event != null && !gone) ({ asking = true }) else null
+    // The pairing as it was tapped: the dialog stays while the strip refreshes under it.
+    var reporting by remember { mutableStateOf<TableLink?>(null) }
+    reporting?.let { it.report { reporting = null } }
     val shown by animateFloatAsState(if (gone) 0f else 1f, tween(500, easing = RiftEase), label = "seam")
     val shape = RoundedCornerShape(50)
     Box(
@@ -102,20 +98,17 @@ fun Seam(c: ScoreController, match: MatchInfo?, modifier: Modifier = Modifier) {
                     }
                     RoundIcon({ c.undo() }, "Undo last point", enabled = s.canUndo && !gone) { SeamIcon(ScoreIcons.Undo) }
                     when {
-                        waiting != null || s.liveTag != null ->
-                            ClockBox(s, waiting, live?.roundEndsAt, onOpen = ask, onClock = c::toggleClock)
+                        link != null -> ClockBox(link, onOpen = ask)
                         line != null -> LineBox(line, onOpen = ask)
                     }
-                    // Waiting for Start match, the table and opponent need the room; restart comes back with the match.
-                    if (waiting == null) RoundIcon({ c.askRestart() }, "Restart this game", enabled = !s.gameOver && !gone) { SeamIcon(ScoreIcons.Restart) }
+                    // Won, lost or restart behind a flag, so it never passes for Undo (Okay, 2026-10-26).
+                    RoundIcon({ c.openGameMenu() }, if (s.isDuel) "End or restart this game" else "Restart this game", enabled = !s.gameOver && !gone) {
+                        SeamIcon(ScoreIcons.Flag)
+                    }
                     when {
-                        waiting != null -> {
+                        link != null -> {
                             Divider()
-                            Pill("Start match", { c.startLive(waiting) }, Modifier.height(42.dp), fill = RiftColors.You, ink = Color.Black, enabled = !gone)
-                        }
-                        s.isSeries -> {
-                            Divider()
-                            Pill(if (live?.reportable == true) "Report" else "End", { c.openPicker(ending = true) }, Modifier.height(42.dp), fill = Color.White.copy(alpha = 0.13f), enabled = !gone)
+                            Pill("Report", { reporting = link }, Modifier.height(42.dp), fill = RiftColors.You, ink = Color.Black, enabled = !gone)
                         }
                         match != null -> {
                             Divider()
@@ -168,69 +161,47 @@ private fun LineBox(line: EventLine, onOpen: (() -> Unit)?) {
 }
 
 /**
- * Before a live match: its table and opponent (Start match beside it starts it). During it: round and table
- * over the round's countdown ([roundEnd], the organiser's clock; gold once over), or the match clock where
- * the round has none, which a long press pauses. A tap asks to open the event. Casual play shows no clock.
+ * The pairing: round and table over the round's countdown ([TableLink.roundEndsAt], the organiser's clock; gold
+ * once over), or over the opponent's name before the round clock runs. A tap asks to open the event.
  */
 @Composable
-private fun ClockBox(s: ScoreState, waiting: TableLink?, roundEnd: Long?, onOpen: (() -> Unit)?, onClock: () -> Unit) {
+private fun ClockBox(link: TableLink, onOpen: (() -> Unit)?) {
     val caps = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, letterSpacing = 0.14.em, color = Color.White.copy(alpha = 0.72f))
-    val tag = s.liveTag
-    val round = roundEnd.takeIf { waiting == null }
+    val round = link.roundEndsAt
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     // Redraw exactly when the shown second changes, not on a fixed tick (as iOS does).
-    LaunchedEffect(s.clock, round) {
+    LaunchedEffect(round) {
         now = System.currentTimeMillis()
-        while (round != null || s.clock.isRunning) {
-            val ms = if (round != null) (round - System.currentTimeMillis()).mod(1000L) else 1000 - s.clock.elapsedMs(System.currentTimeMillis()) % 1000
-            delay(ms + 5)
+        while (round != null) {
+            delay((round - System.currentTimeMillis()).mod(1000L) + 5)
             now = System.currentTimeMillis()
         }
     }
     val left = round?.let { ((it - now) / 1000).toInt() }
     val over = left != null && left < 0
     val text = when {
-        left == null -> clockText(s.clock.elapsedSeconds(now))
+        left == null -> "vs ${link.opponent ?: "?"}"
         over -> "+" + clockText(-left)
         else -> clockText(left)
     }
-    val paused = waiting == null && round == null && !s.clock.isRunning && s.clock.accumulatedMs > 0
-    val source = remember { MutableInteractionSource() }
-    val pressed by source.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, tween(250, easing = RiftEase), label = "press")
-    val label = when {
-        waiting != null -> waiting.table?.let { "TABLE $it" } ?: waiting.tag.uppercase()
-        paused -> "PAUSED"
-        else -> tag.orEmpty().uppercase()
-    }
-    val clockLabel = if (s.clock.isRunning) "Pause the clock" else "Start the clock"
-    val longPress = if (waiting != null || round != null) null else onClock
-    Box(
-        Modifier.widthIn(min = 72.dp, max = 132.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .combinedClickable(
-                source, indication = null, enabled = onOpen != null || longPress != null, role = Role.Button,
-                onClickLabel = "Open the event",
-                onLongClickLabel = if (longPress != null) clockLabel else null,
-                onLongClick = longPress,
-                hapticFeedbackEnabled = false,
-                onClick = onOpen ?: {},
-            )
-            .semantics {
-                contentDescription = when {
-                    waiting != null -> "$label, vs ${waiting.opponent.orEmpty()}"
-                    round != null -> "$label, " + if (over) "round over by $text" else "$text left in the round"
-                    else -> "$label, match clock $text" + if (paused) ", paused" else ""
-                }
-            },
-        contentAlignment = Alignment.Center,
+    val label = link.tag.uppercase()
+    Pressable(
+        onOpen ?: {},
+        Modifier.widthIn(min = 72.dp, max = 120.dp).semantics {
+            contentDescription = "$label, " + when {
+                left == null -> text
+                over -> "round over by $text"
+                else -> "$text left in the round"
+            }
+        },
+        enabled = onOpen != null, label = "Open the event",
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            BasicText(label, style = if (paused) caps.copy(color = RiftColors.Gold) else caps, maxLines = 1)
+            BasicText(label, style = caps, maxLines = 1)
             BasicText(
-                if (waiting != null) "vs ${waiting.opponent ?: "?"}" else text,
+                text,
                 style = RiftType.Body.copy(
-                    fontWeight = FontWeight.SemiBold, fontSize = if (waiting != null) 14.sp else 16.sp, lineHeight = 18.sp, fontFeatureSettings = "tnum",
+                    fontWeight = FontWeight.SemiBold, fontSize = if (left == null) 14.sp else 16.sp, lineHeight = 18.sp, fontFeatureSettings = "tnum",
                     color = if (over) RiftColors.Gold else Color.White,
                 ),
                 maxLines = 1, overflow = TextOverflow.Ellipsis,

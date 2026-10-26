@@ -16,29 +16,6 @@ import pitopia.riftcount.data.Prefs
 import pitopia.riftcount.data.SwiftJson
 import pitopia.riftcount.platform.Haptic
 
-/**
- * Picker behind "End the match" and "Set them yourself": one result per game (1 you, 0 opponent, -1 draw),
- * as many games as the format has; [need] wins decide it.
- */
-data class ResultPicker(val ending: Boolean, val picks: List<Int?>, val need: Int) {
-    fun decidedAt(): Int {
-        var me = 0
-        var them = 0
-        picks.forEachIndexed { i, v ->
-            if (v == null) return -1
-            if (v == YOU) me++
-            if (v == OPPONENT) them++
-            if (me >= need || them >= need) return i
-        }
-        return -1
-    }
-
-    fun locked(i: Int) = (i > 0 && picks[i - 1] == null) || decidedAt().let { it >= 0 && i > it }
-
-    fun choose(i: Int, v: Int) =
-        copy(picks = picks.mapIndexed { j, old -> if (j == i) (if (old == v) null else v) else if (j > i) null else old })
-}
-
 data class Toast(val text: String, val id: Long = System.nanoTime())
 
 class ScoreController(
@@ -52,16 +29,12 @@ class ScoreController(
         private set
     var duel by mutableStateOf<DuelState?>(null)
         private set
-    var picker by mutableStateOf<ResultPicker?>(null)
-        private set
     var toast by mutableStateOf<Toast?>(null)
         private set
     var drew by mutableStateOf(-1)
         private set
-    var confirmRestart by mutableStateOf(false)
-        private set
-    /** The series this scoreboard reported to PlayRiftbound; in memory only, any other series is not it. */
-    var sentReport by mutableStateOf<SentReport?>(null)
+    /** The seam's game menu: won, lost or restart. */
+    var gameMenu by mutableStateOf(false)
         private set
 
     /** Set by the screen so actions can buzz through the current view. */
@@ -123,14 +96,7 @@ class ScoreController(
     fun fix(slot: Int) = apply(state.fix(slot, now()), Haptic.Tick)
     fun xp(slot: Int, delta: Int) = apply(state.xp(slot, delta), Haptic.Tick)
     fun undo() = apply(state.undo(), Haptic.Undo)
-    fun toggleClock() = apply(state.toggleClock(now()), Haptic.Tick)
     fun nextGame() = apply(state.nextGame(now()), Haptic.Tick)
-
-    /** The event says one game but the table plays three: game 1 no longer ends the live match. */
-    fun playBestOfThree() {
-        apply(state.withBestOf(3), Haptic.Tick)
-        if (state.bestOf == 3) show("Best of 3 · first to two games")
-    }
 
     /** Whose half asks who starts, or -1 (the question goes stale after a while). */
     fun startChooser(): Int = state.startChooser(now())
@@ -145,15 +111,6 @@ class ScoreController(
         show(startsText(starter))
     }
 
-    /** "Start match" in the seam: a fresh match for the PlayRiftbound pairing, in its event's format. */
-    fun startLive(link: TableLink) {
-        picker = null
-        sentReport = null
-        closeDuel()
-        apply(state.startLive(link.tag, link.bestOf), Haptic.Success)
-        show("Live match · ${link.tag} · best of ${state.bestOf}")
-    }
-
     fun finalPoint(scoreIt: Boolean) {
         val slot = state.asking
         apply(state.confirmFinalPoint(scoreIt, now()), Haptic.Tick)
@@ -164,16 +121,12 @@ class ScoreController(
         }
     }
 
-    fun askRestart() { if (!state.gameOver && !state.matchOver && !state.ended) confirmRestart = true }
-    fun cancelRestart() { confirmRestart = false }
-    fun restart() { confirmRestart = false; apply(state.restart(), Haptic.Warning) }
+    fun openGameMenu() { if (!state.gameOver) gameMenu = true }
+    fun closeGameMenu() { gameMenu = false }
+    fun restart() { gameMenu = false; apply(state.restart(), Haptic.Warning) }
 
-    fun newMatch() {
-        picker = null
-        // The next series may end with the same games; it is not reported until it is sent.
-        sentReport = null
-        apply(state.newMatch(), Haptic.Warning)
-    }
+    /** Won or lost by hand, like iOS's classic buttons: the game is recorded and Next game shows. */
+    fun end(winner: Int) { gameMenu = false; apply(state.end(winner), null) }
 
     /** From Settings: an open who-goes-first duel has one die per seat, so it closes. */
     fun setPlayers(count: Int) {
@@ -182,35 +135,10 @@ class ScoreController(
         apply(state.withPlayerCount(count), null)
     }
 
-    // --- ending a match by hand ------------------------------------------------------------------
-
-    /** End or set the results of a live series, one row per game it can have. */
-    fun openPicker(ending: Boolean) {
-        val s = state
-        if (!s.isSeries) return
-        picker = ResultPicker(ending, List(s.bestOf) { i -> s.log.getOrNull(i)?.winner }, s.winsNeeded)
-    }
-
-    fun choose(i: Int, v: Int) { picker = picker?.choose(i, v) }
-    fun closePicker() { picker = null }
-
-    fun pickDone() {
-        val p = picker ?: return
-        val set = p.picks.takeWhile { it != null }.filterNotNull()
-        if (set.isEmpty()) return
-        val playing = state.log.size
-        val log = set.mapIndexed { i, w -> state.log.getOrNull(i)?.takeIf { it.winner == w } ?: GameResult(w) }
-        // The game being played when the match was ended counts too (a concession), like iOS Won/Lost.
-        if (set.size > playing && !state.gameOver && set[playing] != -1) record(set[playing], state)
-        picker = null
-        apply(state.copy(log = log, ended = true, asking = -1), Haptic.Success)
-    }
-
     // --- who goes first ----------------------------------------------------------------------------
 
     fun openDuel() {
         stopTumbles()
-        picker = null
         duel = DuelState.start(state.players.size)
     }
 
@@ -274,9 +202,6 @@ class ScoreController(
     // --- plumbing ----------------------------------------------------------------------------------
 
     fun show(text: String) { toast = Toast(text) }
-    fun reported(r: SentReport) { sentReport = r }
-    /** Only while the games on the board are the ones sent. */
-    fun reportedSeries(): SentReport? = sentReport?.takeIf { it.log == state.log }
     fun clearToast(id: Long) { if (toast?.id == id) toast = null }
 
     private fun apply(next: ScoreState, buzz: Haptic?) {
@@ -308,9 +233,7 @@ class ScoreController(
 
     private fun restore(): ScoreState {
         val saved = runCatching { SwiftJson.decodeFromString(ScoreState.serializer(), Prefs.string(STATE_KEY, "")) }.getOrNull()
-        // A best of three started by hand (an earlier test build) reads as casual: series are for live matches only.
-        val casual = saved?.takeIf { it.bestOf > 0 && it.liveTag == null }?.copy(bestOf = 0, log = emptyList())
-        return (casual ?: saved ?: ScoreState()).withPlayerCount(Prefs.int("playerCount", 2))
+        return (saved ?: ScoreState()).withPlayerCount(Prefs.int("playerCount", 2))
     }
 
     companion object {

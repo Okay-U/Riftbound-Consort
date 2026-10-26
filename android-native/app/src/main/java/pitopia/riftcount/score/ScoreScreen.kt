@@ -37,10 +37,9 @@ import pitopia.riftcount.ui.theme.RiftEase
 /** The Score tab. [bottomReserve] is the room the tab bar takes at the bottom; both halves end above it. */
 @Composable
 fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, cards: CardStore, match: MatchInfo?) {
-    BackHandler(enabled = c.duel != null || c.picker != null || c.confirmRestart || c.state.asking >= 0) {
+    BackHandler(enabled = c.duel != null || c.gameMenu || c.state.asking >= 0) {
         when {
-            c.picker != null -> c.closePicker()
-            c.confirmRestart -> c.cancelRestart()
+            c.gameMenu -> c.closeGameMenu()
             c.state.asking >= 0 -> c.finalPoint(false)
             else -> c.closeDuel()
         }
@@ -52,8 +51,7 @@ fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, ca
         if (c.state.isDuel) Duel(c, swatches, area, maxHeight, match) else FourPlayers(c, swatches, area)
         // Centred on the seam like the mock, so it never covers a player's own controls.
         BoardToast(c.toast, c::clearToast, Modifier.align(Alignment.TopCenter).offset(y = area / 2 - 20.dp))
-        if (c.confirmRestart) RestartDialog(c.state.gameNo.takeIf { c.state.isSeries }, c::cancelRestart, c::restart)
-        c.picker?.let { ResultPickerDialog(c, it, swatches.map { s -> s.color }) }
+        if (c.gameMenu) GameDialog(c.state.isDuel, swatches, c::closeGameMenu, c::end, c::restart)
     }
     when (c.setupSlot) {
         YOU -> DeckPickSheet(c, decks, cards.index, c::closeSetup)
@@ -71,7 +69,6 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
         d != null && d.winner == YOU -> 210.dp
         d != null && d.winner == OPPONENT -> area - 210.dp
         d != null -> center
-        s.showSummary -> s.seriesWins().let { w -> if (w[YOU] > w[OPPONENT]) 64.dp else if (w[OPPONENT] > w[YOU]) area - 64.dp else center }
         s.gameOver -> if (s.winner == YOU) 64.dp else area - 64.dp
         else -> (center + 26.dp * (s.players[OPPONENT].score - s.players[YOU].score)).coerceIn(130.dp, maxOf(130.dp, area - 130.dp))
     }
@@ -83,13 +80,12 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
         else -> -1
     }
     val lineColor by animateColorAsState(if (leader < 0) Color.White.copy(alpha = 0.7f) else colors[leader], tween(600), label = "lineColor")
-    val lineAlpha by animateFloatAsState(if (s.showSummary) 0f else 1f, tween(500), label = "lineAlpha")
     // Each field is one screen tall, so the opponent's reaches the top and yours runs under the tab bar.
     Box(Modifier.fillMaxWidth().height(screen).graphicsLayer { translationY = (line - screen).toPx() }.background(colors[OPPONENT].copy(alpha = 0.13f)))
     Box(Modifier.fillMaxWidth().height(screen).graphicsLayer { translationY = line.toPx() }.background(colors[YOU].copy(alpha = 0.13f)))
     Box(
         Modifier.fillMaxWidth().height(2.dp)
-            .graphicsLayer { translationY = (line - 1.dp).toPx(); alpha = lineAlpha }
+            .graphicsLayer { translationY = (line - 1.dp).toPx() }
             .dropShadow(RectangleShape, Shadow(radius = 22.dp, color = lineColor, spread = 3.dp))
             .background(lineColor),
     )
@@ -97,8 +93,7 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
         Half(c, OPPONENT, swatches, Modifier.weight(1f).graphicsLayer { rotationZ = 180f })
         Half(c, YOU, swatches, Modifier.weight(1f))
     }
-    Seam(c, match, Modifier.align(Alignment.TopCenter).offset(y = center - 27.dp))
-    if (s.showSummary) MatchSummary(c, colors, center, match?.link)
+    Seam(c, match, Modifier.align(Alignment.TopCenter).offset(y = center - 27.dp).padding(horizontal = 10.dp))
 }
 
 @Composable
@@ -108,38 +103,33 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
     val accent = swatches[slot].color
     val ink = swatches[slot].ink
     val dim = if (d != null) d.winner >= 0 && d.winner != slot else s.gameOver && s.winner != slot
-    // The summary is the focus: both halves fade to a ghost behind it.
-    val alpha by animateFloatAsState(if (s.showSummary) 0.18f else if (dim) 0.32f else 1f, tween(900, easing = RiftEase), label = "dim")
-    val wins = s.seriesWins()
+    val alpha by animateFloatAsState(if (dim) 0.32f else 1f, tween(900, easing = RiftEase), label = "dim")
     Box(modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = 34.dp, bottom = 18.dp).graphicsLayer { this.alpha = alpha }) {
             if (d != null) {
                 DuelSide(c, d, slot, accent, ink, Modifier.fillMaxSize())
             } else {
                 TopLine(
-                    c.legend(slot), accent, ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) }, wins[slot], if (s.isSeries) s.winsNeeded else 0,
-                    shown = !s.gameOver && !s.showSummary, onName = { c.openSetup(slot) },
+                    c.legend(slot), accent, ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) },
+                    shown = !s.gameOver, onName = { c.openSetup(slot) },
                 )
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     ScoreNumber(s.players[slot].score, accent, won = s.winner == slot, label = "${haves(c.shortName(slot))} ${s.players[slot].score} of $TARGET points")
                 }
                 when {
-                    s.showSummary -> Spacer(Modifier.height(54.dp))
                     !s.gameOver -> ActionRow(accent, ink, { c.score(slot, PointKind.Conquer) }, { c.score(slot, PointKind.Hold) }, { c.score(slot, PointKind.Effect) }, { c.fix(slot) })
-                    s.winner == slot -> NextGameButton(if (s.isSeries) "Next game · Game ${s.gameNo + 1}" else "Next game", accent, ink, c::nextGame)
+                    s.winner == slot -> NextGameButton("Next game", accent, ink, c::nextGame)
                     else -> Spacer(Modifier.height(54.dp))
                 }
             }
         }
-        if (d == null && s.winner == slot && !s.showSummary) {
-            val score = "${s.players[slot].score}–${s.players[1 - slot].score}"
-            if (s.isSeries) ResultText("GAME ${s.gameNo}", "Series ${wins[slot]}–${wins[1 - slot]}", accent, Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
-            else ResultText("WIN", score, accent, Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
+        if (d == null && s.winner == slot) {
+            ResultText("WIN", "${s.players[slot].score}–${s.players[1 - slot].score}", accent, Modifier.align(Alignment.TopCenter).padding(top = 80.dp))
         }
         if (d == null && s.asking == slot) {
             FinalPointSheet(accent, ink, { c.finalPoint(true) }, { c.finalPoint(false) }, Modifier.align(Alignment.BottomCenter).padding(12.dp))
         }
-        if (d == null && c.startChooser() == slot && !s.gameOver && !s.showSummary) {
+        if (d == null && c.startChooser() == slot && !s.gameOver) {
             StartChoiceSheet(accent, ink, { c.pickStart(true) }, { c.pickStart(false) }, Modifier.align(Alignment.BottomCenter).padding(12.dp))
         }
         if (c.drew == slot) HalfToast("No point · draw a card instead", Modifier.align(Alignment.TopCenter).padding(top = 70.dp))
@@ -195,7 +185,7 @@ private fun BoxScope.FourPlayers(c: ScoreController, swatches: List<Swatch>, are
                             if (d != null) {
                                 DuelSide(c, d, slot, sw.color, sw.ink, Modifier.fillMaxSize(), dieSize = 110f)
                             } else {
-                                TopLine(c.legend(slot), sw.color, sw.ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) }, 0, 0)
+                                TopLine(c.legend(slot), sw.color, sw.ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) })
                                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                                     ScoreNumber(s.players[slot].score, sw.color, won = false, label = s.players[slot].score.let { n -> "${haves(c.legend(slot))} $n ${if (n == 1) "point" else "points"}" }, showTarget = false, sizeDp = 112f)
                                 }
