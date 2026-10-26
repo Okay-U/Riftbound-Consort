@@ -39,16 +39,16 @@ fun OpenEventDialog(event: String, onStay: () -> Unit, onOpen: () -> Unit) {
 }
 
 /**
- * The seam's flag (Okay, 2026-10-26): I won / I lost end the game as it stands, for a concession or points the
- * board missed; Restart sets it to 0 and Undo brings it back. Four players only restart.
+ * The seam's Reset Score (Okay, 2026-10-26): Reset sets the game to 0 and Undo brings it back; I won / I lost end
+ * the game as it stands, for a concession or points the board missed. Four players only reset.
  */
 @Composable
 fun GameDialog(duel: Boolean, swatches: List<Swatch>, onKeep: () -> Unit, onEnd: (Int) -> Unit, onRestart: () -> Unit) {
     DialogFrame(onKeep) {
         if (duel) {
             DialogText(
-                "End or restart this game?",
-                "Won or lost ends the game as it stands, for a concession or points the board missed. Restart sets both scores and XP back to 0, and Undo brings them back.",
+                "Reset the score or end the game?",
+                "Reset sets both scores and XP back to 0, and Undo brings them back. Won or lost ends the game as it stands, for a concession or points the board missed.",
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Pill("I won", { onEnd(YOU) }, Modifier.weight(1f).height(46.dp), fill = swatches[YOU].color, ink = swatches[YOU].ink)
@@ -56,11 +56,11 @@ fun GameDialog(duel: Boolean, swatches: List<Swatch>, onKeep: () -> Unit, onEnd:
             }
             Spacer(Modifier.height(8.dp))
         } else {
-            DialogText("Restart this game?", "All scores and XP go back to 0, and Undo brings them back.")
+            DialogText("Reset the score?", "All scores and XP go back to 0, and Undo brings them back.")
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Pill("Keep playing", onKeep, Modifier.weight(1f).height(46.dp))
-            Pill("Restart", onRestart, Modifier.weight(1f).height(46.dp), fill = RiftColors.Danger, ink = Color.Black)
+            Pill("Reset", onRestart, Modifier.weight(1f).height(46.dp), fill = RiftColors.Danger, ink = Color.Black)
         }
     }
 }

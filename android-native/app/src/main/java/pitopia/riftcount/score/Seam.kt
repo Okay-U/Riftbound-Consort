@@ -36,11 +36,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -54,7 +57,7 @@ import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
 /**
- * The pill on the territory line: dice, undo and the game menu (won, lost, restart). In the duel: die type,
+ * The pill on the territory line: dice, undo and Reset Score (reset, won, lost). In the duel: die type,
  * roll, close. Match mode ([match]) adds the PlayRiftbound check and the event line (event before round 1, bye,
  * reported round), or for a pairing its round, table, opponent or round clock with a green Report.
  */
@@ -87,12 +90,8 @@ fun Seam(c: ScoreController, match: MatchInfo?, modifier: Modifier = Modifier) {
             transitionSpec = { (fadeIn(tween(420, easing = RiftEase)) + scaleIn(tween(420, easing = RiftEase), initialScale = 0.7f)).togetherWith(fadeOut(tween(120))) },
             label = "seamSet",
         ) { duelSet ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (duelSet && d != null) {
-                    DieTypeSwitch(d.type, enabled = !d.busy && !gone) { c.duelType(it) }
-                    Pill(if (s.isDuel) "Roll both" else "Roll all", { c.rollAll() }, Modifier.height(42.dp), fill = Color.White.copy(alpha = 0.13f), enabled = d.canRollAll && !gone)
-                    RoundIcon({ c.closeDuel() }, "Back to the scoreboard", enabled = !gone) { SeamIcon(ScoreIcons.Close) }
-                } else {
+            val board: @Composable (String) -> Unit = { reset ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     RoundIcon({ c.openDuel() }, "Roll who goes first", fill = RiftColors.You.copy(alpha = 0.14f), enabled = !gone) {
                         SeamIcon(ScoreIcons.Dice, RiftColors.You)
                     }
@@ -101,10 +100,8 @@ fun Seam(c: ScoreController, match: MatchInfo?, modifier: Modifier = Modifier) {
                         link != null -> ClockBox(link, onOpen = ask)
                         line != null -> LineBox(line, onOpen = ask)
                     }
-                    // Won, lost or restart behind a flag, so it never passes for Undo (Okay, 2026-10-26).
-                    RoundIcon({ c.openGameMenu() }, if (s.isDuel) "End or restart this game" else "Restart this game", enabled = !s.gameOver && !gone) {
-                        SeamIcon(ScoreIcons.Flag)
-                    }
+                    // Reset, won or lost behind words, so it never passes for Undo (Okay, 2026-10-26: text, not a flag).
+                    Pill(reset, { c.openGameMenu() }, Modifier.height(42.dp), enabled = !s.gameOver && !gone)
                     when {
                         link != null -> {
                             Divider()
@@ -117,7 +114,31 @@ fun Seam(c: ScoreController, match: MatchInfo?, modifier: Modifier = Modifier) {
                     }
                 }
             }
+            if (duelSet && d != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    DieTypeSwitch(d.type, enabled = !d.busy && !gone) { c.duelType(it) }
+                    Pill(if (s.isDuel) "Roll both" else "Roll all", { c.rollAll() }, Modifier.height(42.dp), fill = Color.White.copy(alpha = 0.13f), enabled = d.canRollAll && !gone)
+                    RoundIcon({ c.closeDuel() }, "Back to the scoreboard", enabled = !gone) { SeamIcon(ScoreIcons.Close) }
+                }
+            } else {
+                // "Reset Score", or "Reset" where a pairing leaves no room for it (narrow phones).
+                FirstThatFits({ board("Reset Score") }, { board("Reset") })
+            }
         }
+    }
+}
+
+/** The first of [choices] whose natural width fits (iOS `ViewThatFits`); the last one otherwise. */
+@Composable
+private fun FirstThatFits(vararg choices: @Composable () -> Unit) {
+    SubcomposeLayout { constraints ->
+        var shown = emptyList<Placeable>()
+        for ((i, choice) in choices.withIndex()) {
+            val last = i == choices.lastIndex
+            shown = subcompose(i, choice).map { it.measure(constraints.copy(minWidth = 0, maxWidth = if (last) constraints.maxWidth else Constraints.Infinity)) }
+            if (last || shown.maxOf { it.width } <= constraints.maxWidth) break
+        }
+        layout(shown.maxOf { it.width }, shown.maxOf { it.height }) { shown.forEach { it.place(0, 0) } }
     }
 }
 
