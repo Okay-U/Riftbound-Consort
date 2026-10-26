@@ -360,9 +360,10 @@ the shortlist and starts the builder.
 
 Scoreboard, round 8 (2026-10-26, iOS the same): the seam's flag became a text button, "Reset Score" ("Reset"
 where a pairing leaves no room: `FirstThatFits` picks the first row that fits, like iOS `ViewThatFits`); its menu
-now reads Reset the score or end the game. The score tap's cue lights the three +1 pills together, two soft breaths
-(380 ms up, 520 ms down, EaseInOut) in a blurred halo of the half's colour (`dropShadow` 28dp), not one after the
-other.
+now reads Reset the score or end the game. The score tap's cue is Okay's pick from three mocks, "C · Ripple": once,
+on the three +1 pills at once, a ring of the half's colour runs out 20 % wider and 60 % taller and fades (drawn behind
+the pill, a wider faint stroke as its glow) while the pill dips to 96.5 % and springs to 103 %, 850 ms on the curve
+(0.2, 0.7, 0.2, 1) (`Give`). A first try that breathed twice in a halo was too jerky.
 
 Fake live event (2026-10-26, so event mode can be tried without a live event): debug builds have Settings › Debug ›
 Fake live event. It restarts the app, then every PlayRiftbound call is answered on the phone from a made-up Summoner
