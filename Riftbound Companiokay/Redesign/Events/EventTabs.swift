@@ -247,8 +247,11 @@ struct RoundsTab: View {
                         ForEach(upcoming, id: \.self) { n in EvChip(text: "R\(n)", on: false, enabled: false, display: true) {} }
                     }
                     .padding(.horizontal, 16)
+                    // Room for the chosen chip's glow, which the scroll view would cut; the row keeps its height.
+                    .padding(.vertical, 10)
                 }
                 .padding(.horizontal, -16)
+                .padding(.vertical, -10)
                 .padding(.top, 12)
                 let live = round.id == rounds.last?.id && !t.isFinished
                 VStack(spacing: 4) {
@@ -356,8 +359,10 @@ struct StandingsTab: View {
                             if let live { EvChip(text: "Live R\(live.roundNumber) •", on: current == .live) { selection = .live } }
                         }
                         .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     }
                     .padding(.horizontal, -16)
+                    .padding(.vertical, -10)
                     .padding(.top, 12)
                 }
                 if current == .live, let live { PreviewBanner(table: live).padding(.top, 12) }
