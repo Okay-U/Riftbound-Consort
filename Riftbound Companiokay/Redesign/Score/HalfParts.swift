@@ -142,9 +142,10 @@ struct ActionGrid: View {
     }
 }
 
-/// Conquer is filled in the half's colour and glows; the others light up in it for a moment when tapped.
-/// Liquid Glass on iOS 26 (Okay, 2026-10-22), the mock's capsules before. A tap on the score lights the
-/// +1 pills the same way, a wave from Conquer on (`cue`, `wave`): points go here, not on the number.
+/// Colour model C: Conquer is white with ink in the half's colour, the others dark with a light rim; a tapped
+/// pill lights up in the half's colour for a moment. Liquid Glass on iOS 26 (Okay, 2026-10-22), the mock's
+/// capsules before. A tap on the score lights the +1 pills the same way, a wave from Conquer on (`cue`,
+/// `wave`): points go here, not on the number.
 private struct ActionButton: View {
     let title: String
     let delta: String
@@ -173,27 +174,32 @@ private struct ActionButton: View {
     }
 
     @ViewBuilder private var button: some View {
+        let ink = accent.deep(0.75)
         if #available(iOS 26, *) {
             LitButton(accessibility: label, pressedScale: 1, action: action) { pressed in
                 let lit = max(pressed, nudge)
-                face(color: filled ? accent.ink : .white)
-                    .glassEffect(.regular.tint(filled ? accent : accent.opacity(0.9 * lit)).interactive(), in: Capsule())
-                    .shadow(color: accent.opacity(glow(lit)), radius: 13 + 6 * lit)
+                face(color: filled ? ink : .white)
+                    .glassEffect(.regular.tint(fill(lit)).interactive(), in: Capsule())
+                    .shadow(color: accent.opacity(0.5 * lit), radius: 13 + 6 * lit)
             }
         } else {
             LitButton(accessibility: label, action: action) { pressed in
                 let lit = max(pressed, nudge)
-                face(color: filled ? accent.ink : Color.white.mix(with: accent.ink, by: lit))
+                face(color: filled ? ink : Color.white.mix(with: accent.ink, by: lit))
                     .background {
                         Capsule()
-                            .fill(filled ? accent.mix(with: .white, by: 0.3 * lit) : Color.black.opacity(0.38).mix(with: accent, by: 0.9 * lit))
-                            .shadow(color: accent.opacity(glow(lit)), radius: 13 + 6 * lit)
+                            .fill(fill(lit))
+                            .shadow(color: accent.opacity(0.5 * lit), radius: 13 + 6 * lit)
                     }
                     .overlay {
-                        if !filled { Capsule().stroke(Color.white.opacity(0.2).mix(with: accent, by: lit), lineWidth: 1) }
+                        if !filled { Capsule().stroke(Color.white.opacity(0.28).mix(with: accent, by: lit), lineWidth: 1) }
                     }
             }
         }
+    }
+
+    private func fill(_ lit: CGFloat) -> Color {
+        filled ? Color.white.mix(with: accent, by: 0.3 * lit) : Color.black.opacity(0.24).mix(with: accent, by: 0.9 * lit)
     }
 
     private func face(color: Color) -> some View {
@@ -206,8 +212,6 @@ private struct ActionButton: View {
         .frame(height: height)
         .contentShape(Capsule())
     }
-
-    private func glow(_ lit: CGFloat) -> Double { filled ? 0.45 + 0.35 * lit : 0.5 * lit }
 }
 
 /// "WIN · 8–3" over the winner's half, softly in after the line has swept.

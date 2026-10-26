@@ -175,10 +175,17 @@ Both platforms, step by step:
 Mocks on the canvas https://claude.ai/artifact/68cipuSRxXGtdgqTKkvXL2 (pages Tile colours, Legend art,
 Middle · 4 ways). Okay wants some feedback work done first.
 
-- **Colour model C ("Solid colour") is the board's base look.** Each field is the seat colour darkened to
-  about 50 % (darker where white text would drop below 4.5:1, checked for all 16 player colours). Conquer is
-  white with dark seat-colour ink; the other pills are black 24 % with a white 28 % rim, no glow. Four
-  players get it too, the leading seat a little lighter, never art.
+- **Colour model C ("Solid colour") is the board's base look.** Built on iOS (step 1, `SeatShade`): each
+  field is the seat colour brought to OKLab lightness 0.44 (linear RGB times (0.44/L)³: same hue, chroma
+  down with the lightness; colours darker than that keep their own), so every seat reads alike and white is
+  7:1 or more on all 17 player colours. What the board draws in the seat colour on top (the line, dice, WIN,
+  GOES FIRST, filled buttons) is the colour lifted to lightness 0.74 by mixing in white, 3.3:1 or more on its
+  own field; Rift Green and Rift Violet are already that light and stay. Without the lift blue, purple and
+  the dark colours vanished on their own fields (1.0 to 1.3:1). Conquer is white with ink at 0.75 of the
+  field's depth; the other pills are black 24 % with a white 28 % rim; no glow at rest, a tapped pill still
+  lights up in the seat colour. Four players get it too, the leading seat at 1.125 of the depth, the colours
+  under the status bar and the tab bar like the duel's fields, never art. The Colors page preview follows.
+  `tools/check-scoreboard` checks every colour.
 - **Legend art per half:** variant 1 ("art under a shade") with middle d ("the line uncovers the leader").
   - A half shows its legend's picture when the "Legend art" switch is on, its legend is known (your deck's
     legend, the opponent legend picked in the setup) and the picture has loaded. Otherwise that half uses C.

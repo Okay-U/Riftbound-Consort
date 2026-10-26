@@ -107,9 +107,7 @@ struct ColorsPage: View {
     }
 }
 
-private let fieldAlpha = 0x22 / 255.0
-
-/// The mock's preview: both halves in their colours, the glowing line in yours.
+/// The mock's preview: both halves in their colours as on the board (colour model C), the glowing line in yours.
 private struct DuelPreview: View {
     let you: Color
     let opponent: Color
@@ -119,23 +117,23 @@ private struct DuelPreview: View {
         let shape = RoundedRectangle(cornerRadius: 26)
         VStack(spacing: 0) {
             ZStack(alignment: .topLeading) {
-                opponent.opacity(fieldAlpha)
+                opponent.deep()
                 SeatLabel(text: "Opponent").padding(.leading, 16).padding(.top, 12)
-                PreviewNumber(text: "5", color: opponent, size: 64)
+                PreviewNumber(text: "5", color: opponent.lifted, size: 64)
                     .rotationEffect(.degrees(180))
                     .frame(maxWidth: .infinity)
                     .padding(.top, 18)
             }
             ZStack(alignment: .bottomLeading) {
-                you.opacity(fieldAlpha)
+                you.deep()
                 SeatLabel(text: "You").padding(.leading, 16).padding(.bottom, 12)
-                PreviewNumber(text: "6", color: you, size: 64)
+                PreviewNumber(text: "6", color: you.lifted, size: 64)
                     .frame(maxWidth: .infinity)
                     .padding(.bottom, 18)
             }
         }
         .overlay {
-            Rectangle().fill(you).frame(height: 2).shadow(color: you, radius: 8)
+            Rectangle().fill(you.lifted).frame(height: 2).shadow(color: you.lifted, radius: 8)
         }
         .frame(height: 200)
         .background(page)
@@ -158,9 +156,9 @@ private struct TablePreview: View {
                 HStack(spacing: 0) {
                     ForEach(row == 0 ? [1, 0] : [2, 3], id: \.self) { slot in
                         ZStack(alignment: .topLeading) {
-                            colors[slot].opacity(fieldAlpha)
+                            colors[slot].deep()
                             SeatLabel(text: "P\(slot + 1)").padding(.leading, 12).padding(.top, 10)
-                            PreviewNumber(text: "\(slot + 3)", color: colors[slot], size: 48)
+                            PreviewNumber(text: "\(slot + 3)", color: colors[slot].lifted, size: 48)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     }

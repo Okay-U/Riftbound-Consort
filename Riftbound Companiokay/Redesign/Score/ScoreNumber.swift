@@ -31,7 +31,7 @@ struct ScoreNumber: View {
             if showTarget {
                 Text("OF \(ScoreState.target)")
                     .caps(12, tracking: 0.2, weight: .regular)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.74))
                     .offset(y: 10)
             }
         }

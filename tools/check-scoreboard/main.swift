@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // The Android unit tests of the same rules (ScoreRulesTest, DuelTest), case by case.
 
@@ -176,6 +177,30 @@ do {
     check(w.count == 11 && w.first == 38 && zip(w, w.dropFirst()).allSatisfy { $0 < $1 }, "tumble waits")
     var rng = SplitMix(state: 7)
     for _ in 0..<200 { check(FirstRoll.face(sides: 6, notThis: 5, using: &rng) != 5, "face differs") }
+}
+
+// Colour model C on every player colour (the palette, Rift Green, Rift Violet): white on a field and on a
+// leading seat, the seat colour on its own field, Conquer's ink on white (WCAG contrast).
+do {
+    func linear(_ color: Color) -> SIMD3<Float> {
+        let c = color.resolve(in: EnvironmentValues())
+        return SIMD3(c.linearRed, c.linearGreen, c.linearBlue)
+    }
+    func contrast(_ a: SIMD3<Float>, _ b: SIMD3<Float>) -> Float {
+        let x = 0.2126 * a.x + 0.7152 * a.y + 0.0722 * a.z + 0.05
+        let y = 0.2126 * b.x + 0.7152 * b.y + 0.0722 * b.z + 0.05
+        return max(x, y) / min(x, y)
+    }
+    let white = SIMD3<Float>(1, 1, 1)
+    let green = linear(Color(hex: "2BE38B")), violet = linear(Color(hex: "A99BFF"))
+    for seat in Palette.colors.map(linear) + [green, violet] {
+        let field = SeatShade.deep(seat), drawn = SeatShade.lift(seat)
+        check(contrast(field, white) >= 7, "white on the field")
+        check(contrast(SeatShade.deep(seat, depth: 1.125), white) >= 4.5, "white on a leading seat")
+        check(contrast(drawn, field) >= 3.3, "seat colour on its field")
+        check(contrast(SeatShade.deep(drawn, depth: 0.75), white) >= 4.5, "Conquer's ink")
+    }
+    check(SeatShade.lift(green) == green && SeatShade.lift(violet) == violet, "the default colours stay")
 }
 
 print("scoreboard rules ok (\(checks) checks)")

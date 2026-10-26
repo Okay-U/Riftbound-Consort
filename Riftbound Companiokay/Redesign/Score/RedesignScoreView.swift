@@ -3,8 +3,9 @@
 //  Riftbound Companiokay
 //
 //  The redesign's Score tab (Android `ScoreScreen.kt`, mock `ScoreFinal`): two halves face to face on
-//  tinted territory fields whose glowing line leans toward the trailing player, or a 2×2 table for four.
-//  The fields run under the status bar and the tab bar; the halves stay inside the safe area.
+//  territory fields in the seats' colours (colour model C, `SeatShade`) whose glowing line leans toward
+//  the trailing player, or a 2×2 table for four. The fields run under the status bar and the tab bar; the
+//  halves stay inside the safe area.
 //
 
 import SwiftUI
@@ -45,7 +46,7 @@ struct RedesignScoreView: View {
                         onReport: { reporting = ReportTarget(tournamentID: $0.tournamentID, pairing: $0.pairing) }
                     )
                 } else {
-                    FourBoard(c: c, area: area)
+                    FourBoard(c: c, area: area, insets: geo.safeAreaInsets)
                 }
                 // Centred on the seam like the mock, so it never covers a player's own controls.
                 if let toast = c.toast {
@@ -132,7 +133,9 @@ private struct DuelBoard: View {
     var body: some View {
         let s = c.state
         let roll = c.firstRoll
-        let colors = PlayerSwatches.colors(players: 2)
+        let seats = PlayerSwatches.colors(players: 2)
+        // What the board draws in a seat's colour; the fields take the colour itself, deep.
+        let colors = seats.map(\.lifted)
         let center = area / 2
         let leader: Int = {
             if let roll { return roll.winner }
@@ -143,7 +146,7 @@ private struct DuelBoard: View {
         ZStack(alignment: .top) {
             TerritoryFields(
                 line: lineTarget(s, roll, center: center) + topInset,
-                colors: colors,
+                fields: seats.map { $0.deep() },
                 lineColor: leader < 0 ? .white.opacity(0.7) : colors[leader]
             )
             .ignoresSafeArea()
@@ -171,19 +174,19 @@ private struct DuelBoard: View {
     }
 }
 
-/// The two tinted fields and the glowing boundary; each field is one screen tall and only moves.
+/// The two fields and the glowing boundary; each field is one screen tall and only moves.
 private struct TerritoryFields: View {
     /// From the top of the screen.
     let line: CGFloat
-    let colors: [Color]
+    let fields: [Color]
     let lineColor: Color
 
     var body: some View {
         GeometryReader { geo in
             let height = geo.size.height
             ZStack(alignment: .top) {
-                Rectangle().fill(colors[Seat.opponent].opacity(0.13)).frame(height: height).offset(y: line - height)
-                Rectangle().fill(colors[Seat.you].opacity(0.13)).frame(height: height).offset(y: line)
+                Rectangle().fill(fields[Seat.opponent]).frame(height: height).offset(y: line - height)
+                Rectangle().fill(fields[Seat.you]).frame(height: height).offset(y: line)
                 Rectangle().fill(lineColor).frame(height: 10).blur(radius: 12).offset(y: line - 5)
                 Rectangle().fill(lineColor).frame(height: 2).offset(y: line - 1)
             }
@@ -308,17 +311,21 @@ private struct DuelSide: View {
 
 // MARK: - Four players
 
-/// Four players (no mock): a 2×2 table, the far side turned around, every corner in its own colour.
+/// Four players (no mock): a 2×2 table, the far side turned around, every corner in its own colour, the
+/// leading seat's a little lighter.
 private struct FourBoard: View {
     @ObservedObject var c: ScoreController
     let area: CGFloat
+    /// The colours run under the status bar and the tab bar like the duel's fields.
+    let insets: EdgeInsets
     /// Per seat: a tap on its score asks its action pills to light up.
     @State private var cues = [0, 0, 0, 0]
 
     var body: some View {
         let s = c.state
         let roll = c.firstRoll
-        let colors = PlayerSwatches.colors(players: 4)
+        let seats = PlayerSwatches.colors(players: 4)
+        let colors = seats.map(\.lifted)
         let top = s.players.map(\.score).max() ?? 0
         ZStack(alignment: .top) {
             VStack(spacing: 0) {
@@ -329,7 +336,12 @@ private struct FourBoard: View {
                             // Back to two players, SwiftUI updates these rows once more with the duel's state
                             // before it takes the table away: seats that state lacks draw nothing (it crashed).
                             if s.players.indices.contains(slot) {
-                                seat(slot, s: s, roll: roll, accent: colors[slot], leading: top > 0 && s.players[slot].score == top)
+                                seat(
+                                    slot, s: s, roll: roll, accent: colors[slot],
+                                    field: seats[slot].deep(top > 0 && s.players[slot].score == top ? 1.125 : 1),
+                                    // Turned with its row, the far row's bottom edge is the screen's top.
+                                    extend: row == 0 ? insets.top : insets.bottom
+                                )
                             }
                         }
                     }
@@ -352,7 +364,7 @@ private struct FourBoard: View {
         }
     }
 
-    private func seat(_ slot: Int, s: ScoreState, roll: FirstRoll?, accent: Color, leading: Bool) -> some View {
+    private func seat(_ slot: Int, s: ScoreState, roll: FirstRoll?, accent: Color, field: Color, extend: CGFloat) -> some View {
         let lost = roll.map { $0.winner >= 0 && $0.winner != slot } ?? false
         return ZStack {
             if let roll {
@@ -388,7 +400,7 @@ private struct FourBoard: View {
         .opacity(lost ? 0.32 : 1)
         .animation(.rift(0.9), value: lost)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(accent.opacity(leading ? 0.2 : 0.09))
-        .animation(.easeInOut(duration: 0.6), value: leading)
+        .background(field.padding(.bottom, -extend))
+        .animation(.easeInOut(duration: 0.6), value: field)
     }
 }
