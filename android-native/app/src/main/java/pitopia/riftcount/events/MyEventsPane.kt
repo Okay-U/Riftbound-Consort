@@ -100,7 +100,7 @@ fun MyEventsPane(data: EventsData, active: Boolean, bottomReserve: Dp, toaster: 
         }
     }
     reporting?.let { (id, pairing) ->
-        ReportDialog(data, id, pairing, toaster) { reporting = null }
+        ReportDialog(data, id, pairing, toaster::show) { reporting = null }
     }
 }
 

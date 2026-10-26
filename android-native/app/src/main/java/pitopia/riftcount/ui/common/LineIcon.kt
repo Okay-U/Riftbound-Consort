@@ -44,7 +44,7 @@ private fun dicePair(size: Dp): ImageVector {
 object ScoreIcons {
     val Dice = dicePair(21.dp)
     val Undo = lineIcon("M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3", 18.dp)
-    val Restart = lineIcon("M3 12a9 9 0 1 0 3-6.7M3 4v5h5", 18.dp)
+    val Flag = lineIcon("M5 21V4M5 15s1.2-1 4-1 4.5 2 7.5 2 3.5-1 3.5-1V4s-1 1-3.5 1-4.5-2-7.5-2-4 1-4 1", 18.dp)
     val Close = lineIcon("M6 6l12 12M18 6L6 18", 17.dp, 2.4f)
     val Arrow = lineIcon("M5 12h14M13 6l6 6-6 6", 22.dp, 2.4f)
     val Check = lineIcon("M4 12l5 5L20 6", 22.dp, 2.6f)

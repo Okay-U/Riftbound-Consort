@@ -132,7 +132,7 @@ fun ColumnScope.EventPage(data: EventsData, entry: TournamentEntry, toaster: Toa
         else -> Loading("Loading the event")
     }
 
-    reporting?.let { p -> ReportDialog(data, s.id, p, toaster) { reporting = null; scope.launch { load() } } }
+    reporting?.let { p -> ReportDialog(data, s.id, p, toaster::show) { reporting = null; scope.launch { load() } } }
     action?.let { a ->
         ActionDialog(a.title, a.text, a.label, a.danger, onKeep = { action = null }) {
             action = null

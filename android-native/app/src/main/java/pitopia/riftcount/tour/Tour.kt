@@ -175,7 +175,7 @@ private val MainPages = listOf(
             "Conquer, hold, effect" to "One tap per point; the 8th by conquering is checked",
             "Track XP" to "Gain and spend XP right on your half",
             "Who goes first" to "Roll the dice in the middle, D6 or D20",
-            "Best of three" to "Games, series and the match clock carry on",
+            "Won or lost" to "The flag ends a game by hand, after a concession",
             "Pick decks" to "Tap a name to choose your deck and your opponent's legend",
             "Undo" to "Rewind step by step when you misclick",
         ),
@@ -185,7 +185,7 @@ private val MainPages = listOf(
         listOf(
             "Follow your events" to "Standings, pairings and results, live",
             "Find local stores" to "Search, save favorites, see their calendar",
-            "Play connected" to "Link a tournament match to your Scoreboard",
+            "Play connected" to "Your table on the Scoreboard, Report sends the result",
         ),
     ),
     Page(
@@ -226,7 +226,7 @@ private val EventsPages = listOf(
         listOf(
             "Follow your events" to "Standings, pairings and results, live.",
             "Find local stores" to "Search, save favorites, see their calendar.",
-            "Play connected" to "Link a tournament match to your Scoreboard.",
+            "Play connected" to "Your table on the Scoreboard, Report sends the result.",
         ),
     ),
     Page(
