@@ -212,6 +212,11 @@ Middle · 4 ways). Okay wants some feedback work done first.
 5. Crash on Players 4 → 2: SwiftUI updated the four-player table once more with the duel's state and seats 3
    and 4 read past the end; seats the state lacks draw nothing now (31e30e7). Found with a scratch simulator
    build (swiftc and actool, no xcodebuild) that drives the switch and reads the crash report.
+6. Debug builds: Settings › Debug › Fake live event, so event mode can be tried without a live event.
+   `FakeLiveEvent` answers every PlayRiftbound call from a made-up Summoner Skirmish (round 3 running, your
+   table open, best of 3), every time moved to the moment of the switch; a report or registration is only
+   noted, nothing goes to Riot. `tools/fake-live-event/build.sh` packs the answers into
+   `FakeLiveEventData.swift` (and Android's assets). All of it is `#if DEBUG`: release builds have none.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.

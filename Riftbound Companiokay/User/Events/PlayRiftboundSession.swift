@@ -72,6 +72,9 @@ nonisolated enum PlayRiftboundSession {
     /// `.sessionExpired` when the renewal did not help.
     @MainActor
     static func validCredentials(refreshingVia browser: PlayRiftboundBrowser) async throws -> PlayRiftboundCredentials? {
+        #if DEBUG
+        if FakeLiveEvent.isOn { return FakeLiveEvent.credentials }
+        #endif
         var found = await credentials()
         if found == nil {
             // WebKit hands out a data store's cookies only after a web view has used it in
@@ -97,6 +100,9 @@ nonisolated enum PlayRiftboundSession {
 
     @MainActor
     static func renewed(via browser: PlayRiftboundBrowser) async throws -> PlayRiftboundCredentials {
+        #if DEBUG
+        if FakeLiveEvent.isOn { return FakeLiveEvent.credentials }
+        #endif
         if renewal == nil, let failed = lastFailedRenewal, Date().timeIntervalSince(failed) < failedRenewalPause {
             throw PlayRiftboundError.sessionExpired
         }
@@ -124,6 +130,9 @@ nonisolated enum PlayRiftboundSession {
     /// otherwise nothing. Never renews and never fails, so public data loads either way.
     @MainActor
     static func publicCredentials() async -> PlayRiftboundCredentials? {
+        #if DEBUG
+        if FakeLiveEvent.isOn { return FakeLiveEvent.credentials }
+        #endif
         guard let found = await credentials(), !found.isExpired else { return nil }
         return found
     }

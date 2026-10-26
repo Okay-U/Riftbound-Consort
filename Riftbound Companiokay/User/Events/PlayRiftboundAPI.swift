@@ -225,18 +225,22 @@ nonisolated final class PlayRiftboundAPI: Sendable {
             request.setValue("Cookie \(PlayRiftboundSession.accessCookie)", forHTTPHeaderField: "Authorization")
         }
 
-        let (data, response) = try await Self.session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw PlayRiftboundError.badResponse }
-        if http.statusCode == 401 || http.statusCode == 403 {
+        #if DEBUG
+        // Settings › Debug › Fake live event: answered here, nothing goes to Riot.
+        let (data, status) = FakeLiveEvent.isOn ? FakeLiveEvent.answer(to: request, operation: operation) : try await Self.send(request)
+        #else
+        let (data, status) = try await Self.send(request)
+        #endif
+        if status == 401 || status == 403 {
             // Without a session a 401/403 is the gateway or CDN, not an expired sign-in.
-            throw credentials == nil ? PlayRiftboundError.http(http.statusCode) : PlayRiftboundError.sessionExpired
+            throw credentials == nil ? PlayRiftboundError.http(status) : PlayRiftboundError.sessionExpired
         }
 
         let envelope: GraphQLEnvelope<T>
         do {
             envelope = try Self.decoder.decode(GraphQLEnvelope<T>.self, from: data)
         } catch {
-            guard (200..<300).contains(http.statusCode) else { throw PlayRiftboundError.http(http.statusCode) }
+            guard (200..<300).contains(status) else { throw PlayRiftboundError.http(status) }
             log.error("\(operation, privacy: .public): undecodable response: \(String(describing: error), privacy: .public)")
             throw PlayRiftboundError.badResponse
         }
@@ -254,6 +258,12 @@ nonisolated final class PlayRiftboundAPI: Sendable {
         }
         guard let payload = envelope.data else { throw PlayRiftboundError.badResponse }
         return payload
+    }
+
+    private static func send(_ request: URLRequest) async throws -> (Data, Int) {
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw PlayRiftboundError.badResponse }
+        return (data, http.statusCode)
     }
 
     private static let appVersion: String =
