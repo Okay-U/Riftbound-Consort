@@ -107,14 +107,17 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
     )
     Column(Modifier.fillMaxWidth().height(area)) {
         Half(c, OPPONENT, board, Modifier.weight(1f).graphicsLayer { rotationZ = 180f }, art = art[OPPONENT] != null)
-        Half(c, YOU, board, Modifier.weight(1f), art = art[YOU] != null)
+        Half(c, YOU, board, Modifier.weight(1f), art = art[YOU] != null, extend = screen - area)
     }
     Seam(c, match, Modifier.align(Alignment.TopCenter).offset(y = center - 27.dp).padding(horizontal = 10.dp))
 }
 
-/** [art]: its legend's picture is behind it, so a shade behind the number and the mock's pills for art. */
+/**
+ * [art]: its legend's picture is behind it, so a shade behind the number and the mock's pills for art. [extend]: how
+ * far its field runs on past its outer edge (under the tab bar), so the shade does too.
+ */
 @Composable
-private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier: Modifier, art: Boolean = false) {
+private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier: Modifier, art: Boolean = false, extend: Dp = 0.dp) {
     val s = c.state
     val d = c.duel
     val accent = swatches[slot].color
@@ -124,7 +127,7 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
     // A tap on the score asks the action pills to light up.
     var cue by remember { mutableIntStateOf(0) }
     val shade by animateFloatAsState(if (art) 1f else 0f, tween(600), label = "shade")
-    Box(modifier.fillMaxWidth().drawBehind { if (shade > 0f) legendShade(shade) }) {
+    Box(modifier.fillMaxWidth().drawBehind { if (shade > 0f) legendShade(shade, extend.toPx()) }) {
         Column(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = 34.dp, bottom = 18.dp).graphicsLayer { this.alpha = alpha }) {
             if (d != null) {
                 DuelSide(c, d, slot, accent, ink, Modifier.fillMaxSize())
