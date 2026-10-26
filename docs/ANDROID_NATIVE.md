@@ -380,10 +380,16 @@ their own fields. Conquer is white with ink at 0.75 of the depth, the other pill
 glow at rest. Four players: the leader at 1.125 of the depth, the near row's colours under the tab bar. The Colors
 page preview follows. `SeatShadeTest` checks every colour.
 
-Planned, not built (Okay's picks 2026-10-26, both platforms): each half can show its legend's Data Dragon splash,
-clipped at the territory line, behind a "Legend art" switch (off by default, in both setup sheets and Settings). Full
-spec in the redesign branch's `docs/IOS_REDESIGN.md` ("Planned: score tile look"); mocks on
-https://claude.ai/artifact/68cipuSRxXGtdgqTKkvXL2.
+Scoreboard, Legend art (2026-10-26, Okay's pick from the mocks, iOS the same; spec in the redesign branch's
+`docs/IOS_REDESIGN.md` "Score tile look", mocks on https://claude.ai/artifact/68cipuSRxXGtdgqTKkvXL2): with the
+`legendArt` switch on (off by default; a Most used tile on its own row and a row at the top of both setup sheets,
+`ToggleRow`) a half shows its legend's champion as Data Dragon's base splash. `LegendArt` turns the legend's name
+into the id (all nine exceptions of Data Dragon's 173 champions; `LegendArtTest`); `rememberLegendPicture` loads it
+through `CardImages` (memory and disk) as soon as a legend is picked. `LegendPicture` draws it fixed to the screen,
+hanging from the board's middle, 90dp past it with a 70dp fade (`BlendMode.DstIn` in an offscreen layer), cut at the
+territory line while drawing (no recomposition), darkened to 72 %; the far half's is turned round. Over it the
+seat's colour at 22 %; `legendShade` puts the radial shade behind the number, which gets a soft shadow; the pills
+take the mock's art look. A half without its picture keeps colour model C. Legend art and Players each take a whole row.
 
 ## Code review before release (2026-10-22)
 One pass, five reviewers in parallel (Android by area, plus the new iOS commits), every finding checked against

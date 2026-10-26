@@ -52,6 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.graphics.Shadow as TextShadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -122,11 +124,17 @@ private fun XpButton(text: String, label: String, enabled: Boolean, accent: Colo
 
 /** The big number: the old value blurs up and away, the new one rises in, a drop of colour spreads. */
 @Composable
-fun ScoreNumber(value: Int, accent: Color, won: Boolean, label: String, modifier: Modifier = Modifier, showTarget: Boolean = true, sizeDp: Float = 188f) {
-    val numberSize = with(LocalDensity.current) { sizeDp.dp.toSp() }
+fun ScoreNumber(
+    value: Int, accent: Color, won: Boolean, label: String, modifier: Modifier = Modifier, showTarget: Boolean = true, sizeDp: Float = 188f,
+    shadowed: Boolean = false,
+) {
+    val density = LocalDensity.current
+    val numberSize = with(density) { sizeDp.dp.toSp() }
+    // Over Legend art ([shadowed]): the mock's soft shadow, so the number stands off the picture.
+    val shadow = if (shadowed) with(density) { TextShadow(Color.Black.copy(alpha = 0.6f), Offset(0f, 6.dp.toPx()), 34.dp.toPx()) } else null
     val style = TextStyle(
         fontFamily = RiftType.Display, fontWeight = FontWeight.Black, fontSize = numberSize, lineHeight = numberSize,
-        fontFeatureSettings = "tnum", color = Color.White, textAlign = TextAlign.Center,
+        fontFeatureSettings = "tnum", color = Color.White, textAlign = TextAlign.Center, shadow = shadow,
     )
     val lift by animateFloatAsState(if (won) 1f else 0f, tween(1100, easing = RiftEase), label = "won")
     Box(
@@ -166,7 +174,7 @@ fun ScoreNumber(value: Int, accent: Color, won: Boolean, label: String, modifier
             BasicText(
                 "OF $TARGET",
                 Modifier.align(Alignment.BottomCenter).offset(y = 10.dp),
-                style = Caps.copy(fontWeight = FontWeight.Normal, fontSize = 12.sp, letterSpacing = 0.2.em, color = Color.White.copy(alpha = 0.74f)),
+                style = Caps.copy(fontWeight = FontWeight.Normal, fontSize = 12.sp, letterSpacing = 0.2.em, color = Color.White.copy(alpha = 0.74f), shadow = shadow),
             )
         }
     }
@@ -189,14 +197,14 @@ private fun Drop(value: Int, accent: Color, sizeDp: Float) {
     )
 }
 
-/** [cue] is bumped by a tap on the score: the +1 pills light up together (Okay, 2026-10-26). */
+/** [cue] is bumped by a tap on the score: the +1 pills light up together (Okay, 2026-10-26). [art]: over Legend art. */
 @Composable
-fun ActionRow(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Unit, onEffect: () -> Unit, onFix: () -> Unit, height: Float = 54f, cue: Int = 0) {
+fun ActionRow(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Unit, onEffect: () -> Unit, onFix: () -> Unit, height: Float = 54f, cue: Int = 0, art: Boolean = false) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), height, true, accent, ink, onConquer, cue, cued = true)
-        ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), height, false, accent, ink, onHold, cue, cued = true)
-        ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), height, false, accent, ink, onEffect, cue, cued = true)
-        ActionButton("Fix", "−1", "Correct, minus one point", Modifier.weight(1f), height, false, accent, ink, onFix)
+        ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), height, true, accent, ink, onConquer, cue, cued = true, art = art)
+        ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), height, false, accent, ink, onHold, cue, cued = true, art = art)
+        ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), height, false, accent, ink, onEffect, cue, cued = true, art = art)
+        ActionButton("Fix", "−1", "Correct, minus one point", Modifier.weight(1f), height, false, accent, ink, onFix, art = art)
     }
 }
 
@@ -240,14 +248,15 @@ private fun LitPress(onClick: () -> Unit, modifier: Modifier, label: String, ena
 }
 
 /**
- * Colour model C: Conquer is white with ink in the half's colour, the others dark with a light rim; a tapped pill
+ * Colour model C: Conquer is white with ink in the half's colour, the others dark with a light rim; over Legend art
+ * ([art]) the mock's pills: Conquer filled in the half's colour and glowing, the others black 50 %. A tapped pill
  * lights up in the half's colour for a moment. A tap on the score makes the +1 pills breathe together in a soft
  * halo of that colour ([cue]; Fix stays out of it): points go here, not on the number.
  */
 @Composable
 private fun ActionButton(
     title: String, delta: String, label: String, modifier: Modifier, height: Float, filled: Boolean, accent: Color, ink: Color,
-    onClick: () -> Unit, cue: Int = 0, cued: Boolean = false,
+    onClick: () -> Unit, cue: Int = 0, cued: Boolean = false, art: Boolean = false,
 ) {
     val shape = RoundedCornerShape(50)
     val conquerInk = remember(accent) { SeatShade.deep(accent, 0.75f) }
@@ -265,15 +274,22 @@ private fun ActionButton(
     LitPress(onClick, modifier.height(height.dp).graphicsLayer { val k = 1f + 0.03f * glow.value; scaleX = k; scaleY = k }, label) { pressed ->
         val g = glow.value
         val lit = maxOf(pressed, 0.4f * g)
+        // Art's Conquer glows at rest like the mock; any pill glows while pressed.
+        val light = if (art && filled) 0.45f + 0.35f * pressed else 0.5f * pressed
+        val fill = when {
+            filled && art -> lerp(accent, Color.White, 0.3f * lit)
+            filled -> lerp(Color.White, accent, 0.3f * lit)
+            else -> lerp(Color.Black.copy(alpha = if (art) 0.5f else 0.24f), accent, 0.9f * lit)
+        }
         Box(
             Modifier.matchParentSize()
-                // The cue's halo, then the press's own light.
+                // The cue's halo, then the pill's own light.
                 .let { if (g > 0f) it.dropShadow(shape, Shadow(radius = 28.dp, color = accent.copy(alpha = 0.75f * g), spread = (5 * g).dp)) else it }
-                .let { if (pressed > 0f) it.dropShadow(shape, Shadow(radius = (26 + 12 * pressed).dp, color = accent.copy(alpha = 0.5f * pressed))) else it }
-                .background(if (filled) lerp(Color.White, accent, 0.3f * lit) else lerp(Color.Black.copy(alpha = 0.24f), accent, 0.9f * lit), shape)
-                .let { if (filled) it else it.border(1.dp, lerp(Color.White.copy(alpha = 0.28f), accent, lit), shape) },
+                .let { if (light > 0f) it.dropShadow(shape, Shadow(radius = (26 + 12 * pressed).dp, color = accent.copy(alpha = light))) else it }
+                .background(fill, shape)
+                .let { if (filled) it else it.border(1.dp, lerp(Color.White.copy(alpha = if (art) 0.2f else 0.28f), accent, lit), shape) },
         )
-        val text = if (filled) conquerInk else lerp(Color.White, ink, pressed)
+        val text = if (filled) (if (art) ink else conquerInk) else lerp(Color.White, ink, pressed)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             BasicText(title, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 15.sp, color = text))
             BasicText(

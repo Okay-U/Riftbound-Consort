@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import pitopia.riftcount.cards.CardStore
+import pitopia.riftcount.data.AppSettings
 import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.ui.theme.RiftEase
 
@@ -70,8 +71,11 @@ fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, ca
 private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, screen: Dp, match: MatchInfo?) {
     val s = c.state
     val d = c.duel
-    // Colour model C: the fields take the seat colours deep, what the board draws in them is lifted to show.
-    val fields = swatches.map { SeatShade.deep(it.color) }
+    // Legend art by seat, loaded as soon as the switch is on and a legend is picked.
+    val art = List(2) { slot -> rememberLegendPicture(if (AppSettings.legendArt.on) c.legendArtUrl(slot) else null).value }
+    // Colour model C: the fields take the seat colours deep, what the board draws in them is lifted to show. Over a
+    // picture the field is the seat's colour at 22 %.
+    val fields = List(2) { slot -> if (art[slot] != null) swatches[slot].color.copy(alpha = 0.22f) else SeatShade.deep(swatches[slot].color) }
     val board = swatches.map { it.copy(color = SeatShade.lift(it.color)) }
     val colors = board.map { it.color }
     val center = area / 2
@@ -90,6 +94,8 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
         else -> -1
     }
     val lineColor by animateColorAsState(if (leader < 0) Color.White.copy(alpha = 0.7f) else colors[leader], tween(600), label = "lineColor")
+    LegendPicture(art[OPPONENT], turned = true, middle = center, line = { line }, screen = screen)
+    LegendPicture(art[YOU], turned = false, middle = center, line = { line }, screen = screen)
     // Each field is one screen tall, so the opponent's reaches the top and yours runs under the tab bar.
     Box(Modifier.fillMaxWidth().height(screen).graphicsLayer { translationY = (line - screen).toPx() }.background(fields[OPPONENT]))
     Box(Modifier.fillMaxWidth().height(screen).graphicsLayer { translationY = line.toPx() }.background(fields[YOU]))
@@ -100,14 +106,15 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
             .background(lineColor),
     )
     Column(Modifier.fillMaxWidth().height(area)) {
-        Half(c, OPPONENT, board, Modifier.weight(1f).graphicsLayer { rotationZ = 180f })
-        Half(c, YOU, board, Modifier.weight(1f))
+        Half(c, OPPONENT, board, Modifier.weight(1f).graphicsLayer { rotationZ = 180f }, art = art[OPPONENT] != null)
+        Half(c, YOU, board, Modifier.weight(1f), art = art[YOU] != null)
     }
     Seam(c, match, Modifier.align(Alignment.TopCenter).offset(y = center - 27.dp).padding(horizontal = 10.dp))
 }
 
+/** [art]: its legend's picture is behind it, so a shade behind the number and the mock's pills for art. */
 @Composable
-private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier: Modifier) {
+private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier: Modifier, art: Boolean = false) {
     val s = c.state
     val d = c.duel
     val accent = swatches[slot].color
@@ -116,7 +123,8 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
     val alpha by animateFloatAsState(if (dim) 0.32f else 1f, tween(900, easing = RiftEase), label = "dim")
     // A tap on the score asks the action pills to light up.
     var cue by remember { mutableIntStateOf(0) }
-    Box(modifier.fillMaxWidth()) {
+    val shade by animateFloatAsState(if (art) 1f else 0f, tween(600), label = "shade")
+    Box(modifier.fillMaxWidth().drawBehind { if (shade > 0f) legendShade(shade) }) {
         Column(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = 34.dp, bottom = 18.dp).graphicsLayer { this.alpha = alpha }) {
             if (d != null) {
                 DuelSide(c, d, slot, accent, ink, Modifier.fillMaxSize())
@@ -126,10 +134,10 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
                     shown = !s.gameOver, onName = { c.openSetup(slot) },
                 )
                 Box(Modifier.weight(1f).fillMaxWidth().pointerInput(Unit) { detectTapGestures { cue++ } }, contentAlignment = Alignment.Center) {
-                    ScoreNumber(s.players[slot].score, accent, won = s.winner == slot, label = "${haves(c.shortName(slot))} ${s.players[slot].score} of $TARGET points")
+                    ScoreNumber(s.players[slot].score, accent, won = s.winner == slot, label = "${haves(c.shortName(slot))} ${s.players[slot].score} of $TARGET points", shadowed = art)
                 }
                 when {
-                    !s.gameOver -> ActionRow(accent, ink, { c.score(slot, PointKind.Conquer) }, { c.score(slot, PointKind.Hold) }, { c.score(slot, PointKind.Effect) }, { c.fix(slot) }, cue = cue)
+                    !s.gameOver -> ActionRow(accent, ink, { c.score(slot, PointKind.Conquer) }, { c.score(slot, PointKind.Hold) }, { c.score(slot, PointKind.Effect) }, { c.fix(slot) }, cue = cue, art = art)
                     s.winner == slot -> NextGameButton("Next game", accent, ink, c::nextGame)
                     else -> Spacer(Modifier.height(54.dp))
                 }

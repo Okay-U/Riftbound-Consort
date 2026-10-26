@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
@@ -44,6 +45,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -81,6 +83,7 @@ object SettingsIcons {
         20.dp,
     )
     val Match = lineIcon("M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3", 20.dp)
+    val Art = lineIcon("M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 7a2 2 0 1 0 0 4a2 2 0 1 0 0-4zM21 15l-3.1-3.1a2 2 0 0 0-2.8 0L6 21", 20.dp)
     val Tour = lineIcon("M12 3l2.2 5.5L20 9l-4.5 3.8L17 19l-5-3.3L7 19l1.5-6.2L4 9l5.8-.5z", 20.dp)
     val Trophy = lineIcon("M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0z", 20.dp)
     val Book = lineIcon("M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7", 20.dp)
@@ -136,6 +139,21 @@ fun LinkRow(
 ) {
     val source = remember { MutableInteractionSource() }
     RowShell(label, icon, sub, divider, false, source, Modifier.clickable(source, null, role = Role.Button, onClick = onClick), trailing)
+}
+
+/** A row with a switch (iOS `ToggleRow`): the whole row toggles. */
+@Composable
+fun ToggleRow(label: String, icon: ImageVector?, sub: String? = null, divider: Boolean = true, on: Boolean, onToggle: (Boolean) -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    RowShell(label, icon, sub, divider, on, source, Modifier.toggleable(on, source, null, role = Role.Switch, onValueChange = onToggle)) { SwitchThumb(on) }
+}
+
+@Composable
+private fun SwitchThumb(on: Boolean) {
+    val t by animateFloatAsState(if (on) 1f else 0f, tween(250, easing = RiftEase), label = "switch")
+    Box(Modifier.size(51.dp, 31.dp).background(lerp(Color.White.copy(alpha = 0.16f), RiftColors.You, t), RoundedCornerShape(50)).padding(2.dp)) {
+        Box(Modifier.offset(x = 20.dp * t).size(27.dp).background(Color.White, CircleShape))
+    }
 }
 
 /** [modifier] carries the row's click or toggle; [source] its presses. */
