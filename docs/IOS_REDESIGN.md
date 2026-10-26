@@ -198,14 +198,21 @@ Middle · 4 ways). Okay wants some feedback work done first.
     `Renata` (57 legend champions on 2026-10-26). Loaded through the existing image caches (iOS
     `CachedRemoteImage`, Android `CardImages`) and prefetched as soon as the deck or the opponent legend is
     picked; a picture that cannot load leaves its half on C. No app size, new legends work by themselves.
+  - Built on iOS (step 3): `LegendArt` takes the champion from the legend's name (before " - " or ", ", a
+    printing's "(…)" dropped) and knows all nine Data Dragon ids that are not the letters (checked against
+    all 173 champions of Data Dragon 16.13: also Bel'Veth, Cho'Gath, Vel'Koz, Wukong → `MonkeyKing`, Nunu &
+    Willump → `Nunu`); `tools/check-scoreboard` checks the names. The board loads both pictures through
+    `ImageCache` as soon as the switch is on and a legend is picked, decodes them before they show
+    (`byPreparingForDisplay`) and fades them in; `LegendPicture` draws one, `LegendShade` the shade. The
+    switch is `legendArt` (off): a full-width tile in Settings' Most used and a row at the top of both setup
+    sheets. Pictures come from Riot's Data Dragon only while the switch is on.
   - Layout: the picture is fixed to the screen and anchored at the middle, reaches about 90 pt past it
     with a 70 pt fade, and is clipped at the territory line (in the draw phase, no relayout); the line's
     glow covers the cut, so the leader gets more of their picture. Over the art: the seat tint at 22 %,
     the art at brightness 0.72, a dark radial shade behind the number and a soft text shadow. Art halves
     keep variant 1's pills: Conquer filled in the seat colour with its glow, the others black 50 %.
-- **Steps:** 1 iOS colour C (done, 2b48ccb) · 2 Android colour C (done, 7f86ff1) · 3 iOS legend art (key map with a small check, loading
-  and prefetch, the layer, the switch, the fallback) · 4 Android legend art · 5 docs and memory. One commit
-  per step; Okay checks each.
+- **Steps:** 1 iOS colour C (done, 2b48ccb) · 2 Android colour C (done, 7f86ff1) · 3 iOS legend art (done) ·
+  4 Android legend art · 5 docs and memory. One commit per step; Okay checks each.
 
 ## Feedback round 2 (Okay, 2026-10-26)
 

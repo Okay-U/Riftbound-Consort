@@ -84,6 +84,8 @@ private struct XpButton: View {
 
 struct ActionRow: View {
     let accent: Color
+    /// Its half shows Legend art: the mock's pills for art.
+    var art = false
     /// Bumped by a tap on the score: the +1 pills light up together (Okay, 2026-10-26).
     var cue = 0
     let onConquer: () -> Void
@@ -94,10 +96,10 @@ struct ActionRow: View {
     var body: some View {
         GlassGroup(spacing: 8) {
             HStack(spacing: 8) {
-                ActionButton(title: "Conquer", delta: "+1", label: "Conquer, plus one point", filled: true, accent: accent, cue: cue, cued: true, action: onConquer)
-                ActionButton(title: "Hold", delta: "+1", label: "Hold, plus one point", filled: false, accent: accent, cue: cue, cued: true, action: onHold)
-                ActionButton(title: "Effect", delta: "+1", label: "Card effect, plus one point", filled: false, accent: accent, cue: cue, cued: true, action: onEffect)
-                ActionButton(title: "Fix", delta: "−1", label: "Correct, minus one point", filled: false, accent: accent, action: onFix)
+                ActionButton(title: "Conquer", delta: "+1", label: "Conquer, plus one point", filled: true, accent: accent, art: art, cue: cue, cued: true, action: onConquer)
+                ActionButton(title: "Hold", delta: "+1", label: "Hold, plus one point", filled: false, accent: accent, art: art, cue: cue, cued: true, action: onHold)
+                ActionButton(title: "Effect", delta: "+1", label: "Card effect, plus one point", filled: false, accent: accent, art: art, cue: cue, cued: true, action: onEffect)
+                ActionButton(title: "Fix", delta: "−1", label: "Correct, minus one point", filled: false, accent: accent, art: art, action: onFix)
             }
         }
     }
@@ -142,8 +144,9 @@ struct ActionGrid: View {
     }
 }
 
-/// Colour model C: Conquer is white with ink in the half's colour, the others dark with a light rim; a tapped
-/// pill lights up in the half's colour for a moment. Liquid Glass on iOS 26 (Okay, 2026-10-22), the mock's
+/// Colour model C: Conquer is white with ink in the half's colour, the others dark with a light rim; over Legend
+/// art the mock's pills: Conquer filled in the half's colour and glowing, the others black 50 %. A tapped pill
+/// lights up in the half's colour for a moment. Liquid Glass on iOS 26 (Okay, 2026-10-22), the mock's
 /// capsules before. A tap on the score makes the +1 pills breathe together in a soft halo of that colour
 /// (`cue`; Okay, 2026-10-26): points go here, not on the number.
 private struct ActionButton: View {
@@ -152,6 +155,7 @@ private struct ActionButton: View {
     let label: String
     let filled: Bool
     let accent: Color
+    var art = false
     var height: CGFloat = 54
     var cue = 0
     /// Answers the cue; Fix stays out of it.
@@ -182,13 +186,13 @@ private struct ActionButton: View {
     }
 
     @ViewBuilder private var button: some View {
-        let ink = accent.deep(0.75)
+        let ink = art ? accent.ink : accent.deep(0.75)
         if #available(iOS 26, *) {
             LitButton(accessibility: label, pressedScale: 1, action: action) { pressed in
                 let lit = max(pressed, 0.4 * glow)
                 face(color: filled ? ink : .white)
                     .glassEffect(.regular.tint(fill(lit)).interactive(), in: Capsule())
-                    .shadow(color: accent.opacity(0.5 * pressed), radius: 13 + 6 * pressed)
+                    .shadow(color: accent.opacity(glow(pressed)), radius: 13 + 6 * pressed)
             }
         } else {
             LitButton(accessibility: label, action: action) { pressed in
@@ -197,18 +201,22 @@ private struct ActionButton: View {
                     .background {
                         Capsule()
                             .fill(fill(lit))
-                            .shadow(color: accent.opacity(0.5 * pressed), radius: 13 + 6 * pressed)
+                            .shadow(color: accent.opacity(glow(pressed)), radius: 13 + 6 * pressed)
                     }
                     .overlay {
-                        if !filled { Capsule().stroke(Color.white.opacity(0.28).mix(with: accent, by: lit), lineWidth: 1) }
+                        if !filled { Capsule().stroke(Color.white.opacity(art ? 0.2 : 0.28).mix(with: accent, by: lit), lineWidth: 1) }
                     }
             }
         }
     }
 
     private func fill(_ lit: CGFloat) -> Color {
-        filled ? Color.white.mix(with: accent, by: 0.3 * lit) : Color.black.opacity(0.24).mix(with: accent, by: 0.9 * lit)
+        if filled { return art ? accent.mix(with: .white, by: 0.3 * lit) : Color.white.mix(with: accent, by: 0.3 * lit) }
+        return Color.black.opacity(art ? 0.5 : 0.24).mix(with: accent, by: 0.9 * lit)
     }
+
+    /// Art's Conquer glows at rest like the mock; any pill glows while pressed.
+    private func glow(_ pressed: CGFloat) -> Double { art && filled ? 0.45 + 0.35 * pressed : 0.5 * pressed }
 
     private func face(color: Color) -> some View {
         VStack(spacing: 0) {

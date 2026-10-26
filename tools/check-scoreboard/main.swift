@@ -203,4 +203,16 @@ do {
     check(SeatShade.lift(green) == green && SeatShade.lift(violet) == violet, "the default colours stay")
 }
 
+// Legend art: a legend's name to Data Dragon's splash.
+do {
+    func id(_ legend: String) -> String? { LegendArt.url(legend: legend)?.lastPathComponent }
+    check(id("Jinx - Loose Cannon") == "Jinx_0.jpg", "plain name")
+    check(id("Kai'Sa - Daughter of the Void") == "Kaisa_0.jpg" && id("LeBlanc - Deceiver") == "Leblanc_0.jpg", "Data Dragon's own ids")
+    check(id("Renata Glasc - Chem-Baroness") == "Renata_0.jpg" && id("Kha'Zix - Voidreaver") == "Khazix_0.jpg", "more own ids")
+    check(id("Jarvan IV - Exemplar of Demacia") == "JarvanIV_0.jpg" && id("K'Sante - Pride of Nazumah") == "KSante_0.jpg", "letters kept")
+    check(id("Master Yi - Wuju Master") == "MasterYi_0.jpg" && id("Lee Sin, Blind Monk") == "LeeSin_0.jpg", "two words, comma")
+    check(id("Darius - Hand of Noxus (Signature)") == "Darius_0.jpg", "printing suffix")
+    check(id("") == nil && id("  ") == nil, "no name")
+}
+
 print("scoreboard rules ok (\(checks) checks)")

@@ -27,6 +27,7 @@ struct RiftSettingsView: View {
     @AppStorage("keepScreenOn") private var keepScreenOn = true
     @AppStorage("trueBlack") private var trueBlack = true
     @AppStorage("matchModeEnabled") private var matchMode = true
+    @AppStorage("legendArt") private var legendArt = false
     @AppStorage("playerCount") private var playerCount = 2
     @AppStorage("classicDesign") private var classicDesign = false
     /// The scoreboard's colours, so the Player colors row redraws after a pick.
@@ -141,10 +142,11 @@ struct RiftSettingsView: View {
         "The phone does not sleep while Riftcount is open.",
         "Pure #000 background. Saves battery on OLED screens and looks deepest.",
         "In a live tournament the scoreboard shows your table, opponent and a Report button.",
+        "Your deck's legend and the opponent's as splash art behind their halves, once picked in the game setup.",
         "2 is the face-to-face duel. 4 splits the table for free-for-all games.",
     ]
 
-    /// The switches, then Players; the odd one out takes the whole row.
+    /// The switches, then Players; an odd one out takes the whole row.
     private var tiles: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
@@ -155,13 +157,14 @@ struct RiftSettingsView: View {
                 switchTile(2, "True black", "moon", $trueBlack) { on in show(on ? "True black · pure #000 for OLED" : "Dark grey background") }
                 switchTile(3, "Match mode", "trophy", $matchMode)
             }
-            FlipTile(label: "Players", info: Self.info[4], darkInfo: false) {
+            switchTile(4, "Legend art", "photo.artframe", $legendArt)
+            FlipTile(label: "Players", info: Self.info[5], darkInfo: false) {
                 PlayersFace(players: playerCount) {
                     playerCount = playerCount == 2 ? 4 : 2
                     Haptics.selection()
                 }
             }
-            .riseIn(appeared, delay: 0.06 + 4 * 0.045)
+            .riseIn(appeared, delay: 0.06 + 5 * 0.045)
         }
         .padding(.top, 8)
     }

@@ -71,6 +71,13 @@ final class ScoreController: ObservableObject {
         legend(slot).components(separatedBy: " · ").first ?? legend(slot)
     }
 
+    /// The splash of your deck's legend or the opponent's (Legend art); nil while that legend is unknown.
+    func legendArtURL(_ slot: Int) -> URL? {
+        guard state.isDuel else { return nil }
+        let legend = slot == Seat.you ? activeDeck?.legend?.cardName : opponent
+        return legend.flatMap(LegendArt.url)
+    }
+
     private var activeDeck: Decklist? {
         decks?.lists.first { $0.id.uuidString.caseInsensitiveCompare(deckId) == .orderedSame }
     }

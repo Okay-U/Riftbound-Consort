@@ -25,6 +25,7 @@ struct DeckPickSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     SheetText("Its legend names your half; finished games go into its match log.")
+                    LegendArtSwitch()
                     PickRow(title: "No deck", sub: "Games count for all decks only", on: c.deckId.isEmpty) {
                         c.pickDeck("")
                         dismiss()
@@ -90,6 +91,7 @@ struct OpponentPickSheet: View {
         return VStack(alignment: .leading, spacing: 8) {
             SheetText("Names their half and the game in the match log.")
             if needle.isEmpty {
+                LegendArtSwitch()
                 PickRow(title: "Unknown", on: c.opponent.trimmingCharacters(in: .whitespaces).isEmpty) {
                     c.pickOpponent("")
                     dismiss()
@@ -116,6 +118,18 @@ struct OpponentPickSheet: View {
             c.pickOpponent(name)
             dismiss()
         }
+    }
+}
+
+/// Legend art, the same switch as the Settings tile: off by default.
+private struct LegendArtSwitch: View {
+    @AppStorage("legendArt") private var legendArt = false
+
+    var body: some View {
+        SettingsGroup {
+            ToggleRow(title: "Legend art", symbol: "photo.artframe", sub: "The legends' splash art behind their halves", divider: false, isOn: $legendArt)
+        }
+        .padding(.bottom, 4)
     }
 }
 

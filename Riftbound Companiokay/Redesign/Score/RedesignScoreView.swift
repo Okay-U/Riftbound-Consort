@@ -9,6 +9,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct RedesignScoreView: View {
     @EnvironmentObject private var games: GameRecordStore
@@ -129,11 +130,17 @@ private struct DuelBoard: View {
     let onCheck: () -> Void
     let onOpenEvent: (() -> Void)?
     let onReport: (TableLink) -> Void
+    @AppStorage("legendArt") private var legendArt = false
+    /// Legend art, ready to draw: loaded the moment a deck or an opponent legend is picked.
+    @State private var pictures: [URL: UIImage] = [:]
 
     var body: some View {
         let s = c.state
         let roll = c.firstRoll
         let seats = PlayerSwatches.colors(players: 2)
+        // By seat; a half without its picture keeps colour model C.
+        let urls = (0..<2).map { legendArt ? c.legendArtURL($0) : nil }
+        let art = urls.map { $0.flatMap { pictures[$0] } }
         // What the board draws in a seat's colour; the fields take the colour itself, deep.
         let colors = seats.map(\.lifted)
         let center = area / 2
@@ -145,19 +152,32 @@ private struct DuelBoard: View {
         }()
         ZStack(alignment: .top) {
             TerritoryFields(
-                line: lineTarget(s, roll, center: center) + topInset,
-                fields: seats.map { $0.deep() },
+                line: lineTarget(s, roll, center: center) + topInset, middle: center + topInset,
+                seats: seats, pictures: art,
                 lineColor: leader < 0 ? .white.opacity(0.7) : colors[leader]
             )
             .ignoresSafeArea()
             VStack(spacing: 0) {
-                Half(c: c, slot: Seat.opponent, colors: colors).rotationEffect(.degrees(180))
-                Half(c: c, slot: Seat.you, colors: colors)
+                Half(c: c, slot: Seat.opponent, colors: colors, art: art[Seat.opponent] != nil).rotationEffect(.degrees(180))
+                Half(c: c, slot: Seat.you, colors: colors, art: art[Seat.you] != nil)
             }
             .frame(height: area)
             Seam(c: c, match: match, checking: checking, onCheck: onCheck, onOpenEvent: onOpenEvent, onReport: onReport)
                 .padding(.horizontal, 10)
                 .offset(y: center - 27)
+        }
+        .task(id: urls) { await load(urls.compactMap { $0 }) }
+    }
+
+    /// The pictures for `urls`, decoded before they show so the first reveal runs smooth; others are let go.
+    private func load(_ urls: [URL]) async {
+        pictures = pictures.filter { urls.contains($0.key) }
+        for url in urls where pictures[url] == nil {
+            guard let image = await ImageCache.shared.image(for: url) else { continue }
+            let ready = await image.byPreparingForDisplay() ?? image
+            // A pick in the meantime started a new load for other legends.
+            if Task.isCancelled { return }
+            withAnimation(.easeInOut(duration: 0.6)) { pictures[url] = ready }
         }
     }
 
@@ -174,19 +194,24 @@ private struct DuelBoard: View {
     }
 }
 
-/// The two fields and the glowing boundary; each field is one screen tall and only moves.
+/// The two fields and the glowing boundary; each field is one screen tall and only moves. A half with its
+/// legend's picture (Legend art) shows it under its colour at 22 %, cut at the line; the line's glow hides the cut.
 private struct TerritoryFields: View {
     /// From the top of the screen.
     let line: CGFloat
-    let fields: [Color]
+    let middle: CGFloat
+    let seats: [Color]
+    let pictures: [UIImage?]
     let lineColor: Color
 
     var body: some View {
         GeometryReader { geo in
             let height = geo.size.height
             ZStack(alignment: .top) {
-                Rectangle().fill(fields[Seat.opponent]).frame(height: height).offset(y: line - height)
-                Rectangle().fill(fields[Seat.you]).frame(height: height).offset(y: line)
+                LegendPicture(image: pictures[Seat.opponent], turned: true, middle: middle, line: line, screen: geo.size)
+                LegendPicture(image: pictures[Seat.you], turned: false, middle: middle, line: line, screen: geo.size)
+                Rectangle().fill(field(Seat.opponent)).frame(height: height).offset(y: line - height)
+                Rectangle().fill(field(Seat.you)).frame(height: height).offset(y: line)
                 Rectangle().fill(lineColor).frame(height: 10).blur(radius: 12).offset(y: line - 5)
                 Rectangle().fill(lineColor).frame(height: 2).offset(y: line - 1)
             }
@@ -196,12 +221,16 @@ private struct TerritoryFields: View {
         .animation(.rift(1.1), value: line)
         .animation(.easeInOut(duration: 0.6), value: lineColor)
     }
+
+    private func field(_ slot: Int) -> Color { pictures[slot] == nil ? seats[slot].deep() : seats[slot].opacity(0.22) }
 }
 
 private struct Half: View {
     @ObservedObject var c: ScoreController
     let slot: Int
     let colors: [Color]
+    /// Its legend's picture is behind it: a shade behind the number and the mock's pills for art.
+    var art = false
     /// A tap on the score asks the action pills to light up.
     @State private var cue = 0
 
@@ -229,6 +258,7 @@ private struct Half: View {
                                 size: max(40, min(188, box.size.height / 1.1, box.size.width / 1.38))
                             )
                             .frame(width: box.size.width, height: box.size.height)
+                            .shadow(color: .black.opacity(art ? 0.6 : 0), radius: 17, y: 6)
                             .contentShape(Rectangle())
                             .onTapGesture { if !s.gameOver { cue += 1 } }
                         }
@@ -261,12 +291,13 @@ private struct Half: View {
             .frame(maxHeight: .infinity, alignment: .bottom)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background { if art { LegendShade() } }
     }
 
     @ViewBuilder private func bottomRow(_ s: ScoreState, accent: Color) -> some View {
         if !s.gameOver {
             ActionRow(
-                accent: accent, cue: cue,
+                accent: accent, art: art, cue: cue,
                 onConquer: { c.score(slot, .conquer) }, onHold: { c.score(slot, .hold) },
                 onEffect: { c.score(slot, .effect) }, onFix: { c.fix(slot) }
             )

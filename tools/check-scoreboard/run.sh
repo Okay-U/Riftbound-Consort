@@ -9,6 +9,6 @@ app="$here/../../Riftbound Companiokay"
 tmp=$(mktemp -d)
 xcrun swiftc -O -o "$tmp/check" "$here/main.swift" \
   "$app/Redesign/Score/ScoreRules.swift" "$app/Redesign/Score/FirstRoll.swift" "$app/User/ScoreEvent.swift" \
-  "$app/Redesign/Score/SeatShade.swift" "$app/Palette.swift"
+  "$app/Redesign/Score/SeatShade.swift" "$app/Palette.swift" "$app/Redesign/Score/LegendArt.swift"
 "$tmp/check"
 rm -rf "$tmp"
