@@ -200,5 +200,18 @@ Middle · 4 ways). Okay wants some feedback work done first.
   and prefetch, the layer, the switch, the fallback) · 4 Android legend art · 5 docs and memory. One commit
   per step; Okay checks each.
 
+## Feedback round 2 (Okay, 2026-10-26)
+
+1. Deck screen: back, edit and export sat under the status bar. The top inset was read inside a reader that
+   ignores the safe area, where it is always 0; an outer reader keeps the safe area now (42e8785).
+2. Swipe back from the left edge in Cards (the card detail) and Decks (deck screen, match log, game review, the
+   shortlist's card): a screen-edge recognizer, as Events and Settings get from their pushes. The builder keeps
+   its buttons, so a slip cannot close a draft (729df81).
+3. The chosen round chip's glow was cut by its scroll row (306a44b).
+4. A shortlist card opens the card detail with Add to deck (both platforms).
+5. Crash on Players 4 → 2: SwiftUI updated the four-player table once more with the duel's state and seats 3
+   and 4 read past the end; seats the state lacks draw nothing now (31e30e7). Found with a scratch simulator
+   build (swiftc and actool, no xcodebuild) that drives the switch and reads the crash report.
+
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.

@@ -248,36 +248,62 @@ struct ImportDeckSheet: View {
 }
 
 /// The cards kept in mind, grouped like a deck's gallery. The star takes a card off; it stays until the sheet
-/// closes, dimmed, so a second tap puts it back.
+/// closes, dimmed, so a second tap puts it back. A tap on a card opens it as the Cards tab does, with Add to
+/// deck (Okay, 2026-10-26); the sheet goes to full height for it.
 struct RiftShortlistSheet: View {
     @EnvironmentObject private var cards: CardStore
     @EnvironmentObject private var shortlist: ShortlistStore
+    @EnvironmentObject private var errata: ErrataStore
+    @EnvironmentObject private var decks: DecklistStore
     @State private var shown: [Card]?
+    @State private var open: Card?
+    @State private var adding = false
+    @State private var detent: PresentationDetent = .medium
+    @Namespace private var hero
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    let kept = shown ?? []
-                    SheetNote(text: kept.isEmpty
-                              ? "Save a card on its Add to deck sheet in Cards. It waits here and in the builder."
-                              : "\(shortlist.ids.count) kept in mind · the star takes a card off")
-                    ForEach(DeckGallery.groups(kept.map { ($0, 1) }, byEnergy: false), id: \.label) { group in
-                        GroupHeader(label: group.label, count: group.cards.count)
-                            .padding(.top, 16)
-                            .padding(.bottom, 8)
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100, maximum: 170), spacing: 8)], spacing: 8) {
-                            ForEach(group.cards, id: \.0.id) { card, _ in KeptTile(card: card) }
+            ZStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        let kept = shown ?? []
+                        SheetNote(text: kept.isEmpty
+                                  ? "Save a card on its Add to deck sheet in Cards. It waits here and in the builder."
+                                  : "\(shortlist.ids.count) kept in mind · the star takes a card off")
+                        ForEach(DeckGallery.groups(kept.map { ($0, 1) }, byEnergy: false), id: \.label) { group in
+                            GroupHeader(label: group.label, count: group.cards.count)
+                                .padding(.top, 16)
+                                .padding(.bottom, 8)
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100, maximum: 170), spacing: 8)], spacing: 8) {
+                                ForEach(group.cards, id: \.0.id) { card, _ in
+                                    KeptTile(card: card, hero: hero, opened: open?.id == card.id) { openCard(card) }
+                                }
+                            }
                         }
                     }
+                    .padding(16)
                 }
-                .padding(16)
+                .opacity(open == nil ? 1 : 0.16)
+                if let open {
+                    CardDetailOverlay(
+                        card: open, hero: hero, erratum: errata.erratum(for: open),
+                        inDecks: decks.lists.filter { DeckRules.count(open, in: $0) > 0 }.count,
+                        onClose: close, onAdd: { adding = true }
+                    )
+                    .transition(.opacity)
+                    .zIndex(1)
+                }
             }
+            .edgeSwipeBack(enabled: open != nil, close)
             .navigationTitle("Shortlist")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar(open == nil ? .visible : .hidden, for: .navigationBar)
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $detent)
         .presentationDragIndicator(.visible)
+        .sheet(isPresented: $adding) {
+            if let open { RiftAddToDeckSheet(card: open) }
+        }
         .onAppear {
             cards.loadIfNeeded()
             if shown == nil { keep() }
@@ -289,33 +315,61 @@ struct RiftShortlistSheet: View {
         let index = Dictionary(cards.allCards.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         shown = shortlist.ids.compactMap { index[$0] }
     }
+
+    private func openCard(_ card: Card) {
+        guard open == nil else { return }
+        withAnimation(.rift(0.68)) {
+            open = card
+            detent = .large
+        }
+    }
+
+    private func close() {
+        adding = false
+        withAnimation(.timingCurve(0.2, 0, 0, 1, duration: 0.54)) { open = nil }
+    }
 }
 
 private struct KeptTile: View {
     let card: Card
+    let hero: Namespace.ID
+    /// Open in the detail: the tile has flown there.
+    let opened: Bool
+    let onOpen: () -> Void
     @EnvironmentObject private var shortlist: ShortlistStore
 
     var body: some View {
         let on = shortlist.contains(card.id)
-        CardTile(card: card, errata: false, imageWidth: 120)
-            .aspectRatio(cardAspect, contentMode: .fit)
-            .opacity(on ? 1 : 0.4)
-            .animation(.easeInOut(duration: 0.3), value: on)
-            .overlay(alignment: .topTrailing) {
-                Button {
-                    shortlist.toggle(card.id)
-                    Haptics.selection()
-                } label: {
-                    Image(systemName: on ? "star.fill" : "star")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(on ? Color.black : .white)
-                        .frame(width: 30, height: 30)
-                        .background(on ? RiftColor.you : .black.opacity(0.72), in: Circle())
-                        .padding(5)
-                        .contentShape(Circle())
+        Button(action: onOpen) {
+            Color.clear
+                .aspectRatio(cardAspect, contentMode: .fit)
+                .overlay {
+                    if !opened {
+                        CardTile(card: card, errata: false, imageWidth: 120)
+                            .matchedGeometryEffect(id: card.id, in: hero)
+                    }
                 }
-                .buttonStyle(PressScale())
-                .accessibilityLabel(on ? "Take \(card.name) off the shortlist" : "Put \(card.name) back on the shortlist")
+        }
+        .buttonStyle(PressScale(scale: 0.96))
+        .accessibilityLabel("Open \(card.name)")
+        .opacity(on ? 1 : 0.4)
+        .animation(.easeInOut(duration: 0.3), value: on)
+        .overlay(alignment: .topTrailing) {
+            Button {
+                shortlist.toggle(card.id)
+                Haptics.selection()
+            } label: {
+                Image(systemName: on ? "star.fill" : "star")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(on ? Color.black : .white)
+                    .frame(width: 30, height: 30)
+                    .background(on ? RiftColor.you : .black.opacity(0.72), in: Circle())
+                    .padding(5)
+                    .contentShape(Circle())
             }
+            .buttonStyle(PressScale())
+            .opacity(opened ? 0 : 1)
+            .accessibilityLabel(on ? "Take \(card.name) off the shortlist" : "Put \(card.name) back on the shortlist")
+        }
     }
 }
