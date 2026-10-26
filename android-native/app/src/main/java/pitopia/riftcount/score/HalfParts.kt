@@ -5,7 +5,6 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -47,13 +46,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.Shadow as TextShadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -71,6 +74,8 @@ import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
 private val Standard = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
+/** The cue's ripple (mock "C · Ripple"): out fast, settling soft. */
+private val Give = CubicBezierEasing(0.2f, 0.7f, 0.2f, 1f)
 private val Caps = TextStyle(fontFamily = RiftType.Text, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, letterSpacing = 0.14.em)
 
 @Composable
@@ -197,7 +202,7 @@ private fun Drop(value: Int, accent: Color, sizeDp: Float) {
     )
 }
 
-/** [cue] is bumped by a tap on the score: the +1 pills light up together (Okay, 2026-10-26). [art]: over Legend art. */
+/** [cue] is bumped by a tap on the score: a ring runs out from all +1 pills at once (Okay, 2026-10-27). [art]: over Legend art. */
 @Composable
 fun ActionRow(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Unit, onEffect: () -> Unit, onFix: () -> Unit, height: Float = 54f, cue: Int = 0, art: Boolean = false) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -250,8 +255,9 @@ private fun LitPress(onClick: () -> Unit, modifier: Modifier, label: String, ena
 /**
  * Colour model C: Conquer is white with ink in the half's colour, the others dark with a light rim; over Legend art
  * ([art]) the mock's pills: Conquer filled in the half's colour and glowing, the others black 50 %. A tapped pill
- * lights up in the half's colour for a moment. A tap on the score makes the +1 pills breathe together in a soft
- * halo of that colour ([cue]; Fix stays out of it): points go here, not on the number.
+ * lights up in the half's colour for a moment. A tap on the score sends a ring of that colour out from the +1 pills
+ * at once and they give a little ([cue]; Fix stays out of it; Okay's pick, mock "C · Ripple", 2026-10-27): points go
+ * here, not on the number.
  */
 @Composable
 private fun ActionButton(
@@ -260,34 +266,46 @@ private fun ActionButton(
 ) {
     val shape = RoundedCornerShape(50)
     val conquerInk = remember(accent) { SeatShade.deep(accent, 0.75f) }
-    // The cue's light, 0 to 1: it rises and falls twice, the same moment in every pill.
-    val glow = remember { Animatable(0f) }
+    // The cue, once in 0.85 s: the ring's way out (0 to 1) and the pill's give (iOS `Ripple`).
+    val ring = remember { Animatable(0f) }
+    val give = remember { Animatable(1f) }
     val first = remember { booleanArrayOf(true) }
     LaunchedEffect(cue) {
         if (first[0]) { first[0] = false; return@LaunchedEffect }
         if (!cued) return@LaunchedEffect
-        repeat(2) {
-            glow.animateTo(1f, tween(380, easing = EaseInOut))
-            glow.animateTo(0f, tween(520, easing = EaseInOut))
-        }
+        launch { ring.snapTo(0f); ring.animateTo(1f, tween(850, easing = Give)) }
+        give.snapTo(1f)
+        give.animateTo(0.965f, tween(136, easing = Give))
+        give.animateTo(1.03f, tween(272, easing = Give))
+        give.animateTo(1f, tween(442, easing = Give))
     }
-    LitPress(onClick, modifier.height(height.dp).graphicsLayer { val k = 1f + 0.03f * glow.value; scaleX = k; scaleY = k }, label) { pressed ->
-        val g = glow.value
-        val lit = maxOf(pressed, 0.4f * g)
+    val press = modifier.height(height.dp)
+        // The ring runs out 20 % wider and 60 % taller and fades; a soft wider stroke under it is its glow.
+        .drawBehind {
+            val r = ring.value
+            if (r > 0f && r < 1f) {
+                val corner = CornerRadius(size.height / 2)
+                scale(1f + 0.2f * r, 1f + 0.6f * r) {
+                    drawRoundRect(accent.copy(alpha = 0.18f * (1 - r)), cornerRadius = corner, style = Stroke(10.dp.toPx()))
+                    drawRoundRect(accent.copy(alpha = 0.3f * (1 - r)), cornerRadius = corner, style = Stroke(5.dp.toPx()))
+                    drawRoundRect(accent.copy(alpha = 1 - r), cornerRadius = corner, style = Stroke(2.5.dp.toPx()))
+                }
+            }
+        }
+        .graphicsLayer { scaleX = give.value; scaleY = give.value }
+    LitPress(onClick, press, label) { pressed ->
         // Art's Conquer glows at rest like the mock; any pill glows while pressed.
         val light = if (art && filled) 0.45f + 0.35f * pressed else 0.5f * pressed
         val fill = when {
-            filled && art -> lerp(accent, Color.White, 0.3f * lit)
-            filled -> lerp(Color.White, accent, 0.3f * lit)
-            else -> lerp(Color.Black.copy(alpha = if (art) 0.5f else 0.24f), accent, 0.9f * lit)
+            filled && art -> lerp(accent, Color.White, 0.3f * pressed)
+            filled -> lerp(Color.White, accent, 0.3f * pressed)
+            else -> lerp(Color.Black.copy(alpha = if (art) 0.5f else 0.24f), accent, 0.9f * pressed)
         }
         Box(
             Modifier.matchParentSize()
-                // The cue's halo, then the pill's own light.
-                .let { if (g > 0f) it.dropShadow(shape, Shadow(radius = 28.dp, color = accent.copy(alpha = 0.75f * g), spread = (5 * g).dp)) else it }
                 .let { if (light > 0f) it.dropShadow(shape, Shadow(radius = (26 + 12 * pressed).dp, color = accent.copy(alpha = light))) else it }
                 .background(fill, shape)
-                .let { if (filled) it else it.border(1.dp, lerp(Color.White.copy(alpha = if (art) 0.2f else 0.28f), accent, lit), shape) },
+                .let { if (filled) it else it.border(1.dp, lerp(Color.White.copy(alpha = if (art) 0.2f else 0.28f), accent, pressed), shape) },
         )
         val text = if (filled) (if (art) ink else conquerInk) else lerp(Color.White, ink, pressed)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
