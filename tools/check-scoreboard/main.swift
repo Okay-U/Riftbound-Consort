@@ -1,6 +1,6 @@
 import Foundation
 
-// The Android unit tests of the same rules (ScoreRulesTest, DuelTest, ResultPickerTest), case by case.
+// The Android unit tests of the same rules (ScoreRulesTest, DuelTest), case by case.
 
 let t0 = Date(timeIntervalSince1970: 1_000)
 func at(_ seconds: TimeInterval) -> Date { t0.addingTimeInterval(seconds) }
@@ -49,58 +49,31 @@ do {
     check(declined.asking == -1 && declined.players[Seat.you].score == 7, "declined")
     let won = asked.confirmFinalPoint(true, at: t0)
     check(won.winner == Seat.you, "won")
-    check(won.log == [PlayedGame(winner: Seat.you, scores: [0, 8])], "log")
     check(atSeven.score(Seat.you, .hold, at: t0).winner == Seat.you, "hold wins")
 }
 
 // A won game blocks points and undo until the next game.
 do {
-    let won = ScoreState(bestOf: 3).points(Seat.opponent, 3).points(Seat.you, 8)
+    let won = ScoreState().points(Seat.opponent, 3).points(Seat.you, 8)
     check(won.gameOver && !won.canUndo, "blocked")
     check(won == won.score(Seat.opponent, .hold, at: t0) && won == won.undo() && won == won.restart(), "no-ops")
     let next = won.nextGame(at: t0)
-    check(next.gameNo == 2 && next.players.map(\.score) == [0, 0], "next game")
-    check(next.seriesWins() == [0, 1] && !next.gameOver, "series kept")
+    check(next.players.map(\.score) == [0, 0] && !next.gameOver && next.history.isEmpty, "next game")
+    check(ScoreState() == ScoreState().nextGame(at: t0), "no next game while playing")
 }
 
-// Two won games end the best of three, a new match resets everything.
+// Won or lost by hand ends the game as it stands; four players have no winner.
 do {
-    let over = ScoreState(bestOf: 3).points(Seat.you, 8).nextGame(at: t0).points(Seat.opponent, 8).nextGame(at: t0).points(Seat.you, 8)
-    check(over.matchOver && over == over.nextGame(at: t0), "match over")
-    check(over.newMatch() == ScoreState(), "new match")
-}
-
-// Casual games stand alone and never end a match.
-do {
-    let won = ScoreState().points(Seat.you, 8)
-    check(won.gameOver && !won.matchOver, "casual won")
-    let next = won.nextGame(at: t0)
-    check(next.gameNo == 2 && next.log.isEmpty, "casual next")
-    check(!next.points(Seat.you, 8).nextGame(at: t0).points(Seat.you, 8).matchOver, "never a match")
-}
-
-// A best of one ends with its game.
-do {
-    let over = ScoreState(bestOf: 1).points(Seat.opponent, 8)
-    check(over.matchOver && over.winsNeeded == 1, "best of one")
-}
-
-// A series exists only for a live match, casual cannot become one.
-do {
-    let playing = ScoreState().points(Seat.you, 3)
-    check(playing.withBestOf(3) == playing, "casual stays casual")
-}
-
-// A live match starts in the event's format and can switch between one and three games.
-do {
-    let rolled = ScoreState().points(Seat.you, 2).withStarter(Seat.opponent, at: t0)
-    let live = rolled.startLive(tag: "R3 · T5", bestOf: 1)
-    check(live.bestOf == 1 && live.liveTag == "R3 · T5" && live.players.map(\.score) == [0, 0], "live match")
-    check(live.starter == Seat.opponent, "who goes first was rolled before")
-    let wonFirst = live.points(Seat.you, 8)
-    check(wonFirst.matchOver && !wonFirst.withBestOf(3).matchOver, "best of three after all")
-    check(live.startLive(tag: "R3 · T5", bestOf: 3).bestOf == 3, "event best of three")
-    check(wonFirst.newMatch() == ScoreState(), "casual after a live match")
+    let playing = ScoreState().points(Seat.you, 5).points(Seat.opponent, 3, .conquer)
+    let conceded = playing.end(winner: Seat.you)
+    check(conceded.winner == Seat.you && conceded.players.map(\.score) == [3, 5], "won by hand")
+    check(playing.end(winner: Seat.opponent).winner == Seat.opponent, "lost by hand")
+    check(conceded.end(winner: Seat.opponent) == conceded, "decided once")
+    check(conceded.nextGame(at: t0).chooser == Seat.opponent, "the loser picks next")
+    let asked = ScoreState().points(Seat.you, 7).score(Seat.you, .conquer, at: t0)
+    check(asked.end(winner: Seat.you).asking == -1, "the open question closes")
+    check(ScoreState().withPlayerCount(4).end(winner: 2) == ScoreState().withPlayerCount(4), "four players")
+    check(playing.end(winner: 5) == playing, "no such seat")
 }
 
 // The last game's loser picks who starts the next one, asked right after the game only.
@@ -141,25 +114,20 @@ do {
     check(s.players[2].score == 9 && s.winner == -1 && s.asking == -1, "four players")
 }
 
-// The match clock starts on the first point, pauses, and times each game.
+// The clock starts on the first point and times each game.
 do {
     let first = ScoreState().score(Seat.you, .hold, at: t0)
     check(first.clock.isRunning, "clock starts")
-    let paused = first.toggleClock(at: at(90))
-    check(paused.clock.elapsedSeconds(at: at(500)) == 90, "paused")
-    let resumed = paused.toggleClock(at: at(500))
-    check(resumed.clock.elapsedSeconds(at: at(510)) == 100, "resumed")
-    let won = resumed.points(Seat.you, 7, at: at(600))
-    check(won.gameSeconds(at: at(600)) == 190, "game seconds")
+    let won = first.points(Seat.you, 7, at: at(190))
+    check(won.gameSeconds(at: at(190)) == 190, "game seconds")
     let next = won.nextGame(at: at(600))
     check(next.clock.isRunning, "clock runs on")
-    // A casual game counts from its own first point.
+    // Every game counts from its own first point.
     let started = next.points(Seat.opponent, 1, at: at(660))
-    check(started.events.count == 1 && started.events[0].elapsedSeconds == 0, "casual from its first point")
-    check(started.points(Seat.opponent, 7, at: at(720)).gameSeconds(at: at(720)) == 60, "casual game time")
-    // A live match keeps one clock: its next game counts from the end of the last one.
-    let live = ScoreState(bestOf: 3).points(Seat.you, 8, at: at(60)).nextGame(at: at(60))
-    check(live.points(Seat.opponent, 8, at: at(180)).gameSeconds(at: at(180)) == 120, "live clock")
+    check(started.events.count == 1 && started.events[0].elapsedSeconds == 0, "from its first point")
+    check(started.points(Seat.opponent, 7, at: at(720)).gameSeconds(at: at(720)) == 60, "game time")
+    // A game ended by hand before its first point counts from the end of the last one.
+    check(next.end(winner: Seat.you).gameSeconds(at: at(630)) == 30, "pointless game time")
 }
 
 do {
@@ -168,7 +136,7 @@ do {
 
 // The saved board reads back as it was.
 do {
-    let s = ScoreState(bestOf: 3).points(Seat.you, 8, at: at(30)).nextGame(at: at(40)).points(Seat.opponent, 2, .conquer, at: at(50)).xp(Seat.you, 2)
+    let s = ScoreState().points(Seat.you, 8, at: at(30)).nextGame(at: at(40)).points(Seat.opponent, 2, .conquer, at: at(50)).xp(Seat.you, 2)
     let back = try JSONDecoder().decode(ScoreState.self, from: JSONEncoder().encode(s))
     check(back == s, "JSON round trip")
 }
@@ -208,24 +176,6 @@ do {
     check(w.count == 11 && w.first == 38 && zip(w, w.dropFirst()).allSatisfy { $0 < $1 }, "tumble waits")
     var rng = SplitMix(state: 7)
     for _ in 0..<200 { check(FirstRoll.face(sides: 6, notThis: 5, using: &rng) != 5, "face differs") }
-}
-
-// Games unlock in order and lock again after the deciding game.
-do {
-    let empty = ResultPicker(ending: true, picks: [nil, nil, nil], need: 2)
-    check(!empty.locked(0) && empty.locked(1), "in order")
-    let twoWins = empty.choose(0, Seat.you).choose(1, Seat.you)
-    check(twoWins.decidedAt() == 1 && twoWins.locked(2), "decided")
-    let split = empty.choose(0, Seat.you).choose(1, Seat.opponent)
-    check(split.decidedAt() == -1 && !split.locked(2), "split")
-    // Changing a game clears the games after it, tapping again clears it.
-    let full = empty.choose(0, Seat.you).choose(1, Seat.opponent).choose(2, Seat.draw)
-    check(full.choose(0, Seat.opponent).picks == [Seat.opponent, nil, nil], "change clears after")
-    check(full.choose(1, Seat.you).picks == [Seat.you, Seat.you, nil], "change the middle")
-    check(empty.choose(0, Seat.you).choose(0, Seat.you).picks == [nil, nil, nil], "tap again clears")
-    // One game decides a best of one.
-    let one = ResultPicker(ending: true, picks: [nil], need: 1)
-    check(one.decidedAt() == -1 && one.choose(0, Seat.opponent).decidedAt() == 0, "best of one picker")
 }
 
 print("scoreboard rules ok (\(checks) checks)")

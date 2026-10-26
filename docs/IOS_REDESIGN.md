@@ -9,8 +9,9 @@ checkout is on it to build in Xcode); it reaches `main` only when Okay says so. 
   (https://claude.ai/artifact/ARcSMfQqecAVKCB4ETYz9A, page "Chosen · all tabs") as finished in the Android
   app, including Okay's review rounds (`docs/ANDROID_NATIVE.md`). Close to the mocks, not 1:1: iOS chrome
   (Liquid Glass) where it fits.
-- **Behaviour:** as the finished Android app. The scoreboard ends a game at 8, plays best of three, has the
-  dice duel in the seam and the light-rail report.
+- **Behaviour:** as the finished Android app. The scoreboard ends a game at 8 or by hand (won / lost), has
+  the dice duel in the seam and, at an event, a green Report (best of three and the light-rail report went
+  with Okay's feedback of 2026-10-26).
 - **Tabs:** Score · Events · Cards · Decks · Settings. No Dice tab; the dice live in the scoreboard seam.
 - **Classic design:** a Settings switch "Classic design" brings back the current look, for a transition of
   one or two releases. The classic screens are frozen (bug fixes only), then deleted.
@@ -137,8 +138,8 @@ reviews in Xcode.
    for the App Store:
 
    > Riftcount has a new look.
-   > • Scoreboard: territory fields with a glowing line, the dice in the middle decide who goes first, best
-   >   of three with the match clock, and a slide to report your tournament match.
+   > • Scoreboard: territory fields with a glowing line, the dice in the middle decide who goes first, won
+   >   or lost by hand, and your tournament table with a Report button right on the board.
    > • Cards: the whole pool in a new grid, filters with sliders, and a card view that grows out of its
    >   tile, with keyword chips and errata.
    > • Decks: your piles on a table, a deck that opens out of its pile, test hands, odds and stats, a
@@ -148,6 +149,18 @@ reviews in Xcode.
    > • Settings: tiles that turn over to tell what they do, 16 player colors, true black or dark grey.
    > Prefer the old look? Settings › Classic design brings it back for a while.
    > The Live Activity and the widgets are gone.
+
+## Feedback round 1 (Okay, 2026-10-26)
+
+Both platforms, step by step:
+
+1. **Scoreboard match flow:** no Start match, no best of 1 / 3 mode, no match summary and no slide to
+   report (it stuck halfway). Every game stands alone. With a pairing the seam shows round, table and the
+   opponent (the round clock once it runs) and a green Report that opens the Events report sheet (Android:
+   its report dialog): the same picks, the pairing fetched again, the confirmation. A flag in the seam opens
+   the game menu: I won / I lost end the game as it stands (a concession, points the board missed), Restart
+   sets it to 0 (undoable). The flag replaces the restart arrow that looked like Undo. `RiftTournaments`
+   moved to the root for the sheet.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.

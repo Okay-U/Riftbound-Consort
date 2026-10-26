@@ -2,10 +2,10 @@
 //  Seam.swift
 //  Riftbound Companiokay
 //
-//  The pill on the territory line (Android `Seam.kt`): dice, undo, restart; during the roll its die type,
-//  Roll both and close. Match mode adds the PlayRiftbound check, the event line (event before round 1,
-//  bye, reported round) and, for a pairing, its table and opponent with Start match; a started live match
-//  shows its round, table and clock with Report or End. Liquid Glass on iOS 26.
+//  The pill on the territory line (Android `Seam.kt`): dice, undo and the game menu (won, lost, restart);
+//  during the roll its die type, Roll both and close. Match mode adds the PlayRiftbound check and the event
+//  line (event before round 1, bye, reported round), or for a pairing its round, table, opponent or round
+//  clock with a green Report. Liquid Glass on iOS 26.
 //
 
 import SwiftUI
@@ -17,12 +17,13 @@ struct Seam: View {
     var onCheck: () -> Void = {}
     /// The centre leads to the event, after a question: a slip must not take the scoreboard away.
     var onOpenEvent: (() -> Void)? = nil
+    var onReport: (TableLink) -> Void = { _ in }
 
     var body: some View {
         let s = c.state
         let roll = c.firstRoll
         // Four players: the verdict banner takes the seam's place.
-        let gone = s.showSummary || ((roll?.winner ?? -1) >= 0 && !s.isDuel)
+        let gone = (roll?.winner ?? -1) >= 0 && !s.isDuel
         Group {
             if let roll {
                 HStack(spacing: 10) {
@@ -46,28 +47,21 @@ struct Seam: View {
 
     private func board(_ s: ScoreState, gone: Bool) -> some View {
         let link = match?.link
-        let live = link?.tag == s.liveTag ? link : nil
-        let waiting = link.flatMap { s.isDuel && $0.reportable && $0.tag != s.liveTag ? $0 : nil }
-        let line = s.liveTag == nil && waiting == nil ? match?.line : nil
+        let line = link == nil ? match?.line : nil
         let ask = gone ? nil : onOpenEvent
         return HStack(spacing: 10) {
             RoundIcon(symbol: "dice", label: "Roll who goes first", tint: RiftColor.you, fill: RiftColor.you.opacity(0.14), enabled: !gone) { c.openRoll() }
             RoundIcon(symbol: "arrow.uturn.backward", label: "Undo last point", enabled: s.canUndo && !gone) { c.undo() }
-            if waiting != nil || s.liveTag != nil {
-                ClockBox(state: s, waiting: waiting, roundEnd: live?.roundEndsAt, onOpen: ask) { c.toggleClock() }
+            if let link {
+                ClockBox(link: link, onOpen: ask)
             } else if let line {
                 LineBox(line: line, onOpen: ask)
             }
-            // Waiting for Start match, the table and opponent need the room; restart comes back with the match.
-            if waiting == nil {
-                RoundIcon(symbol: "arrow.counterclockwise", label: "Restart this game", enabled: !s.gameOver && !gone) { c.askRestart() }
-            }
-            if let waiting {
+            // Won, lost or restart behind a flag, so it never passes for Undo (Okay, 2026-10-26).
+            RoundIcon(symbol: "flag.checkered", label: s.isDuel ? "End or restart this game" : "Restart this game", enabled: !s.gameOver && !gone) { c.openGameMenu() }
+            if let link {
                 SeamDivider()
-                Pill(text: "Start match", height: 42, fill: RiftColor.you, ink: .black, enabled: !gone) { c.startLive(waiting) }
-            } else if s.isSeries {
-                SeamDivider()
-                Pill(text: live?.reportable == true ? "Report" : "End", height: 42, fill: .white.opacity(0.13), enabled: !gone) { c.openPicker(ending: true) }
+                Pill(text: "Report", height: 42, fill: RiftColor.you, ink: .black, enabled: !gone) { onReport(link) }
             } else if match != nil {
                 SeamDivider()
                 CheckButton(checking: checking, enabled: !gone, action: onCheck)
@@ -123,52 +117,35 @@ private struct LineBox: View {
     }
 }
 
-/// Before a live match: its table and opponent (Start match beside it starts it). During it: round and
-/// table over the round's countdown (the organiser's clock; gold once over), or the match clock where the
-/// round has none, which a long press pauses. A tap asks to open the event.
+/// The pairing: round and table over the round's countdown (the organiser's clock; gold once over), or
+/// over the opponent's name before the round clock runs. A tap asks to open the event.
 private struct ClockBox: View {
-    let state: ScoreState
-    let waiting: TableLink?
-    let roundEnd: Date?
+    let link: TableLink
     let onOpen: (() -> Void)?
-    let onClock: () -> Void
 
     var body: some View {
-        let round = waiting == nil ? roundEnd : nil
-        let ticking = waiting == nil && (round != nil || state.clock.isRunning)
-        let canPause = waiting == nil && round == nil
         Group {
-            if ticking {
-                TimelineView(.periodic(from: .now, by: 1)) { context in face(at: context.date, round: round) }
+            if let end = link.roundEndsAt {
+                TimelineView(.periodic(from: .now, by: 1)) { context in face(left: Int(end.timeIntervalSince(context.date))) }
             } else {
-                face(at: Date(), round: round)
+                face(left: nil)
             }
         }
-        .frame(minWidth: 72, maxWidth: 132)
+        .frame(minWidth: 72, maxWidth: 120)
         .contentShape(Rectangle())
         .onTapGesture { onOpen?() }
-        .onLongPressGesture { if canPause { onClock() } }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
-        .accessibilityAction(named: state.clock.isRunning ? "Pause the clock" : "Start the clock") { if canPause { onClock() } }
+        .accessibilityHint("Opens the event")
     }
 
-    private func face(at now: Date, round: Date?) -> some View {
-        let left = round.map { Int($0.timeIntervalSince(now)) }
+    private func face(left: Int?) -> some View {
         let over = (left ?? 0) < 0
-        let text: String = {
-            guard let left else { return clockText(state.clock.elapsedSeconds(at: now)) }
-            return over ? "+" + clockText(-left) : clockText(left)
-        }()
-        let paused = waiting == nil && round == nil && !state.clock.isRunning && state.clock.accumulated > 0
-        let label: String = {
-            if let waiting { return waiting.table.map { "TABLE \($0)" } ?? waiting.tag.uppercased() }
-            return paused ? "PAUSED" : (state.liveTag ?? "").uppercased()
-        }()
+        let text = left.map { over ? "+" + clockText(-$0) : clockText($0) } ?? "vs \(link.opponent ?? "?")"
         return VStack(spacing: 0) {
-            Text(label).caps(10).foregroundStyle(paused ? RiftColor.gold : .white.opacity(0.72)).lineLimit(1)
-            Text(waiting.map { "vs \($0.opponent ?? "?")" } ?? text)
-                .font(RiftFont.text(waiting != nil ? 14 : 16, .semibold))
+            Text(link.tag.uppercased()).caps(10).foregroundStyle(.white.opacity(0.72)).lineLimit(1)
+            Text(text)
+                .font(RiftFont.text(left == nil ? 14 : 16, .semibold))
                 .monospacedDigit()
                 .foregroundStyle(over ? RiftColor.gold : .white)
                 .lineLimit(1)

@@ -5,8 +5,8 @@
 //  The redesign's scoreboard rules, ported from the Android app (`ScoreRules.kt`, docs/IOS_REDESIGN.md).
 //  Immutable: every action returns a new state. A duel ends at 8 and its 8th point by conquering is
 //  asked for; undo of 50 steps including XP; a score never below 0, unchanged scores are not recorded.
-//  Casual games stand alone; a series (best of 1 or 3, its summary and report) only for a live
-//  PlayRiftbound match. Checked by tools/check-scoreboard/run.sh.
+//  Every game stands alone, also at a PlayRiftbound event (the seam's Report sends the match; Okay,
+//  2026-10-26). Checked by tools/check-scoreboard/run.sh.
 //
 
 import Foundation
@@ -15,8 +15,6 @@ import Foundation
 enum Seat {
     static let opponent = 0
     static let you = 1
-    /// A drawn game in `PlayedGame.winner` and the result picker.
-    static let draw = -1
 }
 
 enum PointKind {
@@ -42,12 +40,6 @@ struct ScoreSnapshot: Codable, Equatable {
     let events: [ScoreEvent]
 }
 
-/// A finished game of the match: `winner` is a slot or `Seat.draw`, `scores` nil when set by hand.
-struct PlayedGame: Codable, Equatable {
-    let winner: Int
-    var scores: [Int]? = nil
-}
-
 struct ScoreState: Codable, Equatable {
     /// Points to win a game in a duel.
     static let target = 8
@@ -59,32 +51,19 @@ struct ScoreState: Codable, Equatable {
     var players: [SeatScore] = [SeatScore(), SeatScore()]
     var events: [ScoreEvent] = []
     var history: [ScoreSnapshot] = []
-    var log: [PlayedGame] = []
-    var gameNo = 1
     var winner = -1
     var asking = -1
     var starter = -1
     var clock = MatchClock()
     var lastGameEndSeconds = 0
-    /// The match was ended by hand ("End the match"): the summary shows, scoring stops.
-    var ended = false
-    /// 0 casual; 1 or 3 a best-of match with its series, summary and report.
-    var bestOf = 0
-    /// The PlayRiftbound pairing ("R3 · T5") this match was started for; nil for any other.
-    var liveTag: String? = nil
     /// The last game's loser, who picks who starts this one (Riftbound's rule); -1 once picked or played.
     var chooser = -1
     /// When `chooser` was asked; without it the question never shows.
     var chooserSince: Date? = nil
 
     var isDuel: Bool { players.count == 2 }
-    var isSeries: Bool { isDuel && bestOf > 0 }
-    /// Games to win the match: one of a best of one, two of a best of three.
-    var winsNeeded: Int { (bestOf + 1) / 2 }
     var gameOver: Bool { winner >= 0 }
-    var matchOver: Bool { isSeries && seriesWins().contains { $0 >= winsNeeded } }
-    var canUndo: Bool { !history.isEmpty && !gameOver && !ended }
-    var showSummary: Bool { matchOver || ended }
+    var canUndo: Bool { !history.isEmpty && !gameOver }
 
     /// Who is asked who starts, or -1: only within `startChoiceWindow` of the last game, so coming back
     /// to the board hours later does not find the question still open.
@@ -93,13 +72,9 @@ struct ScoreState: Codable, Equatable {
         return chooser
     }
 
-    func seriesWins() -> [Int] {
-        players.indices.map { slot in log.filter { $0.winner == slot }.count }
-    }
-
     /// Conquer, Hold or a card effect for `slot`; the 8th point by conquering waits for `confirmFinalPoint`.
     func score(_ slot: Int, _ kind: PointKind, at now: Date) -> ScoreState {
-        if gameOver || matchOver || ended { return self }
+        if gameOver { return self }
         if isDuel && kind == .conquer && players[slot].score == Self.target - 1 {
             var next = self
             next.asking = slot
@@ -119,14 +94,25 @@ struct ScoreState: Codable, Equatable {
         commit(slot, delta: -1, type: .manual, at: now)
     }
 
+    /// Won or lost by hand (the seam's game menu): a concession, or the last points scored without the
+    /// board. The scores stay as they are.
+    func end(winner slot: Int) -> ScoreState {
+        guard isDuel, !gameOver, players.indices.contains(slot) else { return self }
+        var next = self
+        next.winner = slot
+        next.asking = -1
+        next.chooser = -1
+        return next
+    }
+
     private func commit(_ slot: Int, delta: Int, type: ScoreEventType, at now: Date) -> ScoreState {
         if gameOver && delta > 0 { return self }
         let old = players[slot].score
         let new = max(0, old + delta)
         if new == old { return self }
-        // A casual game is timed from its own first point: the board (and its clock) is saved, so a game
-        // played a day after the last one would count the wait. A live match keeps one clock for all games.
-        let fresh = !isSeries && events.isEmpty
+        // A game is timed from its own first point: the board (and its clock) is saved, so a game played a
+        // day after the last one would count the wait.
+        let fresh = events.isEmpty
         let clockNow: MatchClock
         if fresh {
             clockNow = MatchClock(runningSince: now)
@@ -143,10 +129,7 @@ struct ScoreState: Codable, Equatable {
         next.chooser = -1
         next.clock = clockNow
         if fresh { next.lastGameEndSeconds = 0 }
-        if isDuel && new >= Self.target && !gameOver {
-            next.winner = slot
-            next.log.append(PlayedGame(winner: slot, scores: next.players.map(\.score)))
-        }
+        if isDuel && new >= Self.target && !gameOver { next.winner = slot }
         return next
     }
 
@@ -173,7 +156,7 @@ struct ScoreState: Codable, Equatable {
 
     /// Scores and XP back to 0 in the same game; undoable like the classic reset. The clock keeps running.
     func restart() -> ScoreState {
-        if gameOver || matchOver || ended { return self }
+        if gameOver { return self }
         var next = self
         next.players = freshSeats
         next.events = []
@@ -182,15 +165,13 @@ struct ScoreState: Codable, Equatable {
         return next
     }
 
-    /// After a won game: the next one. A series keeps its games, a casual game nothing; the clock runs on.
+    /// After a won game: the next one; the clock runs on.
     func nextGame(at now: Date) -> ScoreState {
-        if !gameOver || matchOver || ended { return self }
+        guard gameOver else { return self }
         var next = self
         next.players = freshSeats
         next.events = []
         next.history = []
-        next.log = isSeries ? log : []
-        next.gameNo = gameNo + 1
         next.winner = -1
         next.asking = -1
         next.starter = -1
@@ -198,23 +179,6 @@ struct ScoreState: Codable, Equatable {
         next.chooserSince = now
         next.lastGameEndSeconds = clock.elapsedSeconds(at: now)
         return next
-    }
-
-    func newMatch() -> ScoreState {
-        ScoreState(players: freshSeats)
-    }
-
-    /// One ↔ three games in a live match: the event's setting is not always what the table plays.
-    func withBestOf(_ n: Int) -> ScoreState {
-        guard isSeries, n == 1 || n == 3, !ended else { return self }
-        var next = self
-        next.bestOf = n
-        return next
-    }
-
-    /// A fresh match for a PlayRiftbound pairing in the event's format; who goes first stays as rolled.
-    func startLive(tag: String, bestOf: Int) -> ScoreState {
-        ScoreState(players: freshSeats, starter: starter, bestOf: bestOf == 1 ? 1 : 3, liveTag: tag)
     }
 
     func withPlayerCount(_ count: Int) -> ScoreState {
@@ -231,12 +195,6 @@ struct ScoreState: Codable, Equatable {
         return next
     }
 
-    func toggleClock(at now: Date) -> ScoreState {
-        var next = self
-        next.clock = clock.isRunning ? clock.paused(at: now) : clock.started(at: now)
-        return next
-    }
-
     /// Seconds this game took: match clock minus the end of the previous game (classic `lastGameEnd`).
     func gameSeconds(at now: Date) -> Int {
         let elapsed = clock.elapsedSeconds(at: now)
@@ -250,7 +208,7 @@ struct ScoreState: Codable, Equatable {
     }
 }
 
-/// Stopwatch for the whole match that survives restarts: accumulated time plus the running stretch.
+/// Stopwatch of the board that survives restarts: accumulated time plus the running stretch.
 struct MatchClock: Codable, Equatable {
     var accumulated: TimeInterval = 0
     var runningSince: Date? = nil
@@ -265,44 +223,6 @@ struct MatchClock: Codable, Equatable {
 
     func started(at now: Date) -> MatchClock {
         isRunning ? self : MatchClock(accumulated: accumulated, runningSince: now)
-    }
-
-    func paused(at now: Date) -> MatchClock {
-        isRunning ? MatchClock(accumulated: elapsed(at: now)) : self
-    }
-}
-
-/// Behind "End the match" and "Set them yourself": one result per game (`Seat.you`, `Seat.opponent` or
-/// `Seat.draw`), as many games as the format has; `need` wins decide it.
-struct ResultPicker: Equatable {
-    let ending: Bool
-    var picks: [Int?]
-    let need: Int
-
-    func decidedAt() -> Int {
-        var me = 0
-        var them = 0
-        for (i, pick) in picks.enumerated() {
-            guard let pick else { return -1 }
-            if pick == Seat.you { me += 1 }
-            if pick == Seat.opponent { them += 1 }
-            if me >= need || them >= need { return i }
-        }
-        return -1
-    }
-
-    func locked(_ i: Int) -> Bool {
-        if i > 0 && picks[i - 1] == nil { return true }
-        let decided = decidedAt()
-        return decided >= 0 && i > decided
-    }
-
-    func choose(_ i: Int, _ value: Int) -> ResultPicker {
-        var next = self
-        next.picks = picks.enumerated().map { j, old in
-            j == i ? (old == value ? nil : value) : (j > i ? nil : old)
-        }
-        return next
     }
 }
 

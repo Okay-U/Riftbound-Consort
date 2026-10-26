@@ -26,6 +26,7 @@ struct RedesignScoreView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var c = ScoreController()
     @State private var askingEvent = false
+    @State private var reporting: ReportTarget?
 
     /// Match mode's PlayRiftbound for the board; none with match mode off or four players.
     private var match: MatchInfo? {
@@ -41,10 +42,7 @@ struct RedesignScoreView: View {
                         c: c, area: area, topInset: geo.safeAreaInsets.top, match: match,
                         checking: riftMatch.isRefreshing, onCheck: check,
                         onOpenEvent: match?.webURL == nil ? nil : { askingEvent = true },
-                        onRefresh: { refresh(force: true) },
-                        report: { [riftBrowser, riftMatch] link, winners in
-                            try await MatchReport.send(link, winners: winners, browser: riftBrowser, store: riftMatch)
-                        }
+                        onReport: { reporting = ReportTarget(tournamentID: $0.tournamentID, pairing: $0.pairing) }
                     )
                 } else {
                     FourBoard(c: c, area: area)
@@ -64,11 +62,17 @@ struct RedesignScoreView: View {
         }
         .background(page.ignoresSafeArea())
         .statusBarHidden()
-        .alert(restartTitle, isPresented: $c.confirmRestart) {
+        .confirmationDialog(c.state.isDuel ? "End or restart this game?" : "Restart this game?", isPresented: $c.gameMenu, titleVisibility: .visible) {
+            if c.state.isDuel {
+                Button("I won") { c.end(winner: Seat.you) }
+                Button("I lost") { c.end(winner: Seat.opponent) }
+            }
+            Button("Restart this game", role: .destructive) { c.restart() }
             Button("Keep playing", role: .cancel) {}
-            Button("Restart", role: .destructive) { c.restart() }
         } message: {
-            Text(restartText)
+            Text(c.state.isDuel
+                 ? "Won or lost ends the game as it stands, for a concession or points the board missed. Restart sets both scores and XP back to 0, and Undo brings them back."
+                 : "All scores and XP go back to 0, and Undo brings them back.")
         }
         .alert("Open the event?", isPresented: $askingEvent) {
             Button("Stay here", role: .cancel) {}
@@ -84,8 +88,9 @@ struct RedesignScoreView: View {
             case .opponent: OpponentPickSheet(c: c)
             }
         }
-        .sheet(isPresented: Binding(get: { c.picker != nil }, set: { if !$0 { c.closePicker() } })) {
-            ResultPickerSheet(c: c, colors: PlayerSwatches.colors(players: 2))
+        // The Events report sheet: the same picks, checks and confirmation as from the event.
+        .sheet(item: $reporting) { target in
+            RiftReportSheet(target: target, onToast: c.show) { refresh(force: true) }
         }
         .onAppear { c.attach(games: games, decks: decks) }
         .onChange(of: playerCount, initial: true) { _, count in c.setPlayers(count) }
@@ -107,16 +112,6 @@ struct RedesignScoreView: View {
             c.show(MatchInfo.checked(riftMatch))
         }
     }
-
-    private var restartTitle: String {
-        c.state.isSeries ? "Restart game \(c.state.gameNo)?" : "Restart this game?"
-    }
-
-    private var restartText: String {
-        c.state.isSeries
-            ? "Both scores and XP go back to 0. The series and the match clock stay as they are, and Undo brings the game back."
-            : "Both scores and XP go back to 0, and Undo brings the game back."
-    }
 }
 
 /// "You have", "Lee Sin has": the score labels VoiceOver reads.
@@ -132,8 +127,7 @@ private struct DuelBoard: View {
     let checking: Bool
     let onCheck: () -> Void
     let onOpenEvent: (() -> Void)?
-    let onRefresh: () -> Void
-    let report: SeriesReport
+    let onReport: (TableLink) -> Void
 
     var body: some View {
         let s = c.state
@@ -150,8 +144,7 @@ private struct DuelBoard: View {
             TerritoryFields(
                 line: lineTarget(s, roll, center: center) + topInset,
                 colors: colors,
-                lineColor: leader < 0 ? .white.opacity(0.7) : colors[leader],
-                lineShown: !s.showSummary
+                lineColor: leader < 0 ? .white.opacity(0.7) : colors[leader]
             )
             .ignoresSafeArea()
             VStack(spacing: 0) {
@@ -159,12 +152,9 @@ private struct DuelBoard: View {
                 Half(c: c, slot: Seat.you, colors: colors)
             }
             .frame(height: area)
-            Seam(c: c, match: match, checking: checking, onCheck: onCheck, onOpenEvent: onOpenEvent)
+            Seam(c: c, match: match, checking: checking, onCheck: onCheck, onOpenEvent: onOpenEvent, onReport: onReport)
+                .padding(.horizontal, 10)
                 .offset(y: center - 27)
-            if s.showSummary {
-                MatchSummary(c: c, colors: colors, centerY: center, link: match?.link, onRefresh: onRefresh, report: report)
-                    .frame(height: area)
-            }
         }
     }
 
@@ -174,10 +164,6 @@ private struct DuelBoard: View {
             if roll.winner == Seat.you { return 210 }
             if roll.winner == Seat.opponent { return area - 210 }
             return center
-        }
-        if s.showSummary {
-            let wins = s.seriesWins()
-            return wins[Seat.you] > wins[Seat.opponent] ? 64 : wins[Seat.opponent] > wins[Seat.you] ? area - 64 : center
         }
         if s.gameOver { return s.winner == Seat.you ? 64 : area - 64 }
         let leaning = center + 26 * CGFloat(s.players[Seat.opponent].score - s.players[Seat.you].score)
@@ -191,7 +177,6 @@ private struct TerritoryFields: View {
     let line: CGFloat
     let colors: [Color]
     let lineColor: Color
-    let lineShown: Bool
 
     var body: some View {
         GeometryReader { geo in
@@ -199,18 +184,14 @@ private struct TerritoryFields: View {
             ZStack(alignment: .top) {
                 Rectangle().fill(colors[Seat.opponent].opacity(0.13)).frame(height: height).offset(y: line - height)
                 Rectangle().fill(colors[Seat.you].opacity(0.13)).frame(height: height).offset(y: line)
-                Group {
-                    Rectangle().fill(lineColor).frame(height: 10).blur(radius: 12).offset(y: line - 5)
-                    Rectangle().fill(lineColor).frame(height: 2).offset(y: line - 1)
-                }
-                .opacity(lineShown ? 1 : 0)
+                Rectangle().fill(lineColor).frame(height: 10).blur(radius: 12).offset(y: line - 5)
+                Rectangle().fill(lineColor).frame(height: 2).offset(y: line - 1)
             }
             .frame(width: geo.size.width, height: height, alignment: .top)
         }
         .allowsHitTesting(false)
         .animation(.rift(1.1), value: line)
         .animation(.easeInOut(duration: 0.6), value: lineColor)
-        .animation(.easeInOut(duration: 0.5), value: lineShown)
     }
 }
 
@@ -224,7 +205,6 @@ private struct Half: View {
         let roll = c.firstRoll
         let accent = colors[slot]
         let dim = roll.map { $0.winner >= 0 && $0.winner != slot } ?? (s.gameOver && s.winner != slot)
-        let wins = s.seriesWins()
         ZStack(alignment: .top) {
             // Stacked, not in a column: while they swap, the score and the roll share the half.
             ZStack {
@@ -235,8 +215,7 @@ private struct Half: View {
                     VStack(spacing: 0) {
                         TopLine(
                             legend: c.legend(slot), accent: accent, starter: s.starter == slot, xp: s.players[slot].xp,
-                            onXp: { c.xp(slot, $0) }, gamesWon: wins[slot], pips: s.isSeries ? s.winsNeeded : 0,
-                            shown: !s.gameOver && !s.showSummary, onName: { c.openSetup(slot) }
+                            onXp: { c.xp(slot, $0) }, shown: !s.gameOver, onName: { c.openSetup(slot) }
                         )
                         GeometryReader { box in
                             ScoreNumber(
@@ -255,18 +234,11 @@ private struct Half: View {
             .padding(.horizontal, 20)
             .padding(.top, 34)
             .padding(.bottom, 18)
-            // The summary is the focus: both halves fade to a ghost behind it.
-            .opacity(s.showSummary ? 0.18 : dim ? 0.32 : 1)
+            .opacity(dim ? 0.32 : 1)
             .animation(.rift(0.9), value: dim)
-            .animation(.rift(0.9), value: s.showSummary)
 
-            if roll == nil && s.winner == slot && !s.showSummary {
-                let opponent = 1 - slot
-                if s.isSeries {
-                    ResultText(title: "GAME \(s.gameNo)", sub: "Series \(wins[slot])–\(wins[opponent])", accent: accent).padding(.top, 80)
-                } else {
-                    ResultText(title: "WIN", sub: "\(s.players[slot].score)–\(s.players[opponent].score)", accent: accent).padding(.top, 80)
-                }
+            if roll == nil && s.winner == slot {
+                ResultText(title: "WIN", sub: "\(s.players[slot].score)–\(s.players[1 - slot].score)", accent: accent).padding(.top, 80)
             }
             if c.drew == slot {
                 HalfToast(text: "No point · draw a card instead").padding(.top, 70)
@@ -274,7 +246,7 @@ private struct Half: View {
             Group {
                 if roll == nil && s.asking == slot {
                     HalfQuestion.finalPoint(accent: accent, onYes: { c.finalPoint(true) }, onNo: { c.finalPoint(false) })
-                } else if roll == nil && c.startChooser == slot && !s.gameOver && !s.showSummary {
+                } else if roll == nil && c.startChooser == slot && !s.gameOver {
                     HalfQuestion.startChoice(accent: accent, onFirst: { c.pickStart(first: true) }, onSecond: { c.pickStart(first: false) })
                 }
             }
@@ -285,16 +257,14 @@ private struct Half: View {
     }
 
     @ViewBuilder private func bottomRow(_ s: ScoreState, accent: Color) -> some View {
-        if s.showSummary {
-            Color.clear.frame(height: 54)
-        } else if !s.gameOver {
+        if !s.gameOver {
             ActionRow(
                 accent: accent,
                 onConquer: { c.score(slot, .conquer) }, onHold: { c.score(slot, .hold) },
                 onEffect: { c.score(slot, .effect) }, onFix: { c.fix(slot) }
             )
         } else if s.winner == slot {
-            NextGameButton(text: s.isSeries ? "Next game · Game \(s.gameNo + 1)" : "Next game", accent: accent) { c.nextGame() }
+            NextGameButton(text: "Next game", accent: accent) { c.nextGame() }
         } else {
             Color.clear.frame(height: 54)
         }

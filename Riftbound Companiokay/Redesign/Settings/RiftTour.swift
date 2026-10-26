@@ -93,7 +93,7 @@ struct RiftTour: View {
                     ("Conquer, hold, effect", "One tap per point; the 8th by conquering is checked"),
                     ("Track XP", "Gain and spend XP right on your half"),
                     ("Who goes first", "Roll the dice in the middle, D6 or D20"),
-                    ("Best of three", "Games, series and the match clock carry on"),
+                    ("Won or lost", "The flag ends a game by hand, after a concession"),
                     ("Pick decks", "Tap a name to choose your deck and your opponent's legend"),
                     ("Undo", "Rewind step by step when you misclick"),
                  ]),
@@ -101,7 +101,7 @@ struct RiftTour: View {
                  points: [
                     ("Follow your events", "Standings, pairings and results, live"),
                     ("Find local stores", "Search, save favorites, see their calendar"),
-                    ("Play connected", "Link a tournament match to your Scoreboard"),
+                    ("Play connected", "Your table on the Scoreboard, Report sends the result"),
                  ]),
         TourPage(symbol: "rectangle.portrait.on.rectangle.portrait", accent: CardStyle.domainColor("mind"), title: "Cards", subtitle: "Browse the whole pool",
                  points: [

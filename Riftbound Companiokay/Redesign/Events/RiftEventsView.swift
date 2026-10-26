@@ -31,7 +31,7 @@ struct RiftEventsView: View {
     @EnvironmentObject private var browser: PlayRiftboundBrowser
     @AppStorage("didOnboardEvents") private var didOnboardEvents = false
     @Environment(\.riftPage) private var page
-    @StateObject private var tournaments = RiftTournaments()
+    @EnvironmentObject private var tournaments: RiftTournaments
     @StateObject private var calendar = RiftCalendar()
     @State private var section = 0
     @State private var path: [EventsRoute] = []

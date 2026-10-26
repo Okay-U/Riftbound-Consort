@@ -2,8 +2,8 @@
 //  HalfParts.swift
 //  Riftbound Companiokay
 //
-//  The pieces of a scoreboard half (Android `HalfParts.kt`): the top line with name, GOES FIRST, XP and
-//  series pips; the four action pills; the win text; the questions that wait on a half.
+//  The pieces of a scoreboard half (Android `HalfParts.kt`): the top line with name, GOES FIRST and XP;
+//  the four action pills; the win text; the questions that wait on a half.
 //
 
 import SwiftUI
@@ -14,9 +14,6 @@ struct TopLine: View {
     let starter: Bool
     let xp: Int
     let onXp: (Int) -> Void
-    var gamesWon = 0
-    /// Games to win the series, one dot each; 0 without a series.
-    var pips = 0
     var shown = true
     var onName: (() -> Void)? = nil
 
@@ -42,14 +39,6 @@ struct TopLine: View {
                     .foregroundStyle(.white.opacity(0.84))
                 XpButton(text: "−", label: "Spend one XP", enabled: shown, accent: accent) { onXp(-1) }
                 XpButton(text: "+", label: "Gain one XP", enabled: shown, accent: accent) { onXp(1) }
-                if pips > 0 {
-                    HStack(spacing: 6) {
-                        ForEach(0..<pips, id: \.self) { i in
-                            Circle().fill(i < gamesWon ? accent : .white.opacity(0.2)).frame(width: 8, height: 8)
-                        }
-                    }
-                    .padding(.leading, 7)
-                }
             }
         }
         // Fades out once the game is decided, like the mock's `.ended .topline`.
@@ -197,7 +186,7 @@ private struct ActionButton: View {
     private func glow(_ lit: CGFloat) -> Double { filled ? 0.45 + 0.35 * lit : 0.5 * lit }
 }
 
-/// "WIN · 8–3", or "GAME 2 · Series 1–0", over the winner's half, softly in after the line has swept.
+/// "WIN · 8–3" over the winner's half, softly in after the line has swept.
 struct ResultText: View {
     let title: String
     let sub: String
