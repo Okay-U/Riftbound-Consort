@@ -5,6 +5,7 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -61,7 +62,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import pitopia.riftcount.ui.common.Pill
 import pitopia.riftcount.ui.common.Pressable
@@ -189,13 +189,13 @@ private fun Drop(value: Int, accent: Color, sizeDp: Float) {
     )
 }
 
-/** [cue] is bumped by a tap on the score: the +1 pills light up one after the other (Okay, 2026-10-26). */
+/** [cue] is bumped by a tap on the score: the +1 pills light up together (Okay, 2026-10-26). */
 @Composable
 fun ActionRow(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Unit, onEffect: () -> Unit, onFix: () -> Unit, height: Float = 54f, cue: Int = 0) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), height, true, accent, ink, onConquer, cue, wave = 0)
-        ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), height, false, accent, ink, onHold, cue, wave = 1)
-        ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), height, false, accent, ink, onEffect, cue, wave = 2)
+        ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), height, true, accent, ink, onConquer, cue, cued = true)
+        ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), height, false, accent, ink, onHold, cue, cued = true)
+        ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), height, false, accent, ink, onEffect, cue, cued = true)
         ActionButton("Fix", "−1", "Correct, minus one point", Modifier.weight(1f), height, false, accent, ink, onFix)
     }
 }
@@ -205,11 +205,11 @@ fun ActionRow(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Un
 fun ActionGrid(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Unit, onEffect: () -> Unit, onFix: () -> Unit, cue: Int = 0) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), 40f, true, accent, ink, onConquer, cue, wave = 0)
-            ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), 40f, false, accent, ink, onHold, cue, wave = 1)
+            ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), 40f, true, accent, ink, onConquer, cue, cued = true)
+            ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), 40f, false, accent, ink, onHold, cue, cued = true)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), 40f, false, accent, ink, onEffect, cue, wave = 2)
+            ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), 40f, false, accent, ink, onEffect, cue, cued = true)
             ActionButton("Fix", "−1", "Correct, minus one point", Modifier.weight(1f), 40f, false, accent, ink, onFix)
         }
     }
@@ -241,36 +241,39 @@ private fun LitPress(onClick: () -> Unit, modifier: Modifier, label: String, ena
 
 /**
  * Colour model C: Conquer is white with ink in the half's colour, the others dark with a light rim; a tapped pill
- * lights up in the half's colour for a moment. A tap on the score lights the +1 pills the same way, a wave from
- * Conquer on ([cue], [wave]; Fix stays out of it): points go here, not on the number.
+ * lights up in the half's colour for a moment. A tap on the score makes the +1 pills breathe together in a soft
+ * halo of that colour ([cue]; Fix stays out of it): points go here, not on the number.
  */
 @Composable
 private fun ActionButton(
     title: String, delta: String, label: String, modifier: Modifier, height: Float, filled: Boolean, accent: Color, ink: Color,
-    onClick: () -> Unit, cue: Int = 0, wave: Int? = null,
+    onClick: () -> Unit, cue: Int = 0, cued: Boolean = false,
 ) {
     val shape = RoundedCornerShape(50)
     val conquerInk = remember(accent) { SeatShade.deep(accent, 0.75f) }
-    val nudge = remember { Animatable(0f) }
+    // The cue's light, 0 to 1: it rises and falls twice, the same moment in every pill.
+    val glow = remember { Animatable(0f) }
     val first = remember { booleanArrayOf(true) }
     LaunchedEffect(cue) {
         if (first[0]) { first[0] = false; return@LaunchedEffect }
-        if (wave == null) return@LaunchedEffect
-        delay(90L * wave)
-        nudge.animateTo(1f, tween(160))
-        delay(20)
-        nudge.animateTo(0f, tween(700, easing = RiftEase))
+        if (!cued) return@LaunchedEffect
+        repeat(2) {
+            glow.animateTo(1f, tween(380, easing = EaseInOut))
+            glow.animateTo(0f, tween(520, easing = EaseInOut))
+        }
     }
-    LitPress(onClick, modifier.height(height.dp).graphicsLayer { val k = 1f + 0.05f * nudge.value; scaleX = k; scaleY = k }, label) { pressed ->
-        val lit = maxOf(pressed, nudge.value)
-        val glow = 0.5f * lit
+    LitPress(onClick, modifier.height(height.dp).graphicsLayer { val k = 1f + 0.03f * glow.value; scaleX = k; scaleY = k }, label) { pressed ->
+        val g = glow.value
+        val lit = maxOf(pressed, 0.4f * g)
         Box(
             Modifier.matchParentSize()
-                .let { if (glow > 0f) it.dropShadow(shape, Shadow(radius = (26 + 12 * lit).dp, color = accent.copy(alpha = glow))) else it }
+                // The cue's halo, then the press's own light.
+                .let { if (g > 0f) it.dropShadow(shape, Shadow(radius = 28.dp, color = accent.copy(alpha = 0.75f * g), spread = (5 * g).dp)) else it }
+                .let { if (pressed > 0f) it.dropShadow(shape, Shadow(radius = (26 + 12 * pressed).dp, color = accent.copy(alpha = 0.5f * pressed))) else it }
                 .background(if (filled) lerp(Color.White, accent, 0.3f * lit) else lerp(Color.Black.copy(alpha = 0.24f), accent, 0.9f * lit), shape)
                 .let { if (filled) it else it.border(1.dp, lerp(Color.White.copy(alpha = 0.28f), accent, lit), shape) },
         )
-        val text = if (filled) conquerInk else lerp(Color.White, ink, lit)
+        val text = if (filled) conquerInk else lerp(Color.White, ink, pressed)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             BasicText(title, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 15.sp, color = text))
             BasicText(

@@ -358,6 +358,12 @@ Decks, round 4 (2026-10-26): a tap on a shortlist card opens it as the Cards tab
 detail inside the sheet's window, back closes it), with Add to deck; "New deck with this card" from there closes
 the shortlist and starts the builder.
 
+Scoreboard, round 8 (2026-10-26, iOS the same): the seam's flag became a text button, "Reset Score" ("Reset"
+where a pairing leaves no room: `FirstThatFits` picks the first row that fits, like iOS `ViewThatFits`); its menu
+now reads Reset the score or end the game. The score tap's cue lights the three +1 pills together, two soft breaths
+(380 ms up, 520 ms down, EaseInOut) in a blurred halo of the half's colour (`dropShadow` 28dp), not one after the
+other.
+
 Fake live event (2026-10-26, so event mode can be tried without a live event): debug builds have Settings › Debug ›
 Fake live event. It restarts the app, then every PlayRiftbound call is answered on the phone from a made-up Summoner
 Skirmish (round 3 running, your table open, best of 3), every time moved to the moment of the switch; a report or

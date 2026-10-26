@@ -175,7 +175,7 @@ private val MainPages = listOf(
             "Conquer, hold, effect" to "One tap per point; the 8th by conquering is checked",
             "Track XP" to "Gain and spend XP right on your half",
             "Who goes first" to "Roll the dice in the middle, D6 or D20",
-            "Won or lost" to "The flag ends a game by hand, after a concession",
+            "Reset or end" to "Reset Score starts over, or ends a game after a concession",
             "Pick decks" to "Tap a name to choose your deck and your opponent's legend",
             "Undo" to "Rewind step by step when you misclick",
         ),
