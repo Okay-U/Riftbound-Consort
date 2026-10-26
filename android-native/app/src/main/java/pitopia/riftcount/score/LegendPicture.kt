@@ -85,9 +85,10 @@ fun LegendPicture(image: ImageBitmap?, turned: Boolean, middle: Dp, line: () -> 
 
 /**
  * Behind an art half's number: the mock's dark radial shade, an ellipse 75 % of the width and half the height across,
- * at [alpha] while it fades in.
+ * at [alpha] while it fades in. [extend]: how far (px) the half's field runs on past its outer edge (under the tab
+ * bar); the shade's rim runs on with it, or its edge shows as a stripe.
  */
-fun DrawScope.legendShade(alpha: Float) {
+fun DrawScope.legendShade(alpha: Float, extend: Float = 0f) {
     val center = Offset(size.width / 2, size.height * 0.46f)
     val radius = size.height * 0.5f
     clipRect {
@@ -103,4 +104,5 @@ fun DrawScope.legendShade(alpha: Float) {
             )
         }
     }
+    if (extend > 0f) drawRect(Color.Black.copy(alpha = 0.35f * alpha), topLeft = Offset(0f, size.height), size = Size(size.width, extend))
 }
