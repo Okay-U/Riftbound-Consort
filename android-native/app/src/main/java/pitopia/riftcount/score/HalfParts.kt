@@ -61,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import pitopia.riftcount.ui.common.Pill
 import pitopia.riftcount.ui.common.Pressable
@@ -188,26 +189,27 @@ private fun Drop(value: Int, accent: Color, sizeDp: Float) {
     )
 }
 
+/** [cue] is bumped by a tap on the score: the +1 pills light up one after the other (Okay, 2026-10-26). */
 @Composable
-fun ActionRow(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Unit, onEffect: () -> Unit, onFix: () -> Unit, height: Float = 54f) {
+fun ActionRow(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Unit, onEffect: () -> Unit, onFix: () -> Unit, height: Float = 54f, cue: Int = 0) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), height, true, accent, ink, onConquer)
-        ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), height, false, accent, ink, onHold)
-        ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), height, false, accent, ink, onEffect)
+        ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), height, true, accent, ink, onConquer, cue, wave = 0)
+        ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), height, false, accent, ink, onHold, cue, wave = 1)
+        ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), height, false, accent, ink, onEffect, cue, wave = 2)
         ActionButton("Fix", "−1", "Correct, minus one point", Modifier.weight(1f), height, false, accent, ink, onFix)
     }
 }
 
 /** Four players: the same four actions as a 2×2 grid, so the labels fit a quarter of the table. */
 @Composable
-fun ActionGrid(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Unit, onEffect: () -> Unit, onFix: () -> Unit) {
+fun ActionGrid(accent: Color, ink: Color, onConquer: () -> Unit, onHold: () -> Unit, onEffect: () -> Unit, onFix: () -> Unit, cue: Int = 0) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), 40f, true, accent, ink, onConquer)
-            ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), 40f, false, accent, ink, onHold)
+            ActionButton("Conquer", "+1", "Conquer, plus one point", Modifier.weight(1f), 40f, true, accent, ink, onConquer, cue, wave = 0)
+            ActionButton("Hold", "+1", "Hold, plus one point", Modifier.weight(1f), 40f, false, accent, ink, onHold, cue, wave = 1)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), 40f, false, accent, ink, onEffect)
+            ActionButton("Effect", "+1", "Card effect, plus one point", Modifier.weight(1f), 40f, false, accent, ink, onEffect, cue, wave = 2)
             ActionButton("Fix", "−1", "Correct, minus one point", Modifier.weight(1f), 40f, false, accent, ink, onFix)
         }
     }
@@ -237,11 +239,29 @@ private fun LitPress(onClick: () -> Unit, modifier: Modifier, label: String, ena
     ) { content(light.value) }
 }
 
-/** Conquer is filled in the half's colour and flares when tapped; the others fill with it for a moment. */
+/**
+ * Conquer is filled in the half's colour and flares when tapped; the others fill with it for a moment. A tap on
+ * the score lights the +1 pills the same way, a wave from Conquer on ([cue], [wave]; Fix stays out of it):
+ * points go here, not on the number.
+ */
 @Composable
-private fun ActionButton(title: String, delta: String, label: String, modifier: Modifier, height: Float, filled: Boolean, accent: Color, ink: Color, onClick: () -> Unit) {
+private fun ActionButton(
+    title: String, delta: String, label: String, modifier: Modifier, height: Float, filled: Boolean, accent: Color, ink: Color,
+    onClick: () -> Unit, cue: Int = 0, wave: Int? = null,
+) {
     val shape = RoundedCornerShape(50)
-    LitPress(onClick, modifier.height(height.dp), label) { lit ->
+    val nudge = remember { Animatable(0f) }
+    val first = remember { booleanArrayOf(true) }
+    LaunchedEffect(cue) {
+        if (first[0]) { first[0] = false; return@LaunchedEffect }
+        if (wave == null) return@LaunchedEffect
+        delay(90L * wave)
+        nudge.animateTo(1f, tween(160))
+        delay(20)
+        nudge.animateTo(0f, tween(700, easing = RiftEase))
+    }
+    LitPress(onClick, modifier.height(height.dp).graphicsLayer { val k = 1f + 0.05f * nudge.value; scaleX = k; scaleY = k }, label) { pressed ->
+        val lit = maxOf(pressed, nudge.value)
         val glow = if (filled) 0.45f + 0.35f * lit else 0.5f * lit
         Box(
             Modifier.matchParentSize()
