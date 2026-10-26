@@ -21,6 +21,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.dropShadow
@@ -104,6 +110,8 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
     val ink = swatches[slot].ink
     val dim = if (d != null) d.winner >= 0 && d.winner != slot else s.gameOver && s.winner != slot
     val alpha by animateFloatAsState(if (dim) 0.32f else 1f, tween(900, easing = RiftEase), label = "dim")
+    // A tap on the score asks the action pills to light up.
+    var cue by remember { mutableIntStateOf(0) }
     Box(modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = 34.dp, bottom = 18.dp).graphicsLayer { this.alpha = alpha }) {
             if (d != null) {
@@ -113,11 +121,11 @@ private fun Half(c: ScoreController, slot: Int, swatches: List<Swatch>, modifier
                     c.legend(slot), accent, ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) },
                     shown = !s.gameOver, onName = { c.openSetup(slot) },
                 )
-                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Box(Modifier.weight(1f).fillMaxWidth().pointerInput(Unit) { detectTapGestures { cue++ } }, contentAlignment = Alignment.Center) {
                     ScoreNumber(s.players[slot].score, accent, won = s.winner == slot, label = "${haves(c.shortName(slot))} ${s.players[slot].score} of $TARGET points")
                 }
                 when {
-                    !s.gameOver -> ActionRow(accent, ink, { c.score(slot, PointKind.Conquer) }, { c.score(slot, PointKind.Hold) }, { c.score(slot, PointKind.Effect) }, { c.fix(slot) })
+                    !s.gameOver -> ActionRow(accent, ink, { c.score(slot, PointKind.Conquer) }, { c.score(slot, PointKind.Hold) }, { c.score(slot, PointKind.Effect) }, { c.fix(slot) }, cue = cue)
                     s.winner == slot -> NextGameButton("Next game", accent, ink, c::nextGame)
                     else -> Spacer(Modifier.height(54.dp))
                 }
@@ -170,6 +178,8 @@ private fun BoxScope.FourPlayers(c: ScoreController, swatches: List<Swatch>, are
     val s = c.state
     val d = c.duel
     val top = s.players.maxOf { it.score }
+    // Per seat: a tap on its score asks its action pills to light up.
+    val cues = remember { mutableStateListOf(0, 0, 0, 0) }
     Column(Modifier.fillMaxWidth().height(area)) {
         listOf(listOf(0, 1), listOf(2, 3)).forEachIndexed { row, slots ->
             Row(Modifier.weight(1f).fillMaxWidth().graphicsLayer { rotationZ = if (row == 0) 180f else 0f }) {
@@ -186,10 +196,10 @@ private fun BoxScope.FourPlayers(c: ScoreController, swatches: List<Swatch>, are
                                 DuelSide(c, d, slot, sw.color, sw.ink, Modifier.fillMaxSize(), dieSize = 110f)
                             } else {
                                 TopLine(c.legend(slot), sw.color, sw.ink, s.starter == slot, s.players[slot].xp, { c.xp(slot, it) })
-                                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                Box(Modifier.weight(1f).fillMaxWidth().pointerInput(Unit) { detectTapGestures { cues[slot]++ } }, contentAlignment = Alignment.Center) {
                                     ScoreNumber(s.players[slot].score, sw.color, won = false, label = s.players[slot].score.let { n -> "${haves(c.legend(slot))} $n ${if (n == 1) "point" else "points"}" }, showTarget = false, sizeDp = 112f)
                                 }
-                                ActionGrid(sw.color, sw.ink, { c.score(slot, PointKind.Conquer) }, { c.score(slot, PointKind.Hold) }, { c.score(slot, PointKind.Effect) }, { c.fix(slot) })
+                                ActionGrid(sw.color, sw.ink, { c.score(slot, PointKind.Conquer) }, { c.score(slot, PointKind.Hold) }, { c.score(slot, PointKind.Effect) }, { c.fix(slot) }, cue = cues[slot])
                             }
                         }
                     }

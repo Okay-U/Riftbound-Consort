@@ -340,7 +340,8 @@ way to finish, and restart looked like undo. Now every game stands alone; no ser
 result picker (`Summary.kt` is `BoardDialogs.kt`, `ReportRail.kt` and `ResultPicker` are gone). With a pairing
 the seam shows round and table over the opponent (the round clock once it runs) and a green Report that opens
 the Events report dialog (`TableLink.report`). The restart arrow became a flag: I won / I lost end the game as
-it stands and record it, Restart sets it to 0 (undoable).
+it stands and record it, Restart sets it to 0 (undoable). A tap on a score number (players tap it for points)
+lights that half's +1 pills in a wave from Conquer, with a small bump; no point, no haptic.
 
 ## Code review before release (2026-10-22)
 One pass, five reviewers in parallel (Android by area, plus the new iOS commits), every finding checked against
