@@ -161,6 +161,8 @@ Both platforms, step by step:
    the game menu: I won / I lost end the game as it stands (a concession, points the board missed), Restart
    sets it to 0 (undoable). The flag replaces the restart arrow that looked like Undo. `RiftTournaments`
    moved to the root for the sheet.
+2. **Wayfinding:** a tap on a score number (players tap it for points) lights that half's +1 pills in a
+   wave from Conquer, with a small bump; no point, no haptic.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.

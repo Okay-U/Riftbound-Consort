@@ -84,6 +84,8 @@ private struct XpButton: View {
 
 struct ActionRow: View {
     let accent: Color
+    /// Bumped by a tap on the score: the +1 pills light up one after the other (Okay, 2026-10-26).
+    var cue = 0
     let onConquer: () -> Void
     let onHold: () -> Void
     let onEffect: () -> Void
@@ -92,9 +94,9 @@ struct ActionRow: View {
     var body: some View {
         GlassGroup(spacing: 8) {
             HStack(spacing: 8) {
-                ActionButton(title: "Conquer", delta: "+1", label: "Conquer, plus one point", filled: true, accent: accent, action: onConquer)
-                ActionButton(title: "Hold", delta: "+1", label: "Hold, plus one point", filled: false, accent: accent, action: onHold)
-                ActionButton(title: "Effect", delta: "+1", label: "Card effect, plus one point", filled: false, accent: accent, action: onEffect)
+                ActionButton(title: "Conquer", delta: "+1", label: "Conquer, plus one point", filled: true, accent: accent, cue: cue, wave: 0, action: onConquer)
+                ActionButton(title: "Hold", delta: "+1", label: "Hold, plus one point", filled: false, accent: accent, cue: cue, wave: 1, action: onHold)
+                ActionButton(title: "Effect", delta: "+1", label: "Card effect, plus one point", filled: false, accent: accent, cue: cue, wave: 2, action: onEffect)
                 ActionButton(title: "Fix", delta: "−1", label: "Correct, minus one point", filled: false, accent: accent, action: onFix)
             }
         }
@@ -118,6 +120,7 @@ private struct GlassGroup<Content: View>: View {
 /// Four players: the same four actions as a 2×2 grid, so the labels fit a quarter of the table.
 struct ActionGrid: View {
     let accent: Color
+    var cue = 0
     let onConquer: () -> Void
     let onHold: () -> Void
     let onEffect: () -> Void
@@ -127,11 +130,11 @@ struct ActionGrid: View {
         GlassGroup(spacing: 6) {
             VStack(spacing: 6) {
                 HStack(spacing: 6) {
-                    ActionButton(title: "Conquer", delta: "+1", label: "Conquer, plus one point", filled: true, accent: accent, height: 40, action: onConquer)
-                    ActionButton(title: "Hold", delta: "+1", label: "Hold, plus one point", filled: false, accent: accent, height: 40, action: onHold)
+                    ActionButton(title: "Conquer", delta: "+1", label: "Conquer, plus one point", filled: true, accent: accent, height: 40, cue: cue, wave: 0, action: onConquer)
+                    ActionButton(title: "Hold", delta: "+1", label: "Hold, plus one point", filled: false, accent: accent, height: 40, cue: cue, wave: 1, action: onHold)
                 }
                 HStack(spacing: 6) {
-                    ActionButton(title: "Effect", delta: "+1", label: "Card effect, plus one point", filled: false, accent: accent, height: 40, action: onEffect)
+                    ActionButton(title: "Effect", delta: "+1", label: "Card effect, plus one point", filled: false, accent: accent, height: 40, cue: cue, wave: 2, action: onEffect)
                     ActionButton(title: "Fix", delta: "−1", label: "Correct, minus one point", filled: false, accent: accent, height: 40, action: onFix)
                 }
             }
@@ -140,7 +143,8 @@ struct ActionGrid: View {
 }
 
 /// Conquer is filled in the half's colour and glows; the others light up in it for a moment when tapped.
-/// Liquid Glass on iOS 26 (Okay, 2026-10-22), the mock's capsules before.
+/// Liquid Glass on iOS 26 (Okay, 2026-10-22), the mock's capsules before. A tap on the score lights the
+/// +1 pills the same way, a wave from Conquer on (`cue`, `wave`): points go here, not on the number.
 private struct ActionButton: View {
     let title: String
     let delta: String
@@ -148,17 +152,37 @@ private struct ActionButton: View {
     let filled: Bool
     let accent: Color
     var height: CGFloat = 54
+    var cue = 0
+    /// Its place in the wave; nil stays out of it (Fix).
+    var wave: Int? = nil
     let action: () -> Void
+    @State private var nudge: CGFloat = 0
 
     var body: some View {
+        button
+            .scaleEffect(1 + 0.05 * nudge)
+            .onChange(of: cue) {
+                guard let wave else { return }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(90 * wave))
+                    withAnimation(.easeOut(duration: 0.16)) { nudge = 1 }
+                    try? await Task.sleep(for: .milliseconds(180))
+                    withAnimation(.rift(0.7)) { nudge = 0 }
+                }
+            }
+    }
+
+    @ViewBuilder private var button: some View {
         if #available(iOS 26, *) {
-            LitButton(accessibility: label, pressedScale: 1, action: action) { lit in
+            LitButton(accessibility: label, pressedScale: 1, action: action) { pressed in
+                let lit = max(pressed, nudge)
                 face(color: filled ? accent.ink : .white)
                     .glassEffect(.regular.tint(filled ? accent : accent.opacity(0.9 * lit)).interactive(), in: Capsule())
                     .shadow(color: accent.opacity(glow(lit)), radius: 13 + 6 * lit)
             }
         } else {
-            LitButton(accessibility: label, action: action) { lit in
+            LitButton(accessibility: label, action: action) { pressed in
+                let lit = max(pressed, nudge)
                 face(color: filled ? accent.ink : Color.white.mix(with: accent.ink, by: lit))
                     .background {
                         Capsule()

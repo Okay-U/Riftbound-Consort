@@ -58,7 +58,7 @@ struct Seam: View {
                 LineBox(line: line, onOpen: ask)
             }
             // Won, lost or restart behind a flag, so it never passes for Undo (Okay, 2026-10-26).
-            RoundIcon(symbol: "flag.checkered", label: s.isDuel ? "End or restart this game" : "Restart this game", enabled: !s.gameOver && !gone) { c.openGameMenu() }
+            RoundIcon(symbol: "flag", label: s.isDuel ? "End or restart this game" : "Restart this game", enabled: !s.gameOver && !gone) { c.openGameMenu() }
             if let link {
                 SeamDivider()
                 Pill(text: "Report", height: 42, fill: RiftColor.you, ink: .black, enabled: !gone) { onReport(link) }

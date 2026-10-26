@@ -199,6 +199,8 @@ private struct Half: View {
     @ObservedObject var c: ScoreController
     let slot: Int
     let colors: [Color]
+    /// A tap on the score asks the action pills to light up.
+    @State private var cue = 0
 
     var body: some View {
         let s = c.state
@@ -224,6 +226,8 @@ private struct Half: View {
                                 size: max(40, min(188, box.size.height / 1.1, box.size.width / 1.38))
                             )
                             .frame(width: box.size.width, height: box.size.height)
+                            .contentShape(Rectangle())
+                            .onTapGesture { if !s.gameOver { cue += 1 } }
                         }
                         bottomRow(s, accent: accent)
                     }
@@ -259,7 +263,7 @@ private struct Half: View {
     @ViewBuilder private func bottomRow(_ s: ScoreState, accent: Color) -> some View {
         if !s.gameOver {
             ActionRow(
-                accent: accent,
+                accent: accent, cue: cue,
                 onConquer: { c.score(slot, .conquer) }, onHold: { c.score(slot, .hold) },
                 onEffect: { c.score(slot, .effect) }, onFix: { c.fix(slot) }
             )
@@ -308,6 +312,8 @@ private struct DuelSide: View {
 private struct FourBoard: View {
     @ObservedObject var c: ScoreController
     let area: CGFloat
+    /// Per seat: a tap on its score asks its action pills to light up.
+    @State private var cues = [0, 0, 0, 0]
 
     var body: some View {
         let s = c.state
@@ -359,9 +365,11 @@ private struct FourBoard: View {
                             showTarget: false, size: max(32, min(112, box.size.height / 1.1, box.size.width / 1.38))
                         )
                         .frame(width: box.size.width, height: box.size.height)
+                        .contentShape(Rectangle())
+                        .onTapGesture { cues[slot] += 1 }
                     }
                     ActionGrid(
-                        accent: accent,
+                        accent: accent, cue: cues[slot],
                         onConquer: { c.score(slot, .conquer) }, onHold: { c.score(slot, .hold) },
                         onEffect: { c.score(slot, .effect) }, onFix: { c.fix(slot) }
                     )

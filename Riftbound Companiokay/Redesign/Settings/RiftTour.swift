@@ -134,7 +134,7 @@ struct RiftTour: View {
                  points: [
                     ("Follow your events", "Standings, pairings and results, live."),
                     ("Find local stores", "Search, save favorites, see their calendar."),
-                    ("Play connected", "Link a tournament match to your Scoreboard."),
+                    ("Play connected", "Your table on the Scoreboard, Report sends the result."),
                  ]),
         TourPage(symbol: "lock.shield", accent: RiftColor.you, title: "Sign in", subtitle: "Use your Riot ID on PlayRiftbound.",
                  points: [
