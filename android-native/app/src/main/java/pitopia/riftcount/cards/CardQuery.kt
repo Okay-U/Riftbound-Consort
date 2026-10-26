@@ -68,14 +68,17 @@ object CardQuery {
         return type == t || (c.isToken && (CardFilters.tokenParent[type] ?: type) == t)
     }
 
-    /** Primary sort, then energy (unless energy is primary), then collector number and name, like iOS. */
+    /**
+     * Set is release order, each set in its own numbering like a binder (sorted by energy as well it looked just
+     * like Energy, Okay 2026-10-26); Energy groups each cost by set; Type by energy. Then collector number and name.
+     */
     fun comparator(sort: CardSort): Comparator<Card> {
         val set = compareBy<Card> { CardFilters.setRank(it.set?.label) }
         val energy = compareBy<Card> { it.attributes?.energy ?: Int.MAX_VALUE }
         val type = compareBy<Card, String>(String.CASE_INSENSITIVE_ORDER) { it.classification?.type ?: "~" }
         val primary = when (sort) {
-            CardSort.Set -> set.then(energy)
-            CardSort.Energy -> energy
+            CardSort.Set -> set
+            CardSort.Energy -> energy.then(set)
             CardSort.Type -> type.then(energy)
         }
         return primary.thenBy { it.collectorNumber ?: Int.MAX_VALUE }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }

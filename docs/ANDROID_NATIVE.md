@@ -347,6 +347,10 @@ Sheets, round 1 (2026-10-26): a sheet (the store sheet first) only closed with t
 dim. `Sheet` now follows a pull down from the top of its content and closes past 120dp or on a downward fling,
 like iOS sheets; short of that it slides back.
 
+Cards, round 3 (2026-10-26): Set sorted each set by energy, so its first rows looked just like Energy (both open
+with the 0-energy Seals; a friend of Okay's found it). Set is now release order in each set's own numbering, like
+a binder; Energy groups each cost by set; Type stays by energy (`CardQuery.comparator`, iOS the same).
+
 ## Code review before release (2026-10-22)
 One pass, five reviewers in parallel (Android by area, plus the new iOS commits), every finding checked against
 the code before fixing; no second full round (fd73591, efe9349, df62e13). Fixed: a later round with the same games
