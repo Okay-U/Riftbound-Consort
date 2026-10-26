@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import pitopia.riftcount.data.Prefs
 import pitopia.riftcount.score.OPPONENT
 import pitopia.riftcount.score.PlayerColors
+import pitopia.riftcount.score.SeatShade
 import pitopia.riftcount.score.Swatch
 import pitopia.riftcount.score.YOU
 import pitopia.riftcount.ui.common.Pressable
@@ -124,17 +125,18 @@ internal fun pickColor(picks: List<Swatch>, slot: Int, sw: Swatch): List<Swatch>
 private val PreviewShape = RoundedCornerShape(26.dp)
 private val SeatLabel = RiftType.Caption.copy(fontSize = 10.5.sp, letterSpacing = 0.14.em, color = Color.White.copy(alpha = 0.75f))
 
-/** The mock's preview: both halves in their colours, the glowing line in yours. */
+/** The mock's preview: both halves in their colours as on the board (colour model C), the glowing line in yours. */
 @Composable
 private fun DuelPreview(you: Color, opp: Color) {
     Box(Modifier.fillMaxWidth().height(200.dp).clip(PreviewShape).background(RiftColors.Page).border(1.dp, Color.White.copy(alpha = 0.1f), PreviewShape)) {
-        Box(Modifier.fillMaxWidth().height(100.dp).background(opp.copy(alpha = FIELD)))
-        Box(Modifier.fillMaxWidth().height(100.dp).offset(y = 100.dp).background(you.copy(alpha = FIELD)))
-        Box(Modifier.fillMaxWidth().height(2.dp).offset(y = 99.dp).dropShadow(RectangleShape, Shadow(16.dp, you, spread = 2.dp)).background(you))
+        val line = SeatShade.lift(you)
+        Box(Modifier.fillMaxWidth().height(100.dp).background(SeatShade.deep(opp)))
+        Box(Modifier.fillMaxWidth().height(100.dp).offset(y = 100.dp).background(SeatShade.deep(you)))
+        Box(Modifier.fillMaxWidth().height(2.dp).offset(y = 99.dp).dropShadow(RectangleShape, Shadow(16.dp, line, spread = 2.dp)).background(line))
         BasicText("OPPONENT", Modifier.padding(start = 16.dp, top = 12.dp), style = SeatLabel)
         BasicText("YOU", Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 12.dp), style = SeatLabel)
-        PreviewNumber("5", opp, Modifier.align(Alignment.TopCenter).padding(top = 18.dp).graphicsLayer { rotationZ = 180f })
-        PreviewNumber("6", you, Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp))
+        PreviewNumber("5", SeatShade.lift(opp), Modifier.align(Alignment.TopCenter).padding(top = 18.dp).graphicsLayer { rotationZ = 180f })
+        PreviewNumber("6", SeatShade.lift(you), Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp))
     }
 }
 
@@ -145,17 +147,15 @@ private fun TablePreview(colors: List<Color>) {
         listOf(listOf(0, 1), listOf(2, 3)).forEachIndexed { row, slots ->
             Row(Modifier.weight(1f).fillMaxWidth().graphicsLayer { rotationZ = if (row == 0) 180f else 0f }) {
                 (if (row == 0) slots.reversed() else slots).forEach { slot ->
-                    Box(Modifier.weight(1f).fillMaxHeight().background(colors[slot].copy(alpha = FIELD))) {
+                    Box(Modifier.weight(1f).fillMaxHeight().background(SeatShade.deep(colors[slot]))) {
                         BasicText("P${slot + 1}", Modifier.padding(start = 12.dp, top = 10.dp), style = SeatLabel)
-                        PreviewNumber("${slot + 3}", colors[slot], Modifier.align(Alignment.Center), 48.sp)
+                        PreviewNumber("${slot + 3}", SeatShade.lift(colors[slot]), Modifier.align(Alignment.Center), 48.sp)
                     }
                 }
             }
         }
     }
 }
-
-private const val FIELD = 0x22 / 255f
 
 @Composable
 private fun PreviewNumber(text: String, color: Color, modifier: Modifier, size: TextUnit = 64.sp) {

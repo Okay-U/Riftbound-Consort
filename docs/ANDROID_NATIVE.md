@@ -365,10 +365,19 @@ registration is only noted and changes the later answers, nothing goes to Riot. 
 writes the answers (`src/debug/assets/fake_compete`, iOS the same event). The PlayRiftbound log row moved there
 too. Release and staging compile the stub in `src/nondebug`: no Debug section, no log, always the network.
 
-Planned, not built (Okay's picks 2026-10-26, both platforms): the board's base look becomes colour model C (solid
-seat colours, white Conquer) and each half can show its legend's Data Dragon splash, clipped at the territory line,
-behind a "Legend art" switch (off by default, in both setup sheets and Settings). Full spec in the redesign branch's
-`docs/IOS_REDESIGN.md` ("Planned: score tile look"); mocks on https://claude.ai/artifact/68cipuSRxXGtdgqTKkvXL2.
+Scoreboard, colour model C (2026-10-26, Okay's pick from the mocks, iOS the same): each field is its seat colour
+brought to OKLab lightness 0.44 (`SeatShade.deep`: linear RGB times (0.44/L)³, same hue; darker colours keep theirs),
+so every seat reads alike and white is 7:1 or more on all 16 colours. What the board draws in the seat colour on top
+(line, dice, WIN, GOES FIRST, filled buttons) is lifted to lightness 0.74 by mixing in white (`SeatShade.lift`,
+3.3:1 or more on its field; Rift Green and Rift Violet stay); without it blue, purple and the dark colours vanished on
+their own fields. Conquer is white with ink at 0.75 of the depth, the other pills black 24 % with a white 28 % rim, no
+glow at rest. Four players: the leader at 1.125 of the depth, the near row's colours under the tab bar. The Colors
+page preview follows. `SeatShadeTest` checks every colour.
+
+Planned, not built (Okay's picks 2026-10-26, both platforms): each half can show its legend's Data Dragon splash,
+clipped at the territory line, behind a "Legend art" switch (off by default, in both setup sheets and Settings). Full
+spec in the redesign branch's `docs/IOS_REDESIGN.md` ("Planned: score tile look"); mocks on
+https://claude.ai/artifact/68cipuSRxXGtdgqTKkvXL2.
 
 ## Code review before release (2026-10-22)
 One pass, five reviewers in parallel (Android by area, plus the new iOS commits), every finding checked against

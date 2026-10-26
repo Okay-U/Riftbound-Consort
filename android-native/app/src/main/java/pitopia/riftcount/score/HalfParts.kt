@@ -166,7 +166,7 @@ fun ScoreNumber(value: Int, accent: Color, won: Boolean, label: String, modifier
             BasicText(
                 "OF $TARGET",
                 Modifier.align(Alignment.BottomCenter).offset(y = 10.dp),
-                style = Caps.copy(fontWeight = FontWeight.Normal, fontSize = 12.sp, letterSpacing = 0.2.em, color = Color.White.copy(alpha = 0.7f)),
+                style = Caps.copy(fontWeight = FontWeight.Normal, fontSize = 12.sp, letterSpacing = 0.2.em, color = Color.White.copy(alpha = 0.74f)),
             )
         }
     }
@@ -240,9 +240,9 @@ private fun LitPress(onClick: () -> Unit, modifier: Modifier, label: String, ena
 }
 
 /**
- * Conquer is filled in the half's colour and flares when tapped; the others fill with it for a moment. A tap on
- * the score lights the +1 pills the same way, a wave from Conquer on ([cue], [wave]; Fix stays out of it):
- * points go here, not on the number.
+ * Colour model C: Conquer is white with ink in the half's colour, the others dark with a light rim; a tapped pill
+ * lights up in the half's colour for a moment. A tap on the score lights the +1 pills the same way, a wave from
+ * Conquer on ([cue], [wave]; Fix stays out of it): points go here, not on the number.
  */
 @Composable
 private fun ActionButton(
@@ -250,6 +250,7 @@ private fun ActionButton(
     onClick: () -> Unit, cue: Int = 0, wave: Int? = null,
 ) {
     val shape = RoundedCornerShape(50)
+    val conquerInk = remember(accent) { SeatShade.deep(accent, 0.75f) }
     val nudge = remember { Animatable(0f) }
     val first = remember { booleanArrayOf(true) }
     LaunchedEffect(cue) {
@@ -262,14 +263,14 @@ private fun ActionButton(
     }
     LitPress(onClick, modifier.height(height.dp).graphicsLayer { val k = 1f + 0.05f * nudge.value; scaleX = k; scaleY = k }, label) { pressed ->
         val lit = maxOf(pressed, nudge.value)
-        val glow = if (filled) 0.45f + 0.35f * lit else 0.5f * lit
+        val glow = 0.5f * lit
         Box(
             Modifier.matchParentSize()
                 .let { if (glow > 0f) it.dropShadow(shape, Shadow(radius = (26 + 12 * lit).dp, color = accent.copy(alpha = glow))) else it }
-                .background(if (filled) lerp(accent, Color.White, 0.3f * lit) else lerp(Color.Black.copy(alpha = 0.38f), accent, 0.9f * lit), shape)
-                .let { if (filled) it else it.border(1.dp, lerp(Color.White.copy(alpha = 0.2f), accent, lit), shape) },
+                .background(if (filled) lerp(Color.White, accent, 0.3f * lit) else lerp(Color.Black.copy(alpha = 0.24f), accent, 0.9f * lit), shape)
+                .let { if (filled) it else it.border(1.dp, lerp(Color.White.copy(alpha = 0.28f), accent, lit), shape) },
         )
-        val text = if (filled) ink else lerp(Color.White, ink, lit)
+        val text = if (filled) conquerInk else lerp(Color.White, ink, lit)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             BasicText(title, style = RiftType.Body.copy(fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 15.sp, color = text))
             BasicText(

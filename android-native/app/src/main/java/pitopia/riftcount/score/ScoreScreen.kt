@@ -29,6 +29,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -54,7 +55,7 @@ fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, ca
     val swatches = List(slots) { PlayerColors.forSlot(it, slots) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val area = maxHeight - bottomReserve
-        if (c.state.isDuel) Duel(c, swatches, area, maxHeight, match) else FourPlayers(c, swatches, area)
+        if (c.state.isDuel) Duel(c, swatches, area, maxHeight, match) else FourPlayers(c, swatches, area, maxHeight - area)
         // Centred on the seam like the mock, so it never covers a player's own controls.
         BoardToast(c.toast, c::clearToast, Modifier.align(Alignment.TopCenter).offset(y = area / 2 - 20.dp))
         if (c.gameMenu) GameDialog(c.state.isDuel, swatches, c::closeGameMenu, c::end, c::restart)
@@ -69,7 +70,10 @@ fun ScoreScreen(c: ScoreController, bottomReserve: Dp, decks: List<Decklist>, ca
 private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, screen: Dp, match: MatchInfo?) {
     val s = c.state
     val d = c.duel
-    val colors = swatches.map { it.color }
+    // Colour model C: the fields take the seat colours deep, what the board draws in them is lifted to show.
+    val fields = swatches.map { SeatShade.deep(it.color) }
+    val board = swatches.map { it.copy(color = SeatShade.lift(it.color)) }
+    val colors = board.map { it.color }
     val center = area / 2
     val target = when {
         d != null && d.winner == YOU -> 210.dp
@@ -87,8 +91,8 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
     }
     val lineColor by animateColorAsState(if (leader < 0) Color.White.copy(alpha = 0.7f) else colors[leader], tween(600), label = "lineColor")
     // Each field is one screen tall, so the opponent's reaches the top and yours runs under the tab bar.
-    Box(Modifier.fillMaxWidth().height(screen).graphicsLayer { translationY = (line - screen).toPx() }.background(colors[OPPONENT].copy(alpha = 0.13f)))
-    Box(Modifier.fillMaxWidth().height(screen).graphicsLayer { translationY = line.toPx() }.background(colors[YOU].copy(alpha = 0.13f)))
+    Box(Modifier.fillMaxWidth().height(screen).graphicsLayer { translationY = (line - screen).toPx() }.background(fields[OPPONENT]))
+    Box(Modifier.fillMaxWidth().height(screen).graphicsLayer { translationY = line.toPx() }.background(fields[YOU]))
     Box(
         Modifier.fillMaxWidth().height(2.dp)
             .graphicsLayer { translationY = (line - 1.dp).toPx() }
@@ -96,8 +100,8 @@ private fun BoxScope.Duel(c: ScoreController, swatches: List<Swatch>, area: Dp, 
             .background(lineColor),
     )
     Column(Modifier.fillMaxWidth().height(area)) {
-        Half(c, OPPONENT, swatches, Modifier.weight(1f).graphicsLayer { rotationZ = 180f })
-        Half(c, YOU, swatches, Modifier.weight(1f))
+        Half(c, OPPONENT, board, Modifier.weight(1f).graphicsLayer { rotationZ = 180f })
+        Half(c, YOU, board, Modifier.weight(1f))
     }
     Seam(c, match, Modifier.align(Alignment.TopCenter).offset(y = center - 27.dp).padding(horizontal = 10.dp))
 }
@@ -172,9 +176,12 @@ private fun DuelSide(c: ScoreController, d: DuelState, slot: Int, accent: Color,
     )
 }
 
-/** Four players (no mock): a 2×2 table, the far side turned around, every corner in its own colour. */
+/**
+ * Four players (no mock): a 2×2 table, the far side turned around, every corner in its own colour, the leading seat's
+ * a little lighter. The near row's colours run on under the tab bar ([reserve]) like the duel's fields.
+ */
 @Composable
-private fun BoxScope.FourPlayers(c: ScoreController, swatches: List<Swatch>, area: Dp) {
+private fun BoxScope.FourPlayers(c: ScoreController, swatches: List<Swatch>, area: Dp, reserve: Dp) {
     val s = c.state
     val d = c.duel
     val top = s.players.maxOf { it.score }
@@ -185,12 +192,12 @@ private fun BoxScope.FourPlayers(c: ScoreController, swatches: List<Swatch>, are
             Row(Modifier.weight(1f).fillMaxWidth().graphicsLayer { rotationZ = if (row == 0) 180f else 0f }) {
                 // The far row is turned as a whole, so its seats keep their places for the players across.
                 (if (row == 0) slots.reversed() else slots).forEach { slot ->
-                    val sw = swatches[slot]
+                    val sw = swatches[slot].let { it.copy(color = SeatShade.lift(it.color)) }
                     val leading = top > 0 && s.players[slot].score == top
-                    val tint by animateFloatAsState(if (leading) 0.2f else 0.09f, tween(600), label = "tint")
+                    val field by animateColorAsState(SeatShade.deep(swatches[slot].color, if (leading) 1.125f else 1f), tween(600), label = "field")
                     val lost = d != null && d.winner >= 0 && d.winner != slot
                     val alpha by animateFloatAsState(if (lost) 0.32f else 1f, tween(900, easing = RiftEase), label = "dim")
-                    Box(Modifier.weight(1f).fillMaxHeight().background(sw.color.copy(alpha = tint))) {
+                    Box(Modifier.weight(1f).fillMaxHeight().drawBehind { drawRect(field, size = size.copy(height = size.height + if (row == 1) reserve.toPx() else 0f)) }) {
                         Column(Modifier.fillMaxSize().padding(start = 12.dp, end = 12.dp, top = 22.dp, bottom = 14.dp).graphicsLayer { this.alpha = alpha }) {
                             if (d != null) {
                                 DuelSide(c, d, slot, sw.color, sw.ink, Modifier.fillMaxSize(), dieSize = 110f)
@@ -211,10 +218,11 @@ private fun BoxScope.FourPlayers(c: ScoreController, swatches: List<Swatch>, are
     Seam(c, null, Modifier.align(Alignment.TopCenter).offset(y = area / 2 - 27.dp))
     if (d != null && d.winner >= 0) {
         val starter = d.starter()
+        val drawn = swatches[starter].let { it.copy(color = SeatShade.lift(it.color)) }
         DuelBanner(
             title = "${c.shortName(starter)} starts",
             text = "${c.shortName(starter)} rolled ${d.dice[starter].value} on the ${d.type.label}, the highest roll at the table.",
-            accent = swatches[starter].color, ink = swatches[starter].ink,
+            accent = drawn.color, ink = drawn.ink,
             onAgain = c::rollAgain, onStart = c::startGame,
             modifier = Modifier.align(Alignment.TopCenter).offset(y = area / 2 - 80.dp).padding(horizontal = 16.dp),
         )
