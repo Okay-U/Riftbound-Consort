@@ -2,6 +2,7 @@ package pitopia.riftcount.ui.common
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,17 +26,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -50,6 +59,8 @@ private val Sink = CubicBezierEasing(0.4f, 0f, 1f, 1f)
 /**
  * The mocks' bottom sheet: its own window so it covers the tab bar, rises 40dp in (600ms), sinks out (260ms).
  * [content] gets `close`, which plays the exit before [onDismiss]; [overlay] draws above the scrim (toasts).
+ * Pulled down from the top of its content it follows the finger and closes past 120dp or on a downward fling,
+ * like iOS sheets (Okay, 2026-10-26: only the back button closed it).
  */
 @Composable
 fun Sheet(
@@ -70,6 +81,33 @@ fun Sheet(
             }
         }
     }
+    var pulled by remember { mutableFloatStateOf(0f) }
+    val far = with(LocalDensity.current) { 120.dp.toPx() }
+    val closeNow by rememberUpdatedState(close)
+    val pull = remember {
+        object : NestedScrollConnection {
+            // Pulled down, the sheet goes back up before its content scrolls again.
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y >= 0f || pulled <= 0f) return Offset.Zero
+                val used = maxOf(available.y, -pulled)
+                pulled += used
+                return Offset(0f, used)
+            }
+
+            // At the top of its content, a downward drag takes the sheet along.
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (available.y <= 0f || source != NestedScrollSource.UserInput || closing) return Offset.Zero
+                pulled += available.y
+                return Offset(0f, available.y)
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (pulled <= 0f) return Velocity.Zero
+                if (pulled > far || available.y > 1500f) closeNow() else animate(pulled, 0f, animationSpec = tween(300, easing = RiftEase)) { v, _ -> pulled = v }
+                return available
+            }
+        }
+    }
     Dialog(
         onDismissRequest = close,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnClickOutside = false),
@@ -85,10 +123,11 @@ fun Sheet(
             Column(
                 Modifier.align(Alignment.BottomCenter).statusBarsPadding().navigationBarsPadding().imePadding()
                     .padding(10.dp).fillMaxWidth()
-                    .graphicsLayer { alpha = t.value; translationY = 40.dp.toPx() * (1f - t.value) }
+                    .graphicsLayer { alpha = t.value; translationY = pulled + 40.dp.toPx() * (1f - t.value) }
                     .background(RiftColors.Sheet, SheetShape).border(1.dp, Color.White.copy(alpha = 0.12f), SheetShape)
                     .clickable(remember { MutableInteractionSource() }, indication = null) {}
                     .semantics { paneTitle = label }
+                    .nestedScroll(pull)
                     .verticalScroll(rememberScrollState())
                     .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 20.dp),
             ) {

@@ -343,6 +343,10 @@ the Events report dialog (`TableLink.report`). The restart arrow became a flag: 
 it stands and record it, Restart sets it to 0 (undoable). A tap on a score number (players tap it for points)
 lights that half's +1 pills in a wave from Conquer, with a small bump; no point, no haptic.
 
+Sheets, round 1 (2026-10-26): a sheet (the store sheet first) only closed with the back button or a tap on the
+dim. `Sheet` now follows a pull down from the top of its content and closes past 120dp or on a downward fling,
+like iOS sheets; short of that it slides back.
+
 ## Code review before release (2026-10-22)
 One pass, five reviewers in parallel (Android by area, plus the new iOS commits), every finding checked against
 the code before fixing; no second full round (fd73591, efe9349, df62e13). Fixed: a later round with the same games
