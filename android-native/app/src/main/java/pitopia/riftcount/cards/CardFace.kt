@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,7 +19,6 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
@@ -29,7 +27,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -45,8 +42,9 @@ private val TileShape = RoundedCornerShape(10.dp)
 private val EmblemAlignment = BiasAlignment(0f, -0.21f)
 
 /**
- * A card as the grid shows it: Riot's art in the mock's frame, a shade with the name and a type line
- * (rarity gem, kind, ERRATA / PREVIEW stamps). [labels] fades the frame out over the art (the detail hero).
+ * A card as the grid shows it: Riot's card in the mock's frame, bare like the Skip app's grid (Okay, 2026-10-26:
+ * the shade with name and type line covered it), ERRATA / PREVIEW stamps in its corner. [labels] fades the
+ * stamps out (the detail hero).
  */
 @Composable
 fun CardFace(card: Card, errata: Boolean, art: ImageBitmap?, modifier: Modifier = Modifier, labels: () -> Float = { 1f }) {
@@ -62,29 +60,11 @@ fun CardFace(card: Card, errata: Boolean, art: ImageBitmap?, modifier: Modifier 
                 colorFilter = ColorFilter.tint(CardStyle.domainColor(domain)),
             )
         }
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = labels() }) {
-            Box(
-                Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.64f).background(
-                    Brush.verticalGradient(0f to Color.Transparent, 0.54f to Color.Black.copy(alpha = 0.62f), 1f to Color.Black.copy(alpha = 0.94f)),
-                ),
-            )
-            BasicText(
-                card.name,
-                Modifier.align(Alignment.BottomStart).padding(start = 8.dp, end = 8.dp, bottom = 22.dp),
-                style = RiftType.Body.copy(fontSize = 12.sp, lineHeight = 13.4.sp, fontWeight = FontWeight.Bold, color = Color.White),
-                maxLines = 2, overflow = TextOverflow.Ellipsis,
-            )
+        if (errata || card.isPreview) {
             Row(
-                Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                Modifier.align(Alignment.BottomStart).padding(6.dp).graphicsLayer { alpha = labels() },
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Gem(CardStyle.rarityColor(card.rarity), 6.dp)
-                BasicText(
-                    CardStyle.kind(card).uppercase(), Modifier.weight(1f),
-                    style = RiftType.Caption.copy(fontSize = 8.5.sp, letterSpacing = 0.12.em, color = Color.White.copy(alpha = 0.66f)),
-                    maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
-                )
                 if (errata) Stamp("ERRATA", RiftColors.Gold)
                 if (card.isPreview) Stamp("PREVIEW", Color.White)
             }
@@ -124,7 +104,9 @@ fun Gem(color: Color, size: Dp, modifier: Modifier = Modifier) {
 private fun Stamp(text: String, ink: Color, size: TextUnit = 7.5.sp) {
     BasicText(
         text,
-        Modifier.background(ink.copy(alpha = 0.2f), RoundedCornerShape(3.dp)).padding(horizontal = 4.dp, vertical = 1.dp),
+        // Dark under the tint: the stamp sits on the bare card.
+        Modifier.background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(3.dp)).background(ink.copy(alpha = 0.2f), RoundedCornerShape(3.dp))
+            .padding(horizontal = 4.dp, vertical = 1.dp),
         style = RiftType.Caption.copy(fontSize = size, fontWeight = FontWeight.Bold, letterSpacing = 0.1.em, color = ink),
         maxLines = 1, softWrap = false,
     )
