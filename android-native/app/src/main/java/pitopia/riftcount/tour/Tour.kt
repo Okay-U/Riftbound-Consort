@@ -265,7 +265,7 @@ private val EventsPages = listOf(
     Page(
         SettingsIcons.Match, RiftColors.You, "Match mode", "Score and report from the Scoreboard.",
         listOf(
-            "Turn it on in Settings" to "One tap in Most used.",
+            "Turn it on in Settings" to "One tap on its tile at the top.",
             "Table and opponent" to "Shown right on your Scoreboard.",
             "Report on the spot" to "Send your result the moment you finish.",
         ),

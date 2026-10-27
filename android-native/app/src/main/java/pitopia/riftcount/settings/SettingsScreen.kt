@@ -129,7 +129,6 @@ private fun ColumnScope.MainList(score: ScoreController, colorsRev: Int, toaster
     fun outside(ok: Boolean) {
         if (!ok) toaster.show("No app on this phone can open that")
     }
-    Rise(true, 0) { SectionHead("Most used", "Tap i for what it does") }
     Tiles(players, toaster, onPlayers = { score.setPlayers(if (players == 2) 4 else 2) }, onHaptics = { if (it) view.haptic(Haptic.Tick) })
 
     Section("Scoreboard", 320) {
@@ -206,28 +205,29 @@ private fun Tiles(players: Int, toaster: Toaster, onPlayers: () -> Unit, onHapti
         Triple("Match mode", SettingsIcons.Match, AppSettings.matchMode),
         Triple("Legend art", SettingsIcons.Art, AppSettings.legendArt),
     )
-    Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // The switches in pairs, an odd one out on its own row, then Players across the whole row (iOS the same).
-        switches.indices.chunked(2).forEach { pair ->
+    Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // The switches, then Players, two to a row (iOS the same).
+        (0..switches.size).chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 pair.forEach { i ->
                     Rise(true, 60 + i * 45, Modifier.weight(1f)) {
-                        val (label, icon, flag) = switches[i]
-                        FlipTile(label, TileInfo[i], darkInfo = flag.on) {
-                            SwitchFace(label, icon, flag.on) {
-                                flag.on = !flag.on
-                                when (flag) {
-                                    AppSettings.haptics -> onHaptics(flag.on)
-                                    AppSettings.trueBlack -> toaster.show(if (flag.on) "True black · pure #000 for OLED" else "Dark grey background")
+                        if (i == switches.size) {
+                            FlipTile("Players", TileInfo[i], darkInfo = false) { PlayersFace(players, onPlayers) }
+                        } else {
+                            val (label, icon, flag) = switches[i]
+                            FlipTile(label, TileInfo[i], darkInfo = flag.on) {
+                                SwitchFace(label, icon, flag.on) {
+                                    flag.on = !flag.on
+                                    when (flag) {
+                                        AppSettings.haptics -> onHaptics(flag.on)
+                                        AppSettings.trueBlack -> toaster.show(if (flag.on) "True black · pure #000 for OLED" else "Dark grey background")
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
-        Rise(true, 60 + switches.size * 45) {
-            FlipTile("Players", TileInfo[switches.size], darkInfo = false) { PlayersFace(players, onPlayers) }
         }
     }
 }
