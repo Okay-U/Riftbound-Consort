@@ -163,7 +163,7 @@ struct RiftTour: View {
                  ]),
         TourPage(symbol: "flag.checkered", accent: RiftColor.you, title: "Match mode", subtitle: "Score and report from the Scoreboard.",
                  points: [
-                    ("Turn it on in Settings", "One tap in Most used."),
+                    ("Turn it on in Settings", "One tap on its tile at the top."),
                     ("Table and opponent", "Shown right on your Scoreboard."),
                     ("Report on the spot", "Send your result the moment you finish."),
                  ]),

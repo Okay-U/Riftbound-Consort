@@ -3,26 +3,22 @@
 //  Riftbound Companiokay
 //
 //  Pieces of the redesign's Settings (Android `SettingsParts.kt`, mock `SettingsHybrid`): section captions,
-//  grouped rows, link and switch rows, and the "Most used" tiles that turn over to tell what they do.
+//  grouped rows, link and switch rows, and the tiles on top that turn over to tell what they do.
 //
 
 import SwiftUI
 
-/// "MOST USED", a section caption, with an optional aside on the right.
+/// "SCOREBOARD", a section caption.
 struct SectionHead: View {
     let title: String
-    var aside: String? = nil
 
     var body: some View {
-        HStack {
-            Text(title.uppercased())
-            Spacer()
-            if let aside { Text(aside.uppercased()) }
-        }
-        .caps(11)
-        .foregroundStyle(.white.opacity(0.58))
-        .padding(.horizontal, 6)
-        .padding(.bottom, 8)
+        Text(title.uppercased())
+            .caps(11)
+            .foregroundStyle(.white.opacity(0.58))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 6)
+            .padding(.bottom, 8)
     }
 }
 
@@ -143,11 +139,11 @@ struct ToggleRow: View {
     }
 }
 
-// MARK: - Most used
+// MARK: - Tiles
 
 private let tileShape = RoundedRectangle(cornerRadius: 24)
 
-/// A tile of "Most used" that turns over on its long axis to tell what it does. The "i" stays on top of both
+/// A tile on top of Settings that turns over on its long axis to tell what it does. The "i" stays on top of both
 /// faces like the mock; `darkInfo`: it sits on a green face.
 struct FlipTile<Front: View>: View {
     let label: String
@@ -272,7 +268,7 @@ struct PlayersFace: View {
                         .id(players)
                         .transition(.scoreMorph(height: 42, inDuration: 0.62, outDuration: 0.42))
                 }
-                .frame(width: 52, height: 42)
+                .frame(width: 42, height: 42)
                 .animation(.rift(0.62), value: players)
                 TileText(label: "Players", state: players == 2 ? "Duel" : "Free-for-all", ink: .white)
                 Spacer(minLength: 30)

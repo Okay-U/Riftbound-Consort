@@ -204,7 +204,7 @@ Middle · 4 ways). Okay wants some feedback work done first.
     Willump → `Nunu`); `tools/check-scoreboard` checks the names. The board loads both pictures through
     `ImageCache` as soon as the switch is on and a legend is picked, decodes them before they show
     (`byPreparingForDisplay`) and fades them in; `LegendPicture` draws one, `LegendShade` the shade. The
-    switch is `legendArt` (off): a full-width tile in Settings' Most used and a row at the top of both setup
+    switch is `legendArt` (off): a tile on top of Settings and a row at the top of both setup
     sheets. On the board pictures come from Riot's Data Dragon only while the switch is on; the deck screen's
     banner uses the same splash regardless (feedback round 4).
   - Layout: the picture is fixed to the screen and anchored at the middle, reaches about 90 pt past it
@@ -257,6 +257,12 @@ Review before the 4.0 release (2026-10-27): one pass, four read-only reviewers (
 and the rest) over everything since the round-1 review (iOS 7ab01a0, Android 8c7df64). One MEDIUM, fixed: "New deck
 with this card" in the shortlist's card detail started the builder under the still open shortlist (iOS only; Android
 already closed it). The debug tools stay out of Release on both platforms.
+
+## Feedback round 5 (Okay, 2026-10-27, both platforms)
+
+1. Settings: Legend art and Players are small tiles like the others, so the six sit two to a row (the Players
+   number box is as wide as a switch's icon now, so the texts line up); the "Most used" / "Tap i for what it does"
+   line above them is gone, and the Events tour says "One tap on its tile at the top".
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.

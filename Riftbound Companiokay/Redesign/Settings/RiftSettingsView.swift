@@ -48,7 +48,6 @@ struct RiftSettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Settings").font(RiftFont.display(46)).tracking(0.9).foregroundStyle(.white).padding(.horizontal, 4).padding(.top, 6)
-                    SectionHead(title: "Most used", aside: "Tap i for what it does").padding(.top, 14).riseIn(appeared, delay: 0)
                     tiles
                     section("Scoreboard", delay: 0.32) {
                         LinkRow(title: "Player colors", symbol: "paintpalette", sub: PlayerSwatches.summary(players: playerCount), divider: false) {
@@ -146,7 +145,7 @@ struct RiftSettingsView: View {
         "2 is the face-to-face duel. 4 splits the table for free-for-all games.",
     ]
 
-    /// The switches, then Players; an odd one out takes the whole row.
+    /// The switches, then Players, two to a row.
     private var tiles: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
@@ -157,16 +156,18 @@ struct RiftSettingsView: View {
                 switchTile(2, "True black", "moon", $trueBlack) { on in show(on ? "True black · pure #000 for OLED" : "Dark grey background") }
                 switchTile(3, "Match mode", "trophy", $matchMode)
             }
-            switchTile(4, "Legend art", "photo.artframe", $legendArt)
-            FlipTile(label: "Players", info: Self.info[5], darkInfo: false) {
-                PlayersFace(players: playerCount) {
-                    playerCount = playerCount == 2 ? 4 : 2
-                    Haptics.selection()
+            HStack(spacing: 10) {
+                switchTile(4, "Legend art", "photo.artframe", $legendArt)
+                FlipTile(label: "Players", info: Self.info[5], darkInfo: false) {
+                    PlayersFace(players: playerCount) {
+                        playerCount = playerCount == 2 ? 4 : 2
+                        Haptics.selection()
+                    }
                 }
+                .riseIn(appeared, delay: 0.06 + 5 * 0.045)
             }
-            .riseIn(appeared, delay: 0.06 + 5 * 0.045)
         }
-        .padding(.top, 8)
+        .padding(.top, 16)
     }
 
     private func switchTile(_ i: Int, _ label: String, _ symbol: String, _ flag: Binding<Bool>, onChange: ((Bool) -> Void)? = nil) -> some View {
