@@ -39,9 +39,6 @@ object RiotSession {
     private const val SITE = "https://playriftbound.com"
     private const val FAILED_RENEWAL_PAUSE_MS = 20_000L
 
-    /** Debug builds can stand in recorded credentials (see [DebugEvents]). */
-    var override: (() -> Credentials?)? = null
-
     private var warmedUp = 0L
     private var warmUp: Deferred<Credentials?>? = null
     private var renewal: Deferred<Credentials?>? = null
@@ -52,7 +49,6 @@ object RiotSession {
 
     /** Nil without a session cookie. */
     fun read(): Credentials? {
-        override?.let { return it() }
         val header = runCatching { CookieManager.getInstance().getCookie(SITE) }.getOrNull().orEmpty()
         val cookies = header.split(";").mapNotNull { part ->
             val i = part.indexOf('=')
@@ -67,7 +63,7 @@ object RiotSession {
 
     /** Any PlayRiftbound cookie at all: someone has used the site in the app. */
     private fun hasSiteCookies(): Boolean =
-        override != null || runCatching { CookieManager.getInstance().getCookie(SITE) }.getOrNull().orEmpty().isNotBlank()
+        runCatching { CookieManager.getInstance().getCookie(SITE) }.getOrNull().orEmpty().isNotBlank()
 
     /**
      * Credentials good to use now: an expired session is renewed once. Nil when signed out; throws

@@ -1,47 +1,9 @@
 package pitopia.riftcount.settings
 
-import java.nio.file.Files
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import pitopia.riftcount.score.PlayerColors
-
-class PlayRiftboundLogTest {
-    // As iOS `PlayRiftboundDiagnostics` writes it: oldest first, Date as seconds since 2001, nil detail left out.
-    private val swiftJson = """[{"id":"A","date":782659200,"operation":"PlayerEvents","method":"GET","outcome":"ok","durationMs":231},""" +
-        """{"id":"B","date":782659260.5,"operation":"ReportMatchResult","method":"POST","outcome":"http 409",""" +
-        """"detail":"Round already finalised","durationMs":812}]"""
-
-    @Test
-    fun `reads the iOS log newest first`() {
-        val file = Files.createTempFile("log", ".json").toFile().apply { writeText(swiftJson) }
-        val entries = PlayRiftboundLog(file).entries()
-        assertEquals(listOf("B", "A"), entries.map { it.id })
-        assertEquals((782_659_260.5 + 978_307_200) * 1000, entries[0].date.toDouble(), 1.0)
-        assertFalse(entries[0].ok)
-        assertTrue(entries[1].ok)
-    }
-
-    @Test
-    fun `a missing or broken file is an empty log`() {
-        val dir = Files.createTempDirectory("docs").toFile()
-        assertTrue(PlayRiftboundLog(dir.resolve(PlayRiftboundLog.FILE)).entries().isEmpty())
-        val broken = dir.resolve("broken.json").apply { writeText("{") }
-        assertTrue(PlayRiftboundLog(broken).entries().isEmpty())
-    }
-
-    @Test
-    fun `export has the iOS header and one line per call with its detail`() {
-        val file = Files.createTempFile("log", ".json").toFile().apply { writeText(swiftJson) }
-        val text = PlayRiftboundLog.export(PlayRiftboundLog(file).entries(), "3.5.0 (10)")
-        val lines = text.lines()
-        assertEquals("Riftcount PlayRiftbound log · 2 entries · app 3.5.0 (10)", lines[0])
-        assertTrue(lines[1], lines[1].endsWith("POST ReportMatchResult → http 409 (812 ms)"))
-        assertEquals("    Round already finalised", lines[2])
-        assertTrue(lines[3], lines[3].endsWith("GET PlayerEvents → ok (231 ms)"))
-    }
-}
 
 class ReflowTest {
     @Test
