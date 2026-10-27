@@ -408,6 +408,11 @@ the Signature supertype (not the signed printing), at most three of the legend's
 legend's champion tag, a sideboard of up to 10. Clean areas: domain lock, cookies, report/register paths,
 standings, the old app's preferences, the card feed and image cache.
 
+Second pass before 4.0 (2026-10-27): everything since 8c7df64 (colour model C, Legend art, Reset Score and the ripple,
+the debug split, the deck banner's splash), two read-only reviewers, no findings. Checked on the way: the debug tools,
+their assets, the Debug rows and the PlayRiftbound log stay out of release and staging; the deck's open waits for its
+splash with a timeout that fires even while the download blocks.
+
 ## Open points
 - 4-player scoreboard has no mock; derived in phase 1, Okay judges it.
 - The mocks end a game automatically at 8 (with the conquer check); iOS has manual Won/Lost. The build
