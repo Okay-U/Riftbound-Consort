@@ -253,5 +253,10 @@ Middle · 4 ways). Okay wants some feedback work done first.
    card as it lands on its pile. The card's art stays underneath while a splash is still on its way (then it
    fades in on the banner) or where it cannot load.
 
+Review before the 4.0 release (2026-10-27): one pass, four read-only reviewers (iOS and Android, each the scoreboard
+and the rest) over everything since the round-1 review (iOS 7ab01a0, Android 8c7df64). One MEDIUM, fixed: "New deck
+with this card" in the shortlist's card detail started the builder under the still open shortlist (iOS only; Android
+already closed it). The debug tools stay out of Release on both platforms.
+
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.

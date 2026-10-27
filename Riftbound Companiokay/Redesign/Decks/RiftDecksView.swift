@@ -108,6 +108,8 @@ struct RiftDecksView: View {
             .toolbar(opened == nil && log == nil && review == nil && builder.draft == nil ? .visible : .hidden, for: .tabBar)
         }
         .onAppear { cards.loadIfNeeded() }
+        // "New deck with this card" in the shortlist's card detail: the builder opens under the shortlist (Android closes it too).
+        .onChange(of: builder.draft != nil) { _, started in if started { shortlistShown = false } }
         // Every deck's splash ahead, so a deck opens with it rather than with its card first (Okay 2026-10-27).
         .task(id: splashURLs) {
             for url in splashURLs { _ = await ImageCache.shared.image(for: url) }
