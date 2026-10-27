@@ -135,20 +135,19 @@ reviews in Xcode.
    and legends get more columns on a wider screen; Settings and the Events lists keep a readable width of
    700pt; Cards and the scoreboard already adapted), version 4.0 on both platforms (Okay 2026-10-27;
    `MARKETING_VERSION` 4.0, build 1; Android 4.0.0, versionCode 10). App Store screenshots are Okay's. What's
-   new for the App Store:
+   new for the App Store (Okay's text, 2026-10-27):
 
-   > Riftcount has a new look.
-   > • Scoreboard: territory fields with a glowing line, the dice in the middle decide who goes first, won
-   >   or lost by hand, and your tournament table with a Report button right on the board.
-   > • Cards: the whole pool in a new grid, filters with sliders, and a card view that grows out of its
-   >   tile, with keyword chips and errata.
-   > • Decks: your piles on a table, a deck that opens out of its pile, test hands, odds and stats, a
-   >   seven-step builder, and a match log with every game's race to 8.
-   > • Events: a live card with your table and the round clock, the event page with matches, rounds,
-   >   standings and "Can I draw?", stores on a two-week rail and a month view.
-   > • Settings: tiles that turn over to tell what they do, 16 player colors, true black or dark grey.
-   > Prefer the old look? Settings › Classic design brings it back for a while.
-   > The Live Activity and the widgets are gone.
+   > Riftcount 4.0 ReDesign Update:
+   > • Scoreboard, Dice, Events, Cards, Decks have all new looks
+   > • Legend art: turn it on and your legend and your opponent's show as splash art behind their halves.
+   > • Cards: search by rules text and a shortlist were added.
+   > • Events: again functional with new platform. Report Matches, find events, register, drop, view live
+   >   standings and pairings
+   > • Several bug fixes
+   > • Several Quality of Life improvements
+
+   The privacy policy for 4.0 (Data Dragon splash art, no diagnostic log, no Live Activity) is committed in the
+   site repo (okay-u.github.io b6264f6) and goes online with the release.
 
 ## Feedback round 1 (Okay, 2026-10-26)
 
