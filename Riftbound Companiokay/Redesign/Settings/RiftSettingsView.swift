@@ -75,20 +75,6 @@ struct RiftSettingsView: View {
                         ExternalRow(title: "Buy me a coffee", symbol: "cup.and.saucer", url: SupportConfig.donationURL)
                         ExternalRow(title: "Support and privacy", symbol: "lock.shield", url: URL(string: "https://okay-u.github.io/privacy.html")!)
                     }
-                    #if DEBUG
-                    section("Debug", delay: 0.5) {
-                        ToggleRow(title: "Fake live event", symbol: "ladybug",
-                                  sub: "A made-up event with round 3 running and your table open, answered on this phone; nothing goes to Riot. Riftcount closes, open it again.",
-                                  divider: false, isOn: Binding(get: { FakeLiveEvent.isOn }, set: { on in
-                                      FakeLiveEvent.set(on)
-                                      // A fresh start, so no screen keeps Riot's answers or the fake ones.
-                                      Task {
-                                          try? await Task.sleep(for: .milliseconds(450))
-                                          exit(0)
-                                      }
-                                  }))
-                    }
-                    #endif
                     VStack(spacing: 4) {
                         Text("RIFTCOUNT").font(RiftFont.display(22)).tracking(0.9).foregroundStyle(.white)
                         Text("Score Tracker · Version \(Bundle.main.appVersion) (\(Bundle.main.appBuild)) · iOS")

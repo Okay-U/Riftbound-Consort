@@ -232,6 +232,7 @@ Middle · 4 ways). Okay wants some feedback work done first.
    table open, best of 3), every time moved to the moment of the switch; a report or registration is only
    noted, nothing goes to Riot. `tools/fake-live-event/build.sh` packs the answers into
    `FakeLiveEventData.swift` (and Android's assets). All of it is `#if DEBUG`: release builds have none.
+   Removed again before 4.0 (feedback round 5).
 
 ## Feedback round 3 (Okay, 2026-10-26, both platforms)
 
@@ -263,6 +264,11 @@ already closed it). The debug tools stay out of Release on both platforms.
 1. Settings: Legend art and Players are small tiles like the others, so the six sit two to a row (the Players
    number box is as wide as a switch's icon now, so the texts line up); the "Most used" / "Tap i for what it does"
    line above them is gone, and the Events tour says "One tap on its tile at the top".
+2. No debug tools before the release: the fake live event is gone on both platforms (iOS `FakeLiveEvent` and its
+   data, Android's debug source set with its answers, `tools/fake-live-event`), and so is Android's PlayRiftbound
+   log (its Settings page and the API's recording); the iOS log went on 2026-10-22, and 3.5's leftover
+   `playriftbound_log.json` is deleted on the first start. Left in on purpose, none of it reaches Release: an
+   Xcode preview, the web view's Safari inspector and its console timings in Debug builds.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.
