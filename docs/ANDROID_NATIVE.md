@@ -367,8 +367,9 @@ the pill, a wider faint stroke as its glow) while the pill dips to 96.5 % and sp
 
 Decks, round 5 (2026-10-27, iOS the same): the deck screen's banner shows the legend's centred splash (Data Dragon,
 through `rememberLegendPicture` like the board's Legend art, switch or not) over the card's art, which is rarely
-centred and cropped badly there. While the pile grows into the banner the splash fades in, so the card turns into
-it, and back on closing; a splash that arrives late fades in on the banner.
+centred and cropped badly there. The table puts every deck's splash on disk ahead (`CardImages.prefetch`) and a tap
+decodes it before the deck opens (300 ms at most), so the deck opens as its splash from the first frame; closing
+fades it back to the card as it lands on its pile. A splash still on its way fades in on the banner.
 
 Fake live event (2026-10-26, so event mode can be tried without a live event): debug builds have Settings › Debug ›
 Fake live event. It restarts the app, then every PlayRiftbound call is answered on the phone from a made-up Summoner

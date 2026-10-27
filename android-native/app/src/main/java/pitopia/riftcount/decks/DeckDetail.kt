@@ -120,8 +120,8 @@ fun DeckDetail(
             Modifier.fillMaxSize().graphicsLayer { alpha = backdrop }.background(RiftColors.Page)
                 .clickable(remember { MutableInteractionSource() }, indication = null) {},
         )
-        // The morph: the pile's top card becomes the banner; layout-sized so the art crops instead of stretching. The
-        // splash fades in as it grows, so the pile's card turns into it (and back on closing).
+        // The morph: the pile's top card becomes the banner; layout-sized so the art crops instead of stretching. It
+        // opens as the splash; closing fades the splash out, so it lands on the pile as its card.
         if (!atHero) {
             ArtBox(
                 legend, screen.width, previewWidthPx = with(density) { 120.dp.roundToPx() },
@@ -138,7 +138,7 @@ fun DeckDetail(
                 alignment = ArtTop,
                 initial = (legend?.title ?: deck.name).take(1),
             ) {
-                Splash(splash) { progress() * fade }
+                Splash(splash) { if (shown) fade else progress() * fade }
                 Box(Modifier.fillMaxSize().bottomShade(0.3f))
             }
         }

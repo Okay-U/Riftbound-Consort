@@ -20,8 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import pitopia.riftcount.cards.CardImages
 import pitopia.riftcount.cards.CardStore
 import pitopia.riftcount.cards.ErrataStore
 import pitopia.riftcount.data.AppSettings
@@ -30,6 +33,7 @@ import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.data.DecklistStore
 import pitopia.riftcount.data.GameRecord
 import pitopia.riftcount.data.GameRecordStore
+import pitopia.riftcount.score.LegendArt
 import pitopia.riftcount.tour.BuilderTip
 import pitopia.riftcount.ui.common.ToastHost
 import pitopia.riftcount.ui.common.Toaster
@@ -50,6 +54,7 @@ fun DecksScreen(ui: DecksUi, decks: DecklistStore, games: GameRecordStore, cards
     val now = { System.currentTimeMillis() }
 
     var opened by remember { mutableStateOf<Opened?>(null) }
+    var opening by remember { mutableStateOf(false) }
     var detailShown by remember { mutableStateOf(false) }
     val morph = remember { Animatable(0f) }
     var sheet by remember { mutableStateOf<DeckTool?>(null) }
@@ -74,11 +79,23 @@ fun DecksScreen(ui: DecksUi, decks: DecklistStore, games: GameRecordStore, cards
     }
     DisposableEffect(Unit) { onDispose { report(false) } }
 
+    // Every deck's splash on disk ahead, so a deck opens with it rather than with its card first (Okay 2026-10-27).
+    val splashes = remember(decks.lists) { decks.lists.mapNotNull { it.legend?.cardName?.let(LegendArt::url) }.distinct() }
+    LaunchedEffect(splashes) { splashes.forEach { CardImages.prefetch(it) } }
+
     fun openDeck(deck: Decklist, from: Rect) {
-        if (opened != null) return
-        opened = Opened(deck.id, from)
-        detailShown = true
+        if (opened != null || opening) return
+        opening = true
         scope.launch {
+            // Its splash decoded first (a few ms from the disk), so the banner shows it from the first frame; one
+            // still on its way gets 300 ms, then the deck opens and the splash fades in later.
+            deck.legend?.cardName?.let(LegendArt::url)?.let { url ->
+                val splash = async { CardImages.load(url) }
+                withTimeoutOrNull(300) { splash.await() }
+            }
+            opening = false
+            opened = Opened(deck.id, from)
+            detailShown = true
             morph.snapTo(0f)
             morph.animateTo(1f, tween(700, easing = RiftEase))
         }
