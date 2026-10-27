@@ -1,5 +1,6 @@
 package pitopia.riftcount.events
 
+import android.util.Log
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -24,20 +25,16 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
-import pitopia.riftcount.settings.PlayRiftboundLog
 
-/**
- * What can go wrong talking to PlayRiftbound; the message is what the screen shows (iOS `PlayRiftboundError`),
- * [logName] what the on-device log says (iOS case names; class names do not survive R8).
- */
-sealed class RiftError(message: String, val logName: String) : Exception(message) {
-    class NotSignedIn : RiftError("Sign in on PlayRiftbound first.", "notSignedIn")
-    class SessionExpired : RiftError("Your PlayRiftbound session expired. Open the PlayRiftbound segment to refresh it.", "sessionExpired")
-    class UnknownOperation(name: String) : RiftError("Unknown operation $name.", "unknownOperation($name)")
-    class StaleIds : RiftError("PlayRiftbound changed. Update the app or try again later.", "staleOperationIDs")
-    class Http(val code: Int) : RiftError("PlayRiftbound answered with status $code.", "http($code)")
-    class GraphQL(messages: List<String>) : RiftError(messages.joinToString("\n"), "graphQL")
-    class BadResponse : RiftError("Unexpected answer from PlayRiftbound.", "badResponse")
+/** What can go wrong talking to PlayRiftbound; the message is what the screen shows (iOS `PlayRiftboundError`). */
+sealed class RiftError(message: String) : Exception(message) {
+    class NotSignedIn : RiftError("Sign in on PlayRiftbound first.")
+    class SessionExpired : RiftError("Your PlayRiftbound session expired. Open the PlayRiftbound segment to refresh it.")
+    class UnknownOperation(name: String) : RiftError("Unknown operation $name.")
+    class StaleIds : RiftError("PlayRiftbound changed. Update the app or try again later.")
+    class Http(val code: Int) : RiftError("PlayRiftbound answered with status $code.")
+    class GraphQL(messages: List<String>) : RiftError(messages.joinToString("\n"))
+    class BadResponse : RiftError("Unexpected answer from PlayRiftbound.")
 }
 
 /**
@@ -126,10 +123,9 @@ object HttpTransport : Transport {
 
 /**
  * PlayRiftbound's GraphQL endpoint (iOS `PlayRiftboundAPI`): the player's own tournaments, one tournament,
- * their result report, plus search, registration and favourites. Every call lands in the on-device log
- * (operation, outcome, mutation ids; never cookies or responses).
+ * their result report, plus search, registration and favourites.
  */
-class RiftApi(private val transport: Transport, private val log: PlayRiftboundLog, private val appVersion: String) {
+class RiftApi(private val transport: Transport, private val appVersion: String) {
     val ids = OperationIds { fetchFeed() }
 
     // --- reads and the report ----------------------------------------------------------------------
@@ -248,9 +244,9 @@ class RiftApi(private val transport: Transport, private val log: PlayRiftboundLo
         val id = ids.id(operation) ?: throw RiftError.UnknownOperation(operation)
         fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
         val url = "$ENDPOINT?operationName=${enc(operation)}&variables=${enc(variables.toString())}&extensions=${enc(extensions(id).toString())}"
-        val data = send("GET", url, null, operation, credentials)
+        val data = perform("GET", url, null, operation, credentials)
         return runCatching { CompeteJson.decodeFromJsonElement(serializer, data) }.getOrElse {
-            log.record(operation, "GET", "decode", it.message?.take(300), System.currentTimeMillis())
+            Log.w("RiftApi", "$operation: undecodable response", it)
             throw RiftError.BadResponse()
         }
     }
@@ -263,21 +259,7 @@ class RiftApi(private val transport: Transport, private val log: PlayRiftboundLo
             put("variables", variables)
             put("extensions", extensions(id))
         }.toString()
-        send("POST", ENDPOINT, body, operation, credentials)
-    }
-
-    private suspend fun send(method: String, url: String, body: String?, operation: String, credentials: Credentials?): JsonElement {
-        val started = System.currentTimeMillis()
-        return try {
-            perform(method, url, body, operation, credentials).also { log.record(operation, method, "ok", body, started) }
-        } catch (e: RiftError) {
-            // Mutation variables (ids only) go into the on-device log; GET query strings carry nothing a failure needs.
-            log.record(operation, method, e.logName, listOfNotNull(body, e.message).joinToString("\n"), started)
-            throw e
-        } catch (e: java.io.IOException) {
-            log.record(operation, method, "network", e.message, started)
-            throw e
-        }
+        perform("POST", ENDPOINT, body, operation, credentials)
     }
 
     private suspend fun perform(method: String, url: String, body: String?, operation: String, credentials: Credentials?): JsonElement {

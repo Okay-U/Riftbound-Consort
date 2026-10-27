@@ -1,6 +1,5 @@
 package pitopia.riftcount.settings
 
-import android.content.ClipData
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -15,17 +14,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,11 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.ClipEntry
-import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -48,16 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import pitopia.riftcount.ui.common.GlowButton
-import pitopia.riftcount.ui.common.LinkButton
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.Rise
 import pitopia.riftcount.ui.theme.RiftColors
@@ -139,7 +122,6 @@ private fun Field(value: String, placeholder: String, height: Dp, single: Boolea
 
 private val AckTitle = RiftType.Body.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
 private val AckText = RiftType.Body.copy(fontSize = 13.5.sp, lineHeight = 20.25.sp, fontWeight = FontWeight.Normal, color = Color.White.copy(alpha = 0.72f))
-private val Mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 17.4.sp, color = Color.White.copy(alpha = 0.82f))
 
 @Composable
 private fun AckCard(title: String, text: String, delayMs: Int, links: @Composable () -> Unit) {
@@ -217,79 +199,6 @@ internal fun reflow(text: String): String =
     text.lines().filterNot { it.isNotBlank() && it.all { c -> c == '-' } }
         .joinToString("\n") { if (it.isNotBlank() && it.trim().all { c -> c.isUpperCase() || c == ' ' || c == '&' }) "$it\n" else it }
         .split(Regex("\n\\s*\n")).joinToString("\n\n") { it.trim().replace(Regex("\\s*\n\\s*"), " ") }
-
-/** What the app did with PlayRiftbound (iOS `PlayRiftboundLogView`), newest first, with Copy and Clear. */
-@Composable
-fun LogPage(file: File, onToast: (String) -> Unit) {
-    val context = LocalContext.current
-    val clipboard = LocalClipboard.current
-    val scope = rememberCoroutineScope()
-    val log = remember(file) { PlayRiftboundLog(file) }
-    var entries by remember { mutableStateOf<List<LogEntry>?>(null) }
-    LaunchedEffect(file) { entries = withContext(Dispatchers.IO) { log.entries() } }
-    BasicText(
-        "What the app did with PlayRiftbound on this phone. No passwords, cookies or tokens are ever written here.",
-        Modifier.padding(start = 4.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
-        style = FootText,
-    )
-    val shown = entries.orEmpty()
-    Rise(true, 60) {
-        Column(
-            Modifier.fillMaxWidth().background(Color(0xFF080808), RoundedCornerShape(22.dp)).border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(22.dp))
-                .padding(vertical = 6.dp),
-        ) {
-            if (entries != null && shown.isEmpty()) LogLine("", "No PlayRiftbound calls logged yet.", null, null, divider = false)
-            shown.forEachIndexed { i, e ->
-                LogLine(time(e.date), "${e.operation} → ${e.outcome} · ${e.durationMs} ms", e.detail, if (e.ok) RiftColors.You else RiftColors.Gold, divider = i > 0)
-            }
-        }
-    }
-    Box(Modifier.padding(top = 14.dp)) {
-        GlowButton("Copy log", shown.isNotEmpty()) {
-            scope.launch {
-                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("PlayRiftbound log", PlayRiftboundLog.export(shown, Support.version(context)))))
-                onToast("Log copied, paste it into a bug report")
-            }
-        }
-    }
-    if (shown.isNotEmpty()) {
-        Box(Modifier.fillMaxWidth().padding(top = 6.dp), contentAlignment = Alignment.Center) {
-            LinkButton("Clear the log", {
-                scope.launch {
-                    withContext(Dispatchers.IO) { log.clear() }
-                    entries = emptyList()
-                    onToast("Log cleared")
-                }
-            }, color = RiftColors.Danger)
-        }
-    }
-}
-
-private fun time(ms: Long): String {
-    val day = Calendar.getInstance().apply { timeInMillis = ms }
-    val today = Calendar.getInstance()
-    val sameDay = day.get(Calendar.YEAR) == today.get(Calendar.YEAR) && day.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
-    return SimpleDateFormat(if (sameDay) "HH:mm:ss" else "d MMM HH:mm", Locale.US).format(Date(ms))
-}
-
-@Composable
-private fun LogLine(time: String, message: String, detail: String?, dot: Color?, divider: Boolean) {
-    Row(
-        Modifier.fillMaxWidth()
-            .drawBehind { if (divider) drawRect(Color.White.copy(alpha = 0.05f), size = Size(size.width, 1.dp.toPx())) }
-            .padding(horizontal = 14.dp, vertical = 9.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        if (time.isNotEmpty()) BasicText(time, style = Mono.copy(color = Color.White.copy(alpha = 0.45f)))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                dot?.let { Box(Modifier.padding(end = 8.dp).size(7.dp).background(it, CircleShape)) }
-                BasicText(message, style = Mono)
-            }
-            detail?.let { BasicText(it, Modifier.padding(top = 2.dp), style = Mono.copy(fontSize = 11.sp, color = Color.White.copy(alpha = 0.55f))) }
-        }
-    }
-}
 
 /** Riot's documents by kind (iOS `RulesView`), each row opening Riot's own page. */
 @Composable

@@ -47,10 +47,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import java.io.File
 import kotlinx.coroutines.delay
 import pitopia.riftcount.data.AppSettings
-import pitopia.riftcount.events.DebugEvents
 import pitopia.riftcount.platform.Haptic
 import pitopia.riftcount.platform.haptic
 import pitopia.riftcount.score.ScoreController
@@ -64,12 +62,12 @@ import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
 private enum class SubPage(val title: String) {
-    Colors("Player colors"), Bug("Report a bug"), Wish("Wish a feature"), Ack("Acknowledgments"), Log("PlayRiftbound log"), Rules("Rules, FAQs and errata"),
+    Colors("Player colors"), Bug("Report a bug"), Wish("Wish a feature"), Ack("Acknowledgments"), Rules("Rules, FAQs and errata"),
 }
 
 /** The Settings tab (SettingsHybrid): flip tiles for the switches used most, then grouped rows; sub pages slide in. */
 @Composable
-fun SettingsScreen(score: ScoreController, logFile: File, bottomReserve: Dp, onTour: (TourKind) -> Unit, onOverlay: (Boolean) -> Unit) {
+fun SettingsScreen(score: ScoreController, bottomReserve: Dp, onTour: (TourKind) -> Unit, onOverlay: (Boolean) -> Unit) {
     val toaster = remember { Toaster() }
     var sub by remember { mutableStateOf<SubPage?>(null) }
     var subShown by remember { mutableStateOf(false) }
@@ -113,7 +111,7 @@ fun SettingsScreen(score: ScoreController, logFile: File, bottomReserve: Dp, onT
                 SubHeader(page.title) { subShown = false }
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 40.dp)) {
                     // Keyed: a page opened while the last one slides out starts empty.
-                    key(page) { SubContent(page, score, logFile, toaster, onColors = { colorsRev++ }) { subShown = false } }
+                    key(page) { SubContent(page, score, toaster, onColors = { colorsRev++ }) { subShown = false } }
                 }
             }
         }
@@ -152,19 +150,6 @@ private fun ColumnScope.MainList(score: ScoreController, colorsRev: Int, toaster
         LinkRow("Rate it on Google Play", SettingsIcons.Star, external = true) { outside(Support.rate(context)) }
         LinkRow("Buy me a coffee", SettingsIcons.Coffee, external = true) { outside(Support.open(context, Support.KOFI)) }
         LinkRow("Support and privacy", SettingsIcons.Shield, external = true) { outside(Support.open(context, Support.PRIVACY)) }
-    }
-    // Debug builds only; release and staging have no debug tools (DebugEvents stub).
-    if (DebugEvents.TOOLS) {
-        val fake = remember { DebugEvents.isOn(context) }
-        Section("Debug", 500) {
-            LinkRow(
-                "Fake live event", SettingsIcons.Bug,
-                if (fake) "On · a made-up event, round 3 running, your table open. Tap for PlayRiftbound again (the app restarts)."
-                else "Off · tap for a made-up live event answered on this phone, nothing goes to Riot (the app restarts).",
-                divider = false,
-            ) { DebugEvents.switch(context, !fake) }
-            LinkRow("PlayRiftbound log", SettingsIcons.Log) { open(SubPage.Log) }
-        }
     }
     Rise(true, 530, Modifier.padding(top = 30.dp, bottom = 10.dp)) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -255,7 +240,7 @@ private fun SubHeader(title: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun SubContent(page: SubPage, score: ScoreController, logFile: File, toaster: Toaster, onColors: () -> Unit, close: () -> Unit) {
+private fun SubContent(page: SubPage, score: ScoreController, toaster: Toaster, onColors: () -> Unit, close: () -> Unit) {
     val context = LocalContext.current
     val open = { url: String -> if (!Support.open(context, url)) toaster.show("No app on this phone can open that") }
     when (page) {
@@ -269,7 +254,6 @@ private fun SubContent(page: SubPage, score: ScoreController, logFile: File, toa
             }
         }
         SubPage.Ack -> AckPage(open)
-        SubPage.Log -> LogPage(logFile, toaster::show)
         SubPage.Rules -> RulesPage(open)
     }
 }

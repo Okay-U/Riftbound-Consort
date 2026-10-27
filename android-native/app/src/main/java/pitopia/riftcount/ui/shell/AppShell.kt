@@ -56,7 +56,7 @@ import pitopia.riftcount.data.Prefs
 import pitopia.riftcount.platform.haptic
 import pitopia.riftcount.score.ScoreController
 import pitopia.riftcount.score.ScoreScreen
-import pitopia.riftcount.events.DebugEvents
+import pitopia.riftcount.events.HttpTransport
 import pitopia.riftcount.events.EvPage
 import pitopia.riftcount.events.EventsData
 import pitopia.riftcount.events.EventsScreen
@@ -65,7 +65,6 @@ import pitopia.riftcount.events.RiftApi
 import pitopia.riftcount.events.RiftBrowser
 import pitopia.riftcount.events.matchInfo
 import pitopia.riftcount.settings.Support
-import pitopia.riftcount.settings.PlayRiftboundLog
 import pitopia.riftcount.settings.SettingsScreen
 import pitopia.riftcount.tour.Tour
 import pitopia.riftcount.tour.TourKind
@@ -89,10 +88,7 @@ fun AppShell() {
     val decksUi = remember { DecksUi() }
     val score = remember { ScoreController(scope, games, decks) }
     val browser = remember { RiftBrowser(context) }
-    val events = remember {
-        val dir = File(context.filesDir, "Documents")
-        EventsData(RiftApi(DebugEvents.transport(context), PlayRiftboundLog(File(dir, PlayRiftboundLog.FILE)), Support.version(context).substringBefore(' ')), browser)
-    }
+    val events = remember { EventsData(RiftApi(HttpTransport, Support.version(context).substringBefore(' ')), browser) }
     val eventsUi = remember { EventsUi() }
     DisposableEffect(Unit) { onDispose { browser.destroy() } }
     // "Open on PlayRiftbound" from anywhere lands in the Events tab's browser.
@@ -168,7 +164,7 @@ fun AppShell() {
                     tab = Tab.Decks
                 }
                 Tab.Decks -> DecksScreen(decksUi, decks, games, cards, errata, barReserve) { overlay(Tab.Decks, it) }
-                Tab.Settings -> SettingsScreen(score, docs.file(PlayRiftboundLog.FILE), barReserve, onTour = { tour = it }) {
+                Tab.Settings -> SettingsScreen(score, barReserve, onTour = { tour = it }) {
                     overlay(Tab.Settings, it)
                 }
                 Tab.Events -> EventsScreen(events, eventsUi, barReserve) { overlay(Tab.Events, it) }

@@ -6,20 +6,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import androidx.core.net.toUri
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.UUID
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ListSerializer
-import pitopia.riftcount.data.SwiftDateSerializer
-import pitopia.riftcount.data.SwiftJson
-import pitopia.riftcount.events.DebugEvents
 
 /** Riot's rules documents (iOS `RulesLibrary`): every row opens Riot's own page, so nothing goes stale. */
 object RulesLibrary {
@@ -122,67 +108,5 @@ object Support {
         true
     } catch (_: ActivityNotFoundException) {
         false
-    }
-}
-
-/** One call to PlayRiftbound as iOS `PlayRiftboundDiagnostics` writes it: never cookies, headers or responses. */
-@Serializable
-data class LogEntry(
-    val id: String,
-    @Serializable(with = SwiftDateSerializer::class) val date: Long,
-    val operation: String,
-    val method: String,
-    val outcome: String,
-    val detail: String? = null,
-    val durationMs: Int,
-) {
-    val ok get() = outcome == "ok"
-}
-
-/** `playriftbound_log.json`, newest first; written in phase 5 by the PlayRiftbound client. */
-class PlayRiftboundLog(private val file: File) {
-    fun entries(): List<LogEntry> = runCatching {
-        SwiftJson.decodeFromString(ListSerializer(LogEntry.serializer()), file.readText()).reversed()
-    }.getOrDefault(emptyList())
-
-    fun clear() {
-        file.delete()
-    }
-
-    /** iOS `record`: one call, the last [LIMIT] kept; the detail is cut to 600 characters. Debug builds only. */
-    suspend fun record(operation: String, method: String, outcome: String, detail: String?, startedMs: Long) {
-        if (!DebugEvents.TOOLS) return
-        withContext(Dispatchers.IO) {
-            lock.withLock {
-                val now = System.currentTimeMillis()
-                val entry = LogEntry(
-                    UUID.randomUUID().toString().uppercase(), now, operation, method, outcome.take(120),
-                    detail?.take(600), (now - startedMs).toInt(),
-                )
-                val all = (runCatching { SwiftJson.decodeFromString(ListSerializer(LogEntry.serializer()), file.readText()) }.getOrDefault(emptyList()) + entry).takeLast(LIMIT)
-                runCatching {
-                    file.parentFile?.mkdirs()
-                    val tmp = File(file.parentFile, file.name + ".tmp")
-                    tmp.writeText(SwiftJson.encodeToString(ListSerializer(LogEntry.serializer()), all))
-                    tmp.renameTo(file)
-                }
-            }
-        }
-    }
-
-    companion object {
-        const val FILE = "playriftbound_log.json"
-        private const val LIMIT = 150
-        private val lock = Mutex()
-
-        /** iOS `exportText`: a header, then one line per call, newest first. */
-        fun export(entries: List<LogEntry>, version: String): String {
-            val stamp = SimpleDateFormat("d MMM HH:mm:ss", Locale.US)
-            val lines = entries.map { e ->
-                "${stamp.format(Date(e.date))} ${e.method} ${e.operation} → ${e.outcome} (${e.durationMs} ms)" +
-                    (e.detail?.let { "\n    $it" } ?: "")
-            }
-            return (listOf("Riftcount PlayRiftbound log · ${entries.size} entries · app $version") + lines).joinToString("\n")
-        }
     }
 }

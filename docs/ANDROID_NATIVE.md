@@ -179,7 +179,7 @@ Okay's review:
 - Bug and wish: the mock's two fields; the mail app opens to contact-okaydev@proton.me with "[Bug]" /
   "[Feature]" subjects (iOS) and the app and Android version under the text.
 - PlayRiftbound log: reads the iOS/Skip file, newest first, Copy (iOS export text) and Clear. Debug builds
-  only since 2026-10-26 (Settings › Debug); release writes no log.
+  only since 2026-10-26 (Settings › Debug); removed before 4.0 (2026-10-27).
 - Tours (no mock, built from its parts): six pages with this app's tabs (Events instead of Dice, True
   black instead of Live Activity) on first launch; the Events tour (iOS text) the first time Events
   opens; both from Settings. Back goes a page back, on the first page it closes. The builder tip shows
@@ -205,7 +205,8 @@ Built as mocked, section tabs Events · Stores · PlayRiftbound:
   expiry the sooner of the session expiry and the token's `exp` minus a minute, one silent renewal by an
   off-screen page load (callers fail at once for 20 s after a failed one), persisted queries with the
   built-in ids and the okay-u.github.io feed (one fetch shared by all callers, waited for 10 s at most).
-  Every call lands in the PlayRiftbound log, mutations with their body; never cookies or headers.
+  Every call landed in the PlayRiftbound log until it was removed before 4.0; a response that cannot be decoded
+  goes to Logcat.
 - Scoreboard match mode (Settings switch, 2 players): with a pairing still to report the seam shows
   "R3 · T5" and Report (End otherwise). Report opens the result picker, then the summary's light rail sends
   the games (the pairing is fetched again first; a re-paired or already reported match is refused). The
@@ -220,8 +221,8 @@ Decisions, for Okay's review:
 - Times in the phone language's format (24 h in German). Rules links stay in the browser (their PDF host
   is outside the allowlist).
 - The slide-to-report knob starts at the left edge, so it is excluded from Android's back gesture.
-- Debug builds can answer from a made-up live event instead (Settings › Debug, see "Fake live event" in
-  the review rounds); release and staging builds always use the network.
+- Debug builds could answer from a made-up live event until 4.0 (see "Fake live event" in the review rounds);
+  every build uses the network.
 Tests: `CompeteBracketTest` (the iOS test target: sections, titles, placements, 2v2 names, pending round,
 Swiss final, report vs status, live standings), `DrawCalcTest`, `CompeteDecodeTest`, `RiftPolicyTest`,
 `OperationIdsTest`. Emulator with fake data: every screen against the mock, report from the event page
@@ -381,6 +382,9 @@ Skirmish (round 3 running, your table open, best of 3), every time moved to the 
 registration is only noted and changes the later answers, nothing goes to Riot. `tools/fake-live-event/build.sh`
 writes the answers (`src/debug/assets/fake_compete`, iOS the same event). The PlayRiftbound log row moved there
 too. Release and staging compile the stub in `src/nondebug`: no Debug section, no log, always the network.
+Removed before 4.0 (2026-10-27, iOS the same): `src/debug` (DebugEvents and its answers), the `src/nondebug` stub
+and its source-set wiring, `tools/fake-live-event`, the PlayRiftbound log (`PlayRiftboundLog`, `LogPage`, the
+API's recording, `RiftError.logName`) and RiotSession's stand-in credentials. Nothing debug-only is left.
 
 Scoreboard, colour model C (2026-10-26, Okay's pick from the mocks, iOS the same): each field is its seat colour
 brought to OKLab lightness 0.44 (`SeatShade.deep`: linear RGB times (0.44/L)³, same hue; darker colours keep theirs),
