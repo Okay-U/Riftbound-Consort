@@ -57,6 +57,21 @@ object CardImages {
         }
     }
 
+    /** Puts [url] in the disk cache without decoding it, so a later [load] only reads the file (the decks table's splashes). */
+    suspend fun prefetch(url: String) {
+        if (memory.get(url) != null) return
+        withContext(Dispatchers.IO) {
+            val file = File(dir, sha1(url))
+            try {
+                if (!file.exists()) downloads.withPermit { download(url, file) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("CardImages", "prefetch failed", e)
+            }
+        }
+    }
+
     private fun download(url: String, file: File) {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
