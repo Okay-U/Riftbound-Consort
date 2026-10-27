@@ -257,6 +257,13 @@ Release, Okay's steps:
    `app/build/outputs/bundle/release/app-release.aab` to Play as the next release of the existing app.
 3. Every later release raises `versionCode` (now 10) and `versionName` in `app/build.gradle.kts`. The first
    release is 4.0.0 with versionCode 10 (Okay 2026-10-27: 4.0 on both platforms; 10 was never uploaded).
+4. Play "What's new" for 4.0.0 (Okay approved 2026-10-27, 461 of 500 characters):
+
+   > Riftcount 4.0 is a new app: rebuilt for Android, a fraction of the size and faster, with a new look.
+   > • Scoreboard in your colors, optional legend art, your tournament table with Report
+   > • Events: your PlayRiftbound events, live table, round clock, standings and "Can I draw?"
+   > • Cards with search and filters, decks on a table with a 7-step builder, test hands and odds
+   > Your decks, games and settings come along. The dice tab and the old Locator section are gone.
 
 ## Okay's review rounds
 
