@@ -365,6 +365,11 @@ on the three +1 pills at once, a ring of the half's colour runs out 20 % wider a
 the pill, a wider faint stroke as its glow) while the pill dips to 96.5 % and springs to 103 %, 850 ms on the curve
 (0.2, 0.7, 0.2, 1) (`Give`). A first try that breathed twice in a halo was too jerky.
 
+Decks, round 5 (2026-10-27, iOS the same): the deck screen's banner shows the legend's centred splash (Data Dragon,
+through `rememberLegendPicture` like the board's Legend art, switch or not) over the card's art, which is rarely
+centred and cropped badly there. While the pile grows into the banner the splash fades in, so the card turns into
+it, and back on closing; a splash that arrives late fades in on the banner.
+
 Fake live event (2026-10-26, so event mode can be tried without a live event): debug builds have Settings › Debug ›
 Fake live event. It restarts the app, then every PlayRiftbound call is answered on the phone from a made-up Summoner
 Skirmish (round 3 running, your table open, best of 3), every time moved to the moment of the switch; a report or

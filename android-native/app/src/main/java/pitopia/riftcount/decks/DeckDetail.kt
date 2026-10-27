@@ -45,10 +45,12 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -70,6 +72,8 @@ import pitopia.riftcount.data.AppSettings
 import pitopia.riftcount.data.DeckRules
 import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.data.DecklistEntry
+import pitopia.riftcount.score.LegendArt
+import pitopia.riftcount.score.rememberLegendPicture
 import pitopia.riftcount.ui.common.Pressable
 import pitopia.riftcount.ui.common.Rise
 import pitopia.riftcount.ui.common.RoundIcon
@@ -101,6 +105,10 @@ fun DeckDetail(
 ) {
     val legend = deck.legend?.let { index[it.cardId] }
     val champion = deck.champion?.let { index[it.cardId] }
+    // The legend's centred splash from Data Dragon, as on the scoreboard: the card's own art crops badly in the wide
+    // banner (Okay 2026-10-27). Null until it has loaded; the card's art stays where it is missing.
+    val splash by rememberLegendPicture(deck.legend?.cardName?.let(LegendArt::url))
+    val fade by animateFloatAsState(if (splash != null) 1f else 0f, tween(600), label = "splash")
     val density = LocalDensity.current
     val screen = LocalWindowInfo.current.containerSize
     val heroPx = with(density) { (HeroHeight + WindowInsets.statusBars.getTop(this).toDp()).toPx() }
@@ -112,7 +120,8 @@ fun DeckDetail(
             Modifier.fillMaxSize().graphicsLayer { alpha = backdrop }.background(RiftColors.Page)
                 .clickable(remember { MutableInteractionSource() }, indication = null) {},
         )
-        // The morph: the pile's top card becomes the banner; layout-sized so the art crops instead of stretching.
+        // The morph: the pile's top card becomes the banner; layout-sized so the art crops instead of stretching. The
+        // splash fades in as it grows, so the pile's card turns into it (and back on closing).
         if (!atHero) {
             ArtBox(
                 legend, screen.width, previewWidthPx = with(density) { 120.dp.roundToPx() },
@@ -128,10 +137,13 @@ fun DeckDetail(
                 },
                 alignment = ArtTop,
                 initial = (legend?.title ?: deck.name).take(1),
-            ) { Box(Modifier.fillMaxSize().bottomShade(0.3f)) }
+            ) {
+                Splash(splash) { progress() * fade }
+                Box(Modifier.fillMaxSize().bottomShade(0.3f))
+            }
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 40.dp)) {
-            Hero(deck, legend, with(density) { heroPx.toDp() }, atHero, shown, index, onClose, onTool)
+            Hero(deck, legend, splash, { fade }, with(density) { heroPx.toDp() }, atHero, shown, index, onClose, onTool)
             Tools(shown, record, onTool)
             ChampionBlock(deck, champion, from, shown, index, onTool)
             FieldsBlock(deck, index, from, shown, onTool)
@@ -144,6 +156,8 @@ fun DeckDetail(
 private fun Hero(
     deck: Decklist,
     legend: Card?,
+    splash: ImageBitmap?,
+    fade: () -> Float,
     height: Dp,
     atHero: Boolean,
     shown: Boolean,
@@ -156,6 +170,7 @@ private fun Hero(
         if (atHero) {
             val density = LocalDensity.current
             ArtBox(legend, screen.width, Modifier.fillMaxSize(), alignment = ArtTop, initial = (legend?.title ?: deck.name).take(1), previewWidthPx = with(density) { 120.dp.roundToPx() }) {
+                Splash(splash, fade)
                 Box(Modifier.fillMaxSize().bottomShade(0.3f))
             }
         }
@@ -187,6 +202,14 @@ private fun Hero(
                 }
             }
         }
+    }
+}
+
+/** The legend's splash filling the banner over the card's art, at [alpha] (read while drawing). */
+@Composable
+private fun Splash(image: ImageBitmap?, alpha: () -> Float) {
+    if (image != null) {
+        Image(image, null, Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha() }, contentScale = ContentScale.Crop)
     }
 }
 
