@@ -107,13 +107,10 @@ val RowTitle = RiftType.Body.copy(fontSize = 15.5.sp, lineHeight = 19.sp, fontWe
 val RowSub = RiftType.Body.copy(fontSize = 12.5.sp, lineHeight = 17.5.sp, color = Color.White.copy(alpha = 0.6f))
 val FootText = RiftType.Body.copy(fontSize = 12.5.sp, lineHeight = 18.75.sp, color = Color.White.copy(alpha = 0.55f))
 
-/** "MOST USED", a section caption, with an optional aside on the right. */
+/** "SCOREBOARD", a section caption. */
 @Composable
-fun SectionHead(title: String, aside: String? = null) {
-    Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        BasicText(title.uppercase(), style = RiftType.Caption.copy(color = CaptionInk))
-        aside?.let { BasicText(it.uppercase(), style = RiftType.Caption.copy(color = CaptionInk)) }
-    }
+fun SectionHead(title: String) {
+    BasicText(title.uppercase(), Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, bottom = 8.dp), style = RiftType.Caption.copy(color = CaptionInk))
 }
 
 /** The mock's `.group`: rows on a faint rounded panel. */
@@ -208,7 +205,7 @@ private val TileShape = RoundedCornerShape(24.dp)
 private val BackText = RiftType.Body.copy(fontSize = 12.5.sp, lineHeight = 1.4.em, color = Color.White.copy(alpha = 0.82f))
 
 /**
- * A tile of "Most used" that turns over on its long axis to tell what it does. The front is [front];
+ * A tile on top of Settings that turns over on its long axis to tell what it does. The front is [front];
  * the "i" stays on top of both faces like the mock. [darkInfo]: the "i" sits on a green face.
  */
 @Composable
@@ -289,7 +286,7 @@ fun BoxScope.PlayersFace(players: Int, onToggle: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        MorphNumber("${players}P", Modifier.size(52.dp, 42.dp).clearAndSetSemantics {})
+        MorphNumber("${players}P", Modifier.size(42.dp).clearAndSetSemantics {})
         TileText("Players", state, Color.White)
     }
 }

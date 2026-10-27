@@ -371,6 +371,10 @@ centred and cropped badly there. The table puts every deck's splash on disk ahea
 decodes it before the deck opens (300 ms at most), so the deck opens as its splash from the first frame; closing
 fades it back to the card as it lands on its pile. A splash still on its way fades in on the banner.
 
+Settings, round 2 (2026-10-27, iOS the same): Legend art and Players are small tiles like the others, the six two to a
+row (the Players number box 42dp like a switch's icon, so the texts line up); the "Most used" / "Tap i for what it
+does" line above them is gone (`SectionHead` lost its aside), and the Events tour says "One tap on its tile at the top".
+
 Fake live event (2026-10-26, so event mode can be tried without a live event): debug builds have Settings › Debug ›
 Fake live event. It restarts the app, then every PlayRiftbound call is answered on the phone from a made-up Summoner
 Skirmish (round 3 running, your table open, best of 3), every time moved to the moment of the switch; a report or
@@ -389,7 +393,7 @@ page preview follows. `SeatShadeTest` checks every colour.
 
 Scoreboard, Legend art (2026-10-26, Okay's pick from the mocks, iOS the same; spec in the redesign branch's
 `docs/IOS_REDESIGN.md` "Score tile look", mocks on https://claude.ai/artifact/68cipuSRxXGtdgqTKkvXL2): with the
-`legendArt` switch on (off by default; a Most used tile on its own row and a row at the top of both setup sheets,
+`legendArt` switch on (off by default; a tile on top of Settings and a row at the top of both setup sheets,
 `ToggleRow`) a half shows its legend's champion as Data Dragon's base splash. `LegendArt` turns the legend's name
 into the id (all nine exceptions of Data Dragon's 173 champions; `LegendArtTest`); `rememberLegendPicture` loads it
 through `CardImages` (memory and disk) as soon as a legend is picked. `LegendPicture` draws it fixed to the screen,
