@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// What the deck screen's buttons open.
 enum DeckTool: String, Identifiable {
@@ -42,9 +43,15 @@ struct RiftDeckDetail: View {
     @State private var leaving = false
     @State private var tab = 0
     @State private var tabKey = 0
+    @State private var splashes: [URL: UIImage] = [:]
 
     private var shown: Bool { appeared && !closing }
     private static let heroHeight: CGFloat = 250
+
+    /// The legend's centred splash from Data Dragon, as on the scoreboard: the card's own art crops badly in the
+    /// wide banner (Okay 2026-10-27). Nil until it has loaded; the card's art stays where it is missing.
+    private var splashURL: URL? { deck.legend.flatMap { LegendArt.url(legend: $0.cardName) } }
+    private var splash: UIImage? { splashURL.flatMap { splashes[$0] } }
 
     var body: some View {
         let legend = deck.legend.flatMap { cards[$0.cardId] }
@@ -93,23 +100,40 @@ struct RiftDeckDetail: View {
             atHero = false
             withAnimation(.timingCurve(0.2, 0, 0, 1, duration: 0.56).delay(0.08)) { morph = 0 } completion: { onClosed() }
         }
+        // Decoded before it shows, so the opening runs smooth.
+        .task(id: splashURL) {
+            guard let url = splashURL, splashes[url] == nil, let image = await ImageCache.shared.image(for: url) else { return }
+            let ready = await image.byPreparingForDisplay() ?? image
+            if Task.isCancelled { return }
+            withAnimation(.easeInOut(duration: 0.6)) { splashes[url] = ready }
+        }
     }
 
     // MARK: - Banner
 
-    private func heroArt(_ legend: Card?, width: CGFloat) -> some View {
+    /// The card's art with the splash over it at `reveal`.
+    private func heroArt(_ legend: Card?, width: CGFloat, reveal: CGFloat = 1) -> some View {
         ArtBox(card: legend, imageWidth: width, initial: String((legend?.title ?? deck.name).prefix(1)), previewWidth: 120)
+            .overlay {
+                if let splash {
+                    Color.clear
+                        .overlay { Image(uiImage: splash).resizable().scaledToFill() }
+                        .clipped()
+                        .opacity(reveal)
+                }
+            }
             .overlay { BottomShade(from: 0.3) }
     }
 
     /// The pile's top card becoming the banner; its own frame per step, so the art crops instead of stretching.
+    /// The splash fades in as it grows, so the pile's card turns into it (and back on closing).
     private func morphLayer(_ legend: Card?, from: CGRect, to: CGRect) -> some View {
         let p = morph
         let rect = CGRect(
             x: from.minX + (to.minX - from.minX) * p, y: from.minY + (to.minY - from.minY) * p,
             width: from.width + (to.width - from.width) * p, height: from.height + (to.height - from.height) * p
         )
-        return heroArt(legend, width: to.width)
+        return heroArt(legend, width: to.width, reveal: p)
             .frame(width: rect.width, height: rect.height)
             .clipShape(RoundedRectangle(cornerRadius: 12 * (1 - p)))
             .offset(x: rect.minX, y: rect.minY)

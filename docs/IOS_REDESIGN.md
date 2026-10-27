@@ -205,7 +205,8 @@ Middle · 4 ways). Okay wants some feedback work done first.
     `ImageCache` as soon as the switch is on and a legend is picked, decodes them before they show
     (`byPreparingForDisplay`) and fades them in; `LegendPicture` draws one, `LegendShade` the shade. The
     switch is `legendArt` (off): a full-width tile in Settings' Most used and a row at the top of both setup
-    sheets. Pictures come from Riot's Data Dragon only while the switch is on.
+    sheets. On the board pictures come from Riot's Data Dragon only while the switch is on; the deck screen's
+    banner uses the same splash regardless (feedback round 4).
   - Layout: the picture is fixed to the screen and anchored at the middle, reaches about 90 pt past it
     with a 70 pt fade, and is clipped at the territory line (in the draw phase, no relayout); the line's
     glow covers the cut, so the leader gets more of their picture. Over the art: the seat tint at 22 %,
@@ -242,6 +243,13 @@ Middle · 4 ways). Okay wants some feedback work done first.
    ways": bloom, sheen, ripple) Okay picked C · Ripple: once, on all three at once, a ring of the half's colour
    (2.5 pt, a soft glow) runs out 20 % wider and 60 % taller and fades while the pill dips to 96.5 % and springs
    to 103 %, 0.85 s on the curve (0.2, 0.7, 0.2, 1) (`keyframeAnimator`, `Ripple`).
+
+## Feedback round 4 (Okay, 2026-10-27, both platforms)
+
+1. The deck screen's banner shows the legend's centred splash, the picture Legend art puts on the board, instead
+   of the card's art, which is rarely centred and cropped badly in the wide banner. It is not tied to the Legend
+   art switch. The card's art stays underneath until the splash has loaded (or where it cannot); while the pile
+   grows into the banner the splash fades in, so the card turns into it, and back on closing.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.
