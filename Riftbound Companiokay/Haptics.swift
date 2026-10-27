@@ -9,8 +9,9 @@ import Foundation
 import UIKit
 
 enum Haptics {
+    /// On until the Settings switch turns it off, as the switch shows (`bool(forKey:)` read false before any toggle).
     private static var isEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "hapticsEnabled")
+        UserDefaults.standard.object(forKey: "hapticsEnabled") as? Bool ?? true
     }
 
     static func success() {

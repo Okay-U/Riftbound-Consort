@@ -133,9 +133,9 @@ reviews in Xcode.
    Locator "Old" segment is not in the new design (Classic design still has it until November).
 7. **Release prep** · 2026-10-22: iPad pass (the same screens: card galleries, the piles, the builder's pools
    and legends get more columns on a wider screen; Settings and the Events lists keep a readable width of
-   700pt; Cards and the scoreboard already adapted), version 3.6 (`MARKETING_VERSION`, build 1; Android's
-   native app is 3.5.0, change it if the rebrand should be 4.0). App Store screenshots are Okay's. What's new
-   for the App Store:
+   700pt; Cards and the scoreboard already adapted), version 4.0 on both platforms (Okay 2026-10-27;
+   `MARKETING_VERSION` 4.0, build 1; Android 4.0.0, versionCode 10). App Store screenshots are Okay's. What's
+   new for the App Store:
 
    > Riftcount has a new look.
    > • Scoreboard: territory fields with a glowing line, the dice in the middle decide who goes first, won
@@ -269,6 +269,8 @@ already closed it). The debug tools stay out of Release on both platforms.
    log (its Settings page and the API's recording); the iOS log went on 2026-10-22, and 3.5's leftover
    `playriftbound_log.json` is deleted on the first start. Left in on purpose, none of it reaches Release: an
    Xcode preview, the web view's Safari inspector and its console timings in Debug builds.
+3. Release: version 4.0 on both platforms, and haptics are on for everyone who never touched the switch (iOS read
+   `bool(forKey: "hapticsEnabled")`, false before the first toggle, while Settings showed it on; since 1.0).
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.
