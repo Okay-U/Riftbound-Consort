@@ -51,11 +51,7 @@ struct Riftbound_CompaniokayApp: App {
                 .preferredColorScheme(.dark)
                 .background(trueBlack ? Color.black : Color(.systemBackground))
                 .task { await authSession.restore() }
-                .onAppear {
-                    errataStore.load()
-                    // 3.5 kept an on-device log of PlayRiftbound calls; that log is gone, so its file goes too.
-                    try? FileManager.default.removeItem(at: .documentsDirectory.appending(path: "playriftbound_log.json"))
-                }
+                .onAppear { errataStore.load() }
                 // Back from the background: re-check the card feed when it is due.
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active { cardStore.refreshIfDue() }

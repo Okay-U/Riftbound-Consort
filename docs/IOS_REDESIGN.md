@@ -266,8 +266,8 @@ already closed it). The debug tools stay out of Release on both platforms.
    line above them is gone, and the Events tour says "One tap on its tile at the top".
 2. No debug tools before the release: the fake live event is gone on both platforms (iOS `FakeLiveEvent` and its
    data, Android's debug source set with its answers, `tools/fake-live-event`), and so is Android's PlayRiftbound
-   log (its Settings page and the API's recording); the iOS log went on 2026-10-22, and 3.5's leftover
-   `playriftbound_log.json` is deleted on the first start. Left in on purpose, none of it reaches Release: an
+   log (its Settings page and the API's recording); the iOS log went on 2026-10-22, before 3.5 shipped, so no
+   user ever had either log. Left in on purpose, none of it reaches Release: an
    Xcode preview, the web view's Safari inspector and its console timings in Debug builds.
 3. Release: version 4.0 on both platforms, and haptics are on for everyone who never touched the switch (iOS read
    `bool(forKey: "hapticsEnabled")`, false before the first toggle, while Settings showed it on; since 1.0).
