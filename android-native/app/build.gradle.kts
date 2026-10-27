@@ -23,7 +23,7 @@ android {
         minSdk = 28
         targetSdk = 36
         versionCode = 10
-        versionName = "3.5.0"
+        versionName = "4.0.0"
         manifestPlaceholders["appLabel"] = "Riftcount"
     }
 

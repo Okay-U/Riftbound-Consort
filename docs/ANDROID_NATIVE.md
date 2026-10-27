@@ -255,7 +255,8 @@ Release, Okay's steps:
    `storeFile` at the same `.jks` (both stay out of git).
 2. From `android-native/`: `./gradlew :app:bundleRelease`, then upload
    `app/build/outputs/bundle/release/app-release.aab` to Play as the next release of the existing app.
-3. Every later release raises `versionCode` (now 10) and `versionName` in `app/build.gradle.kts`.
+3. Every later release raises `versionCode` (now 10) and `versionName` in `app/build.gradle.kts`. The first
+   release is 4.0.0 with versionCode 10 (Okay 2026-10-27: 4.0 on both platforms; 10 was never uploaded).
 
 ## Okay's review rounds
 
