@@ -49,9 +49,10 @@ struct RiftDeckDetail: View {
     private static let heroHeight: CGFloat = 250
 
     /// The legend's centred splash from Data Dragon, as on the scoreboard: the card's own art crops badly in the
-    /// wide banner (Okay 2026-10-27). Nil until it has loaded; the card's art stays where it is missing.
+    /// wide banner (Okay 2026-10-27). The table fetched it ahead, so it is there from the first frame; nil while
+    /// it still loads, and the card's art stays where it is missing.
     private var splashURL: URL? { deck.legend.flatMap { LegendArt.url(legend: $0.cardName) } }
-    private var splash: UIImage? { splashURL.flatMap { splashes[$0] } }
+    private var splash: UIImage? { splashURL.flatMap { splashes[$0] ?? ImageCache.shared.cached($0) } }
 
     var body: some View {
         let legend = deck.legend.flatMap { cards[$0.cardId] }
@@ -126,14 +127,14 @@ struct RiftDeckDetail: View {
     }
 
     /// The pile's top card becoming the banner; its own frame per step, so the art crops instead of stretching.
-    /// The splash fades in as it grows, so the pile's card turns into it (and back on closing).
+    /// It opens as the splash; closing fades the splash out, so it lands on the pile as its card.
     private func morphLayer(_ legend: Card?, from: CGRect, to: CGRect) -> some View {
         let p = morph
         let rect = CGRect(
             x: from.minX + (to.minX - from.minX) * p, y: from.minY + (to.minY - from.minY) * p,
             width: from.width + (to.width - from.width) * p, height: from.height + (to.height - from.height) * p
         )
-        return heroArt(legend, width: to.width, reveal: p)
+        return heroArt(legend, width: to.width, reveal: leaving ? p : 1)
             .frame(width: rect.width, height: rect.height)
             .clipShape(RoundedRectangle(cornerRadius: 12 * (1 - p)))
             .offset(x: rect.minX, y: rect.minY)

@@ -29,6 +29,11 @@ struct RiftDecksView: View {
     @State private var toast: BoardToast?
     @Namespace private var space
 
+    private var splashURLs: [URL] {
+        var seen = Set<URL>()
+        return decks.lists.compactMap { $0.legend.flatMap { LegendArt.url(legend: $0.cardName) } }.filter { seen.insert($0).inserted }
+    }
+
     struct OpenDeck: Equatable {
         let id: UUID
         /// The pile's frame in `decksSpace`, where the deck grows from and goes back to.
@@ -103,6 +108,10 @@ struct RiftDecksView: View {
             .toolbar(opened == nil && log == nil && review == nil && builder.draft == nil ? .visible : .hidden, for: .tabBar)
         }
         .onAppear { cards.loadIfNeeded() }
+        // Every deck's splash ahead, so a deck opens with it rather than with its card first (Okay 2026-10-27).
+        .task(id: splashURLs) {
+            for url in splashURLs { _ = await ImageCache.shared.image(for: url) }
+        }
         .sheet(item: $tool) { tool in
             if let deck = openDeck { toolSheet(tool, deck: deck, index: index) }
         }

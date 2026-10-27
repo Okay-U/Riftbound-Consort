@@ -248,8 +248,10 @@ Middle · 4 ways). Okay wants some feedback work done first.
 
 1. The deck screen's banner shows the legend's centred splash, the picture Legend art puts on the board, instead
    of the card's art, which is rarely centred and cropped badly in the wide banner. It is not tied to the Legend
-   art switch. The card's art stays underneath until the splash has loaded (or where it cannot); while the pile
-   grows into the banner the splash fades in, so the card turns into it, and back on closing.
+   art switch. The Decks table fetches every deck's splash ahead, so a deck opens as its splash from the first
+   frame (a first version faded from the card to the splash, which looked off); closing fades it back to the
+   card as it lands on its pile. The card's art stays underneath while a splash is still on its way (then it
+   fades in on the banner) or where it cannot load.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.
