@@ -271,5 +271,11 @@ already closed it). The debug tools stay out of Release on both platforms.
 3. Release: version 4.0 on both platforms, and haptics are on for everyone who never touched the switch (iOS read
    `bool(forKey: "hapticsEnabled")`, false before the first toggle, while Settings showed it on; since 1.0).
 
+## Feedback round 6 (Okay, 2026-10-28, both platforms)
+
+1. The opponent picker showed no picture for Annie, Garen, Lux and Master Yi (Wuju Bladesman): their rows carry the
+   name without its printing, and these four exist only as "(Starter)" printings, while the art was looked up by
+   the full card name. The art is keyed by the row's name now (`CardStore.legendName`), the plain printing first.
+
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.

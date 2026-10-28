@@ -102,11 +102,13 @@ struct OpponentPickSheet: View {
         }
     }
 
-    /// The rare printing of each legend, for its art.
+    /// Each legend's art under its row's name: the plain printing over Overnumbered or Signature, and a legend
+    /// printed only as a Starter (Annie, Garen, Lux, Master Yi) still has its picture.
     private var legendArt: [String: Card] {
         var art: [String: Card] = [:]
         for card in cards.allCards where card.classification?.type?.lowercased() == "legend" && card.classification?.rarity?.lowercased() == "rare" {
-            if art[card.name] == nil { art[card.name] = card }
+            let name = CardStore.legendName(card.name)
+            if art[name] == nil || card.name == name { art[name] = card }
         }
         return art
     }

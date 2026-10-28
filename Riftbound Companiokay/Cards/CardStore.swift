@@ -73,12 +73,16 @@ final class CardStore: ObservableObject {
             let type = card.classification?.type?.lowercased()
             let rarity = card.classification?.rarity?.lowercased()
             if type == "legend" && rarity == "rare" {
-                // One name per legend: "(Overnumbered)", "(Signature)" and "(Starter)" printings
-                // are the same legend for opponents and stats.
-                names.insert(card.name.replacingOccurrences(of: #"\s*\([^)]*\)$"#, with: "", options: .regularExpression))
+                names.insert(legendName(card.name))
             }
         }
         return names.sorted()
+    }
+
+    /// One name per legend: "(Overnumbered)", "(Signature)" and "(Starter)" printings are the same legend
+    /// for opponents and stats.
+    nonisolated static func legendName(_ cardName: String) -> String {
+        cardName.replacingOccurrences(of: #"\s*\([^)]*\)$"#, with: "", options: .regularExpression)
     }
 
     func loadIfNeeded() {
