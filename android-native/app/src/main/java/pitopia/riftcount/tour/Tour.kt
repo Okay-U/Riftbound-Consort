@@ -59,17 +59,22 @@ import pitopia.riftcount.ui.theme.RiftColors
 import pitopia.riftcount.ui.theme.RiftEase
 import pitopia.riftcount.ui.theme.RiftType
 
-enum class TourKind { Main, Events }
+enum class TourKind { Main, Events, WhatsNew }
 
 private class Page(val icon: ImageVector, val accent: Color, val title: String, val subtitle: String, val points: List<Pair<String, String>>)
 
 /**
- * The first-launch tour (iOS `OnboardingView`, six pages, `didOnboard`) and the Events tour (iOS
- * `EventsOnboardingView`, `didOnboardEvents`), with this app's tabs. No mock: built from the mocks' parts.
+ * The first-launch tour (iOS `OnboardingView`, six pages, `didOnboard`), the Events tour (iOS
+ * `EventsOnboardingView`, `didOnboardEvents`) and the 4.0 What's new card (`didSeeWhatsNew40`, once for people who
+ * update), with this app's tabs. No mock: built from the mocks' parts.
  */
 @Composable
 fun Tour(kind: TourKind, onDone: () -> Unit) {
-    val pages = if (kind == TourKind.Main) MainPages else EventsPages
+    val pages = when (kind) {
+        TourKind.Main -> MainPages
+        TourKind.Events -> EventsPages
+        TourKind.WhatsNew -> WhatsNewPages
+    }
     val pager = rememberPagerState { pages.size }
     val scope = rememberCoroutineScope()
     var seen by remember { mutableStateOf(setOf(0)) }
@@ -98,8 +103,8 @@ fun Tour(kind: TourKind, onDone: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Dots(pages.size, pager.currentPage, accent)
-            GlowButton(if (last) "Get started" else "Next", enabled = true) {
+            if (pages.size > 1) Dots(pages.size, pager.currentPage, accent)
+            GlowButton(if (!last) "Next" else if (kind == TourKind.WhatsNew) "Continue" else "Get started", enabled = true) {
                 if (last) onDone() else scope.launch { pager.animateScrollToPage(pager.currentPage + 1) }
             }
         }
@@ -172,7 +177,7 @@ private val MainPages = listOf(
     Page(
         NavIcons.Score, RiftColors.You, "Scoreboard", "Track every point with one tap",
         listOf(
-            "Conquer, hold, effect" to "One tap per point; the 8th by conquering is checked",
+            "Conquer, hold, effect" to "One tap per point",
             "Track XP" to "Gain and spend XP right on your half",
             "Who goes first" to "Roll the dice in the middle, D6 or D20",
             "Reset or end" to "Reset Score starts over, or ends a game after a concession",
@@ -185,17 +190,15 @@ private val MainPages = listOf(
         listOf(
             "Follow your events" to "Standings, pairings and results, live",
             "Find local stores" to "Search, save favorites, see their calendar",
-            "Play connected" to "Your table on the Scoreboard, Report sends the result",
+            "Report results directly" to "Your table on the Scoreboard, Report sends the result",
         ),
     ),
     Page(
         NavIcons.Cards, CardStyle.domainColor("mind"), "Cards", "Browse the whole pool",
         listOf(
             "Search" to "Find any card by name, type, or text",
-            "Filter" to "Narrow by domain, type, energy, might, more",
-            "Sort" to "By set, energy or type",
+            "Filter & sort" to "By domain, type, energy and more",
             "Card view" to "Tap any card for full art and details",
-            "Add to a deck" to "Straight from the card, three copies at most",
         ),
     ),
     Page(
@@ -206,14 +209,13 @@ private val MainPages = listOf(
             "Draw odds" to "Chance to draw key cards by turn N",
             "Deck stats" to "Energy curve, power by domain, type breakdown",
             "Import / Export" to "Copy decklists as text, paste in or share out",
-            "Match log" to "Every game with its point race and turn order",
         ),
     ),
     Page(
         NavIcons.Settings, RiftColors.You, "Make it yours", "Tweak in Settings whenever",
         listOf(
             "Player colors" to "16 colors, one per seat",
-            "Stay awake" to "The screen stays on during games",
+            "Legend art" to "Your legends' splash art behind the halves",
             "Haptics" to "Toggle feedback to taste",
             "True black" to "Pure black for OLED screens, or a dark grey",
         ),
@@ -222,52 +224,32 @@ private val MainPages = listOf(
 
 private val EventsPages = listOf(
     Page(
-        SettingsIcons.Trophy, RiftColors.You, "Events", "Your tournament companion for Riftbound.",
+        SettingsIcons.Trophy, RiftColors.You, "Events", "Your tournament companion.",
         listOf(
-            "Follow your events" to "Standings, pairings and results, live.",
-            "Find local stores" to "Search, save favorites, see their calendar.",
-            "Play connected" to "Your table on the Scoreboard, Report sends the result.",
+            "Find your stores" to "Discover and save the shops you play at.",
+            "Register in seconds" to "Sign up for events right here.",
+            "Live, in the app" to "No more juggling the website during rounds.",
+            "Match mode" to "Score and report from the Scoreboard.",
         ),
     ),
     Page(
         SettingsIcons.Shield, RiftColors.You, "Sign in", "Use your Riot ID on PlayRiftbound.",
         listOf(
-            "Riot's own pages" to "Sign in happens in the PlayRiftbound segment, never in the app.",
+            "Riot's own pages" to "Sign in happens on Riot's own pages; Riftcount never sees or saves your password.",
             "Nothing stored by us" to "Your session stays in the in-app browser on your device.",
             "Sign out anytime" to "From the menu in the PlayRiftbound segment.",
         ),
     ),
+)
+
+/** Once, the first time 4.0 opens after an update (Okay's text, 2026-10-28). */
+private val WhatsNewPages = listOf(
     Page(
-        SettingsIcons.Heart, RiftColors.You, "Find your stores", "Discover and save the shops you play at.",
+        SettingsIcons.Tour, RiftColors.Gold, "Riftcount 4.0", "A new app: rebuilt for Android, a fraction of the size and faster, with a new look.",
         listOf(
-            "Search by city" to "Events and stores nearby, with the site's filters.",
-            "Save favorites" to "Tap the heart on any store.",
-            "Store calendar" to "Every event at your saved stores, by date.",
-        ),
-    ),
-    Page(
-        NavIcons.Events, RiftColors.You, "Register in seconds", "Sign up for events right here.",
-        listOf(
-            "Browse events" to "Upcoming, live and past.",
-            "Sign up" to "Register with your Riot account, pay at the store.",
-            "Drop anytime" to "Change your mind with one tap.",
-        ),
-    ),
-    Page(
-        SettingsIcons.Log, RiftColors.You, "Live, in the app", "No more juggling the website during rounds.",
-        listOf(
-            "Pairings and your table" to "Know exactly where to sit each round.",
-            "Live standings" to "Track your place as rounds finish.",
-            "Report results" to "Submit your match without leaving the app.",
-            "Can I draw?" to "Your top-cut outlook, shown automatically.",
-        ),
-    ),
-    Page(
-        SettingsIcons.Match, RiftColors.You, "Match mode", "Score and report from the Scoreboard.",
-        listOf(
-            "Turn it on in Settings" to "One tap on its tile at the top.",
-            "Table and opponent" to "Shown right on your Scoreboard.",
-            "Report on the spot" to "Send your result the moment you finish.",
+            "Scoreboard" to "In your colors, optional legend art, your tournament table with Report",
+            "Events" to "Your PlayRiftbound events, live table, round clock, standings",
+            "Cards and decks" to "New search and filters, and decks with a new look",
         ),
     ),
 )
