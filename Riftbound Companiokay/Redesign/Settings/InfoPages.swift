@@ -123,7 +123,7 @@ private struct FormField: View {
 
 // MARK: - Acknowledgments
 
-/// Riot, eloshowdown, the rune icons and the two OFL fonts, each licence to read in place.
+/// Riot, the rune icons and the two OFL fonts, each licence to read in place.
 struct AckPage: View {
     @Environment(\.openURL) private var openURL
     @State private var license: String?
@@ -136,20 +136,16 @@ struct AckPage: View {
                 AckLink(text: "playriftbound.com") { open("https://playriftbound.com/en-us/card-gallery/") }
             }
             .riseIn(appeared, delay: 0.06)
-            AckCard(title: "eloshowdown", text: "Profile stats, ELO ratings and Summoner's DNA powered by eloshowdown.com.") {
-                AckLink(text: "eloshowdown.com") { open("https://eloshowdown.com") }
-            }
-            .riseIn(appeared, delay: 0.12)
             AckCard(title: "riftboundfaq", text: "Domain rune icons by Christian Ivicevic, used under CC BY-SA 4.0.") {
                 AckLink(text: "github.com/ChristianIvicevic/riftboundfaq") { open("https://github.com/ChristianIvicevic/riftboundfaq") }
                 AckLink(text: "CC BY-SA 4.0") { open("https://creativecommons.org/licenses/by-sa/4.0/") }
             }
-            .riseIn(appeared, delay: 0.18)
+            .riseIn(appeared, delay: 0.12)
             AckCard(title: "Fonts", text: "Big Shoulders Display and Barlow, used under the SIL Open Font License 1.1.") {
                 licenseLink("Big Shoulders Display license", file: "OFL_big_shoulders_display")
                 licenseLink("Barlow license", file: "OFL_barlow")
             }
-            .riseIn(appeared, delay: 0.24)
+            .riseIn(appeared, delay: 0.18)
             FootNote(text: "Riftbound is a trademark of Riot Games. This app is an unofficial fan project and is not affiliated with Riot Games.")
                 .padding(.horizontal, 6)
                 .padding(.top, 6)

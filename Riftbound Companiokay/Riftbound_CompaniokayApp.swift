@@ -49,7 +49,12 @@ struct Riftbound_CompaniokayApp: App {
                 .environmentObject(shortlist)
                 .preferredColorScheme(.dark)
                 .background(trueBlack ? Color.black : Color(.systemBackground))
-                .onAppear { errataStore.load() }
+                .onAppear {
+                    errataStore.load()
+                    // The Riftbound Locator went with the classic screens; its old session token leaves the Keychain
+                    // too (Keychain items outlive updates and even the app).
+                    KeychainStore.standard.token = nil
+                }
                 // Back from the background: re-check the card feed when it is due.
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active { cardStore.refreshIfDue() }

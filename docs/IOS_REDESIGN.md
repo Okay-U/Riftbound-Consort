@@ -287,6 +287,11 @@ already closed it). The debug tools stay out of Release on both platforms.
    menu."
 3. No Classic design switch (see Decisions): the app always shows the new design, Settings lose the Design
    section, and the launch no longer restores a Locator session (classic only). "Dice" left the What's new.
+4. With the classic screens out of reach, the launch deletes the old Riftbound Locator token from the Keychain
+   (`KeychainStore.standard.token = nil`; Keychain items outlive updates and even the app), Acknowledgments drop
+   eloshowdown (its data is no longer used), and the privacy policy loses the Locator paragraph, the eloshowdown
+   section, the Locator mention in store search and "dice settings"; its data-retention section now says the app
+   holds no credentials of its own (site repo, with the 4.0 changes, not online yet).
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.
