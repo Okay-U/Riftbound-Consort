@@ -22,7 +22,7 @@ android {
         applicationId = "pitopia.Riftcount"
         minSdk = 28
         targetSdk = 36
-        versionCode = 11
+        versionCode = 12
         versionName = "4.0.0"
         manifestPlaceholders["appLabel"] = "Riftcount"
     }
