@@ -138,7 +138,7 @@ reviews in Xcode.
 7. **Release prep** · 2026-10-22: iPad pass (the same screens: card galleries, the piles, the builder's pools
    and legends get more columns on a wider screen; Settings and the Events lists keep a readable width of
    700pt; Cards and the scoreboard already adapted), version 4.0 on both platforms (Okay 2026-10-27;
-   `MARKETING_VERSION` 4.0, build 1; Android 4.0.0, versionCode 11). App Store screenshots are Okay's. What's
+   `MARKETING_VERSION` 4.0, build 1; Android 4.0.0, versionCode 12). App Store screenshots are Okay's. What's
    new for the App Store (Okay's text, 2026-10-27):
 
    > Riftcount 4.0 ReDesign Update:
