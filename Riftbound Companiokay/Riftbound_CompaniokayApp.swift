@@ -12,7 +12,6 @@ struct Riftbound_CompaniokayApp: App {
     @AppStorage("keepScreenOn") private var keepScreenOn: Bool = true
     @AppStorage("trueBlack")    private var trueBlack: Bool = true
     @AppStorage("didOnboard")   private var didOnboard: Bool = false
-    @AppStorage("classicDesign") private var classicDesign: Bool = false
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var idleMgr = IdleTimerManager()
     @StateObject private var scoreboard = ScoreboardViewModel()
@@ -31,9 +30,9 @@ struct Riftbound_CompaniokayApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if classicDesign { RootTabView() } else { RedesignRoot() }
-            }
+            // Only the new design since 4.0 (Okay 2026-10-28): no way back, so everyone moves over. The classic
+            // screens stay unreachable in the project until 4.1 deletes them with the Locator.
+            RedesignRoot()
                 .environmentObject(scoreboard)
                 .environmentObject(idleMgr)
                 .environmentObject(gameTimer)
@@ -50,7 +49,6 @@ struct Riftbound_CompaniokayApp: App {
                 .environmentObject(shortlist)
                 .preferredColorScheme(.dark)
                 .background(trueBlack ? Color.black : Color(.systemBackground))
-                .task { await authSession.restore() }
                 .onAppear { errataStore.load() }
                 // Back from the background: re-check the card feed when it is due.
                 .onChange(of: scenePhase) { _, phase in
@@ -61,7 +59,7 @@ struct Riftbound_CompaniokayApp: App {
                     get: { !didOnboard },
                     set: { newValue in if !newValue { didOnboard = true } }
                 )) {
-                    if classicDesign { OnboardingView() } else { RiftTour(kind: .main) }
+                    RiftTour(kind: .main)
                 }
                 .onAppear {
                     idleMgr.isDisabled = keepScreenOn

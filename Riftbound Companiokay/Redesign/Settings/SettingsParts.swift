@@ -121,7 +121,7 @@ struct ExternalRow: View {
     }
 }
 
-/// A row with a switch (the Classic design switch).
+/// A row with a switch (Legend art in the game setup sheets).
 struct ToggleRow: View {
     let title: String
     let symbol: String

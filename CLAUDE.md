@@ -6,7 +6,7 @@
 
 **Riftbound Companiokay** (display name "Riftcount: Score Tracker") is a companion app for the Riftbound trading card game — **iOS and Android from one repo** since 2026-07-03:
 
-- **iOS** (App Store, version 3.5): SwiftUI app in `Riftbound Companiokay/`, built via `Riftbound Companiokay.xcodeproj`. Zero external package dependencies. On branch `feature/ios-redesign` (3.6): the Android design in `Redesign/` is the default look, Settings › Classic design switches back to the classic screens (frozen, bug fixes only); see `docs/IOS_REDESIGN.md`.
+- **iOS** (App Store, version 3.5): SwiftUI app in `Riftbound Companiokay/`, built via `Riftbound Companiokay.xcodeproj`. Zero external package dependencies. On branch `feature/ios-redesign` (4.0): the Android design in `Redesign/` is the only look since 2026-10-28; the classic screens are still in the project but unreachable (no Classic design switch) until 4.1 deletes them with the Locator; see `docs/IOS_REDESIGN.md`.
 - **Android** (3.4.0, versionCode 9): [Skip](https://skip.dev) native Fuse app in `android/` (module `Riftcount`, appid `pitopia.Riftcount`). Compiled Swift + SkipUI→Compose bridging. Deps: skip, skip-fuse-ui, skip-keychain, skip-web.
 
 Plans and audits live in `docs/`: `PLAYRIFTBOUND.md` (Riot platform migration, in-app browser, session client (no Riot approval, Okay's risk), site map), `TAKEOVER_ASSESSMENT.md` (security / code / design tickets), `coach-companion.md` (design draft), `ANDROID_NATIVE.md` (native Kotlin/Compose app: plan, phases, review rounds), `IOS_REDESIGN.md` (Android design on iOS, branch `feature/ios-redesign`). Keep it to these; ask before adding a doc.

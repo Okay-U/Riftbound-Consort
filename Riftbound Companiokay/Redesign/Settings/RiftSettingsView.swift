@@ -3,7 +3,7 @@
 //  Riftbound Companiokay
 //
 //  The redesign's Settings tab (Android `SettingsScreen.kt`, mock `SettingsHybrid`): flip tiles for the switches
-//  used most, then grouped rows; sub pages push in. The Classic design switch brings the old look back.
+//  used most, then grouped rows; sub pages push in.
 //
 
 import SwiftUI
@@ -29,7 +29,6 @@ struct RiftSettingsView: View {
     @AppStorage("matchModeEnabled") private var matchMode = true
     @AppStorage("legendArt") private var legendArt = false
     @AppStorage("playerCount") private var playerCount = 2
-    @AppStorage("classicDesign") private var classicDesign = false
     /// The scoreboard's colours, so the Player colors row redraws after a pick.
     @AppStorage("colorIdx_0") private var color0 = -1
     @AppStorage("colorIdx_1") private var color1 = -1
@@ -53,10 +52,6 @@ struct RiftSettingsView: View {
                         LinkRow(title: "Player colors", symbol: "paintpalette", sub: PlayerSwatches.summary(players: playerCount), divider: false) {
                             ColorDots(players: playerCount)
                         } action: { path.append(.colors) }
-                    }
-                    section("Design", delay: 0.36) {
-                        ToggleRow(title: "Classic design", symbol: "rectangle.on.rectangle", sub: "Brings back the look from before this update. It stays for a few updates.",
-                                  divider: false, isOn: $classicDesign)
                     }
                     section("Help", delay: 0.39) {
                         LinkRow(title: "Show the general tour", symbol: "sparkles", divider: false) { tour = .main }

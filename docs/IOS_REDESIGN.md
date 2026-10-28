@@ -15,6 +15,10 @@ checkout is on it to build in Xcode); it reaches `main` only when Okay says so. 
 - **Tabs:** Score · Events · Cards · Decks · Settings. No Dice tab; the dice live in the scoreboard seam.
 - **Classic design:** a Settings switch "Classic design" brings back the current look, for a transition of
   one or two releases. The classic screens are frozen (bug fixes only), then deleted.
+  Changed 2026-10-28 (Okay): no switch in 4.0. People should move to the new look right away instead of turning
+  the old one back on and staying there, so the app always shows `RedesignRoot`; the classic screens stay in the
+  project, unreachable, until 4.1 deletes them together with the Locator. On iOS this drops the classic Dice tab
+  (D6 to D20) and the Locator "Old" segment, as on Android.
 - **Default:** the new design is on after the update; the switch goes back.
 - **Live Activity:** removed from both designs (nobody uses it): app code, the widget extension target,
   its Settings section.
@@ -138,7 +142,7 @@ reviews in Xcode.
    new for the App Store (Okay's text, 2026-10-27):
 
    > Riftcount 4.0 ReDesign Update:
-   > • Scoreboard, Dice, Events, Cards, Decks have all new looks
+   > • Scoreboard, Events, Cards, Decks have all new looks
    > • Legend art: turn it on and your legend and your opponent's show as splash art behind their halves.
    > • Cards: search by rules text and a shortlist were added.
    > • Events: again functional with new platform. Report Matches, find events, register, drop, view live
@@ -281,6 +285,8 @@ already closed it). The debug tools stay out of Release on both platforms.
    nor sets cookies of its own), but the signed-out Events page now says where the sign-in stays and how it goes:
    "Your Riot sign-in then stays in the app's browser on this phone until you sign out of Riot in the PlayRiftbound
    menu."
+3. No Classic design switch (see Decisions): the app always shows the new design, Settings lose the Design
+   section, and the launch no longer restores a Locator session (classic only). "Dice" left the What's new.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.
