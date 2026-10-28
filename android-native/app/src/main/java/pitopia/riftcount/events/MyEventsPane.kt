@@ -70,8 +70,11 @@ fun MyEventsPane(data: EventsData, active: Boolean, bottomReserve: Dp, toaster: 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = bottomReserve + 30.dp)) {
         when (val state = data.state) {
             EventsData.State.Idle, EventsData.State.Loading -> Loading("Picking up your PlayRiftbound session")
+            // Says where the session stays and how it goes (a privacy question from a tester, 2026-10-28; iOS the same).
             EventsData.State.SignedOut -> EmptyState(
-                "Sign in on PlayRiftbound", "Your registered events show up here once you are signed in.", "Open PlayRiftbound",
+                "Sign in on PlayRiftbound",
+                "Your registered events show up here once you are signed in. Your Riot sign-in then stays in the app's browser on this phone until you sign out of Riot in the PlayRiftbound menu.",
+                "Open PlayRiftbound",
             ) { onSite(RiftPolicy.HOME) }
             is EventsData.State.Failed -> EmptyState("Couldn't load events", state.message, "Retry") { scope.launch { data.refresh(force = true) } }
             EventsData.State.Loaded -> {

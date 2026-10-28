@@ -384,6 +384,11 @@ Scoreboard, round 9 (2026-10-28, iOS the same): the opponent picker had no pictu
 as Starters (Annie, Garen, Lux, Master Yi - Wuju Bladesman): the art map was keyed by the full card name, the rows by
 the name without its printing. `CardQuery.legendArt` keys it like `legendNames`, the plain printing first.
 
+Events, round 3 (2026-10-28, iOS the same): the signed-out Events page says where the Riot sign-in stays (the app's
+browser on this phone) and that Sign out of Riot in the PlayRiftbound menu removes it, after a tester's question
+about cookie consent (the login cookie is Riot's strictly necessary one; the app neither touches Riot's banner nor
+sets cookies of its own).
+
 Settings, round 2 (2026-10-27, iOS the same): Legend art and Players are small tiles like the others, the six two to a
 row (the Players number box 42dp like a switch's icon, so the texts line up); the "Most used" / "Tap i for what it
 does" line above them is gone (`SectionHead` lost its aside), and the Events tour says "One tap on its tile at the top".
