@@ -55,7 +55,12 @@ struct MyEventsPane: View {
         case .idle, .loading:
             EvLoading(text: "Picking up your PlayRiftbound session")
         case .signedOut:
-            EmptyState(title: "Sign in on PlayRiftbound", text: "Your registered events show up here once you are signed in.", button: "Open PlayRiftbound") {
+            // Says where the session stays and how it goes (a privacy question from a tester, 2026-10-28).
+            EmptyState(
+                title: "Sign in on PlayRiftbound",
+                text: "Your registered events show up here once you are signed in. Your Riot sign-in then stays in the app's browser on this phone until you sign out of Riot in the PlayRiftbound menu.",
+                button: "Open PlayRiftbound"
+            ) {
                 onSite(PlayRiftboundPolicy.home)
             }
         case .failed(let message):

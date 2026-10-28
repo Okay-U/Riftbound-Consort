@@ -276,6 +276,11 @@ already closed it). The debug tools stay out of Release on both platforms.
 1. The opponent picker showed no picture for Annie, Garen, Lux and Master Yi (Wuju Bladesman): their rows carry the
    name without its printing, and these four exist only as "(Starter)" printings, while the art was looked up by
    the full card name. The art is keyed by the row's name now (`CardStore.legendName`), the plain printing first.
+2. A tester asked whether keeping people signed in to PlayRiftbound needs consent. The login cookie is Riot's own,
+   strictly necessary one (Riot's banner covers only the optional cookies, and the app neither touches the banner
+   nor sets cookies of its own), but the signed-out Events page now says where the sign-in stays and how it goes:
+   "Your Riot sign-in then stays in the app's browser on this phone until you sign out of Riot in the PlayRiftbound
+   menu."
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.
