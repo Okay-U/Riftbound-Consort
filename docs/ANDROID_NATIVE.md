@@ -255,8 +255,10 @@ Release, Okay's steps:
    `storeFile` at the same `.jks` (both stay out of git).
 2. From `android-native/`: `./gradlew :app:bundleRelease`, then upload
    `app/build/outputs/bundle/release/app-release.aab` to Play as the next release of the existing app.
-3. Every later release raises `versionCode` (now 10) and `versionName` in `app/build.gradle.kts`. The first
-   release is 4.0.0 with versionCode 10 (Okay 2026-10-27: 4.0 on both platforms; 10 was never uploaded).
+3. Every later release raises `versionCode` (now 11) and `versionName` in `app/build.gradle.kts`. The first
+   release is 4.0.0 (Okay 2026-10-27: 4.0 on both platforms): versionCode 10 went to the Play Console as a draft on
+   2026-10-27 without the two fixes of 2026-10-28, so the release itself is versionCode 11 (a code once uploaded
+   cannot be uploaded again).
 4. Play "What's new" for 4.0.0 (Okay approved 2026-10-27, 461 of 500 characters):
 
    > Riftcount 4.0 is a new app: rebuilt for Android, a fraction of the size and faster, with a new look.
