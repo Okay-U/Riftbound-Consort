@@ -11,7 +11,8 @@ import SwiftUI
 struct Riftbound_CompaniokayApp: App {
     @AppStorage("keepScreenOn") private var keepScreenOn: Bool = true
     @AppStorage("trueBlack")    private var trueBlack: Bool = true
-    @AppStorage("didOnboard")   private var didOnboard: Bool = false
+    /// The tour on a new install, the 4.0 What's new card once after the update, otherwise nothing.
+    @State private var launchTour: TourKind? = Self.firstTour()
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var idleMgr = IdleTimerManager()
     @StateObject private var scoreboard = ScoreboardViewModel()
@@ -60,12 +61,7 @@ struct Riftbound_CompaniokayApp: App {
                     if phase == .active { cardStore.refreshIfDue() }
                 }
                 .onReceive(cardStore.$allCards) { cards in Task { await decklistStore.migrateLegacyIDs(to: cards) } }
-                .fullScreenCover(isPresented: Binding(
-                    get: { !didOnboard },
-                    set: { newValue in if !newValue { didOnboard = true } }
-                )) {
-                    RiftTour(kind: .main)
-                }
+                .fullScreenCover(item: $launchTour) { RiftTour(kind: $0) }
                 .onAppear {
                     idleMgr.isDisabled = keepScreenOn
                 }
@@ -73,6 +69,12 @@ struct Riftbound_CompaniokayApp: App {
                     idleMgr.isDisabled = newValue
                 }
         }
+    }
+
+    private static func firstTour() -> TourKind? {
+        let defaults = UserDefaults.standard
+        if !defaults.bool(forKey: "didOnboard") { return .main }
+        return defaults.bool(forKey: "didSeeWhatsNew40") ? nil : .whatsNew
     }
 }
 

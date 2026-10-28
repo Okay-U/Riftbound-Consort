@@ -16,7 +16,6 @@ struct RiftBuilderView: View {
     let onToast: (String) -> Void
     let onSave: (Draft) -> Void
     let onClose: () -> Void
-    @AppStorage("didSeeBuilderTip") private var didSeeBuilderTip = false
     @Environment(\.riftPage) private var page
     @State private var direction = SlideDirection()
 
@@ -61,11 +60,6 @@ struct RiftBuilderView: View {
             buttons(step, champions: champions, issues: issues)
         }
         .background(page.ignoresSafeArea())
-        .overlay {
-            if !didSeeBuilderTip {
-                BuilderTip { withAnimation(.easeOut(duration: 0.3)) { didSeeBuilderTip = true } }
-            }
-        }
     }
 
     private func go(_ next: BuildStep) {
@@ -224,51 +218,5 @@ private struct BuildRail: View {
                 .offset(x: x - 40, y: 46)
                 .accessibilityHidden(true)
         }
-    }
-}
-
-/// The builder's steps once, the first time it opens (classic `BuilderTipOverlay`, same `didSeeBuilderTip`).
-private struct BuilderTip: View {
-    let onDone: () -> Void
-    @State private var shown = false
-    private let steps = [
-        "Pick a Legend", "Pick its Champion", "Choose Battlefields", "Fill Main + Side decks (3-of cap)",
-        "Adjust Runes (12 total, ±)", "Save your deck",
-    ]
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 28)
-        ZStack {
-            Color.black.opacity(0.62).ignoresSafeArea().contentShape(Rectangle()).onTapGesture {}
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Build a deck").font(RiftFont.display(34)).foregroundStyle(.white)
-                Text("Walk through these steps in order:")
-                    .font(RiftFont.text(14, .regular))
-                    .foregroundStyle(.white.opacity(0.7))
-                    .padding(.top, 8)
-                    .padding(.bottom, 16)
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
-                        HStack(spacing: 12) {
-                            Text("\(i + 1)")
-                                .font(RiftFont.text(12, .bold))
-                                .foregroundStyle(RiftColor.you)
-                                .frame(width: 26, height: 26)
-                                .background(RiftColor.you.opacity(0.16), in: Circle())
-                            Text(step).font(RiftFont.text(15, .regular)).foregroundStyle(.white)
-                        }
-                    }
-                }
-                WideButton(text: "Got it", fill: RiftColor.you, ink: .black, action: onDone).padding(.top, 22)
-            }
-            .padding(22)
-            .frame(maxWidth: 420)
-            .background(RiftColor.sheet, in: shape)
-            .overlay(shape.stroke(.white.opacity(0.1), lineWidth: 1))
-            .padding(24)
-            .scaleEffect(shown ? 1 : 0.96)
-        }
-        .opacity(shown ? 1 : 0)
-        .onAppear { withAnimation(.rift(0.42)) { shown = true } }
     }
 }

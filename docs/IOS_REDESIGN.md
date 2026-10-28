@@ -292,6 +292,21 @@ already closed it). The debug tools stay out of Release on both platforms.
    eloshowdown (its data is no longer used), and the privacy policy loses the Locator paragraph, the eloshowdown
    section, the Locator mention in store search and "dice settings"; its data-retention section now says the app
    holds no credentials of its own (site repo, with the 4.0 changes, not online yet).
+5. Texts (Okay's edits, both platforms word for word):
+   - Tour: Conquer, hold, effect is "One tap per point"; Events' third point is "Report results directly";
+     Cards' Filter and Sort are one "Filter & sort: By domain, type, energy and more", Add to a deck is gone;
+     Decks lose Match log; Make it yours loses Stay awake and gains "Legend art: Your legends' splash art behind
+     the halves".
+   - Events tour: two cards, "Events" listing the four former pages' headings (Find your stores, Register in
+     seconds, Live, in the app, Match mode) and "Sign in", whose first point now reads "Sign in happens on Riot's
+     own pages; Riftcount never sees or saves your password."
+   - The builder tip is gone; the Players tile says "2 player or 3-4 player mode."
+   - What's new card: once, the first time 4.0 opens after an update (`didSeeWhatsNew40`; people who update had
+     `didOnboard` set and never see the tour again). A new install gets the tour, which marks the card seen. iOS:
+     "Riftcount 4.0 · ReDesign Update" with Scoreboard, Events, Cards, Decks (all new looks), Legend art, Cards
+     (rules-text search, shortlist) and Events (again functional with the new platform); Android: "Riftcount 4.0 ·
+     A new app: rebuilt for Android, a fraction of the size and faster, with a new look" with Scoreboard, Events and
+     Cards and decks. Its button reads Continue.
 
 Size: the Android screens are about 12k lines; iOS will be similar. Most logic already exists on iOS; the
 scoreboard rules are new.

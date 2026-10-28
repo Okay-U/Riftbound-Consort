@@ -2,14 +2,18 @@
 //  RiftTour.swift
 //  Riftbound Companiokay
 //
-//  The first-launch tour (classic `OnboardingView`, six pages, `didOnboard`) and the Events tour (classic
-//  `EventsOnboardingView`, `didOnboardEvents`) in the redesign (Android `Tour.kt`): swipe or Next, Skip until the
-//  last page, each page rising in the first time it shows.
+//  The first-launch tour (classic `OnboardingView`, six pages, `didOnboard`), the Events tour (classic
+//  `EventsOnboardingView`, `didOnboardEvents`) and the 4.0 What's new card (`didSeeWhatsNew40`, once for people who
+//  update) in the redesign (Android `Tour.kt`): swipe or Next, Skip until the last page, each page rising in the
+//  first time it shows.
 //
 
 import SwiftUI
 
-enum TourKind { case main, events }
+enum TourKind: Identifiable {
+    case main, events, whatsNew
+    var id: Self { self }
+}
 
 private struct TourPage {
     let symbol: String
@@ -26,12 +30,17 @@ struct RiftTour: View {
     @Environment(\.riftPage) private var page
     @AppStorage("didOnboard") private var didOnboard = false
     @AppStorage("didOnboardEvents") private var didOnboardEvents = false
+    @AppStorage("didSeeWhatsNew40") private var didSeeWhatsNew = false
     @State private var current = 0
     /// Pages already shown rise in only the first time; the first one as the tour appears.
     @State private var seen: Set<Int> = []
 
     var body: some View {
-        let pages = kind == .main ? Self.mainPages : Self.eventsPages
+        let pages = switch kind {
+        case .main: Self.mainPages
+        case .events: Self.eventsPages
+        case .whatsNew: Self.whatsNewPages
+        }
         let last = current == pages.count - 1
         let accent = pages[current].accent
         ZStack(alignment: .top) {
@@ -60,16 +69,18 @@ struct RiftTour: View {
             .padding(.horizontal, 18)
             VStack(spacing: 18) {
                 Spacer()
-                HStack(spacing: 7) {
-                    ForEach(pages.indices, id: \.self) { i in
-                        Capsule()
-                            .fill(i == current ? accent : .white.opacity(0.3))
-                            .frame(width: i == current ? 22 : 7, height: 7)
+                if pages.count > 1 {
+                    HStack(spacing: 7) {
+                        ForEach(pages.indices, id: \.self) { i in
+                            Capsule()
+                                .fill(i == current ? accent : .white.opacity(0.3))
+                                .frame(width: i == current ? 22 : 7, height: 7)
+                        }
                     }
+                    .animation(.rift(0.3), value: current)
+                    .accessibilityHidden(true)
                 }
-                .animation(.rift(0.3), value: current)
-                .accessibilityHidden(true)
-                WideButton(text: last ? "Get started" : "Next", fill: RiftColor.you, ink: .black) {
+                WideButton(text: !last ? "Next" : kind == .whatsNew ? "Continue" : "Get started", fill: RiftColor.you, ink: .black) {
                     if last { finish() } else { withAnimation(.rift(0.5)) { current += 1 } }
                 }
             }
@@ -81,7 +92,14 @@ struct RiftTour: View {
     }
 
     private func finish() {
-        if kind == .main { didOnboard = true } else { didOnboardEvents = true }
+        switch kind {
+        case .main:
+            didOnboard = true
+            // A new install starts on 4.0: there is no update to tell it about.
+            didSeeWhatsNew = true
+        case .events: didOnboardEvents = true
+        case .whatsNew: didSeeWhatsNew = true
+        }
         dismiss()
     }
 
@@ -90,7 +108,7 @@ struct RiftTour: View {
                  points: [("See what's new", "with our latest version"), ("Show this app to your friends", "while playing :)")]),
         TourPage(symbol: "rectangle.portrait.bottomhalf.filled", accent: RiftColor.you, title: "Scoreboard", subtitle: "Track every point with one tap",
                  points: [
-                    ("Conquer, hold, effect", "One tap per point; the 8th by conquering is checked"),
+                    ("Conquer, hold, effect", "One tap per point"),
                     ("Track XP", "Gain and spend XP right on your half"),
                     ("Who goes first", "Roll the dice in the middle, D6 or D20"),
                     ("Reset or end", "Reset Score starts over, or ends a game after a concession"),
@@ -101,15 +119,13 @@ struct RiftTour: View {
                  points: [
                     ("Follow your events", "Standings, pairings and results, live"),
                     ("Find local stores", "Search, save favorites, see their calendar"),
-                    ("Play connected", "Your table on the Scoreboard, Report sends the result"),
+                    ("Report results directly", "Your table on the Scoreboard, Report sends the result"),
                  ]),
         TourPage(symbol: "rectangle.portrait.on.rectangle.portrait", accent: CardStyle.domainColor("mind"), title: "Cards", subtitle: "Browse the whole pool",
                  points: [
                     ("Search", "Find any card by name, type, or text"),
-                    ("Filter", "Narrow by domain, type, energy, might, more"),
-                    ("Sort", "By set, energy or type"),
+                    ("Filter & sort", "By domain, type, energy and more"),
                     ("Card view", "Tap any card for full art and details"),
-                    ("Add to a deck", "Straight from the card, three copies at most"),
                  ]),
         TourPage(symbol: "square.3.layers.3d", accent: CardStyle.domainColor("body"), title: "Decks", subtitle: "Build, browse, analyze",
                  points: [
@@ -118,54 +134,40 @@ struct RiftTour: View {
                     ("Draw odds", "Chance to draw key cards by turn N"),
                     ("Deck stats", "Energy curve, power by domain, type breakdown"),
                     ("Import / Export", "Copy decklists as text, paste in or share out"),
-                    ("Match log", "Every game with its point race and turn order"),
                  ]),
         TourPage(symbol: "gearshape", accent: RiftColor.you, title: "Make it yours", subtitle: "Tweak in Settings whenever",
                  points: [
                     ("Player colors", "16 colors, one per seat"),
-                    ("Stay awake", "The screen stays on during games"),
+                    ("Legend art", "Your legends' splash art behind the halves"),
                     ("Haptics", "Toggle feedback to taste"),
                     ("True black", "Pure black for OLED screens, or a dark grey"),
                  ]),
     ]
 
     private static let eventsPages = [
-        TourPage(symbol: "trophy", accent: RiftColor.you, title: "Events", subtitle: "Your tournament companion for Riftbound.",
+        TourPage(symbol: "trophy", accent: RiftColor.you, title: "Events", subtitle: "Your tournament companion.",
                  points: [
-                    ("Follow your events", "Standings, pairings and results, live."),
-                    ("Find local stores", "Search, save favorites, see their calendar."),
-                    ("Play connected", "Your table on the Scoreboard, Report sends the result."),
+                    ("Find your stores", "Discover and save the shops you play at."),
+                    ("Register in seconds", "Sign up for events right here."),
+                    ("Live, in the app", "No more juggling the website during rounds."),
+                    ("Match mode", "Score and report from the Scoreboard."),
                  ]),
         TourPage(symbol: "lock.shield", accent: RiftColor.you, title: "Sign in", subtitle: "Use your Riot ID on PlayRiftbound.",
                  points: [
-                    ("Riot's own pages", "Sign in happens in the PlayRiftbound segment, never in the app."),
+                    ("Riot's own pages", "Sign in happens on Riot's own pages; Riftcount never sees or saves your password."),
                     ("Nothing stored by us", "Your session stays in the in-app browser on your device."),
                     ("Sign out anytime", "From the menu in the PlayRiftbound segment."),
                  ]),
-        TourPage(symbol: "heart", accent: RiftColor.you, title: "Find your stores", subtitle: "Discover and save the shops you play at.",
+    ]
+
+    /// Once, the first time 4.0 opens after an update (Okay's text, 2026-10-28).
+    private static let whatsNewPages = [
+        TourPage(symbol: "sparkles", accent: RiftColor.gold, title: "Riftcount 4.0", subtitle: "ReDesign Update",
                  points: [
-                    ("Search by city", "Events and stores nearby, with the site's filters."),
-                    ("Save favorites", "Tap the heart on any store."),
-                    ("Store calendar", "Every event at your saved stores, by date."),
-                 ]),
-        TourPage(symbol: "calendar", accent: RiftColor.you, title: "Register in seconds", subtitle: "Sign up for events right here.",
-                 points: [
-                    ("Browse events", "Upcoming, live and past."),
-                    ("Sign up", "Register with your Riot account, pay at the store."),
-                    ("Drop anytime", "Change your mind with one tap."),
-                 ]),
-        TourPage(symbol: "list.bullet.rectangle", accent: RiftColor.you, title: "Live, in the app", subtitle: "No more juggling the website during rounds.",
-                 points: [
-                    ("Pairings and your table", "Know exactly where to sit each round."),
-                    ("Live standings", "Track your place as rounds finish."),
-                    ("Report results", "Submit your match without leaving the app."),
-                    ("Can I draw?", "Your top-cut outlook, shown automatically."),
-                 ]),
-        TourPage(symbol: "flag.checkered", accent: RiftColor.you, title: "Match mode", subtitle: "Score and report from the Scoreboard.",
-                 points: [
-                    ("Turn it on in Settings", "One tap on its tile at the top."),
-                    ("Table and opponent", "Shown right on your Scoreboard."),
-                    ("Report on the spot", "Send your result the moment you finish."),
+                    ("Scoreboard, Events, Cards, Decks", "have all new looks"),
+                    ("Legend art", "Turn it on and your legend and your opponent's show as splash art behind their halves."),
+                    ("Cards", "Search by rules text and a shortlist were added."),
+                    ("Events", "Again functional with the new platform. Report matches, find events, register, drop, view live standings and pairings."),
                  ]),
     ]
 }
