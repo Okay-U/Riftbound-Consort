@@ -26,7 +26,7 @@ object AppSettings {
     val legendArt = Flag("legendArt", false)
     val didOnboard = Flag("didOnboard", false)
     val didOnboardEvents = Flag("didOnboardEvents", false)
-    val didSeeBuilderTip = Flag("didSeeBuilderTip", false)
+    val didSeeWhatsNew40 = Flag("didSeeWhatsNew40", false)
     /** The deck detail shows main and side as a list instead of the card gallery; the gallery by energy, not type. */
     val deckList = Flag("native.deckList", false)
     val deckByEnergy = Flag("native.deckByEnergy", false)

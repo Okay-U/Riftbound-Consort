@@ -391,6 +391,14 @@ browser on this phone) and that Sign out of Riot in the PlayRiftbound menu remov
 about cookie consent (the login cookie is Riot's strictly necessary one; the app neither touches Riot's banner nor
 sets cookies of its own).
 
+Tours, round 2 (2026-10-28, iOS the same): Okay trimmed the texts (the tour's Scoreboard, Events, Cards, Decks and
+Make it yours pages, the latter with Legend art instead of Stay awake), the Events tour is two cards (the four former
+pages' headings, then Sign in: "Riftcount never sees or saves your password"), the builder tip is gone, and the
+Players tile says "2 player or 3-4 player mode." New: a What's new card, `TourKind.WhatsNew`, shown once when 4.0
+first opens after an update (`didSeeWhatsNew40`; the Skip app's users have `didOnboard` already), "Riftcount 4.0 ·
+A new app: rebuilt for Android, a fraction of the size and faster, with a new look" with Scoreboard, Events and Cards
+and decks. A new install gets the tour, which marks the card seen.
+
 Settings, round 2 (2026-10-27, iOS the same): Legend art and Players are small tiles like the others, the six two to a
 row (the Players number box 42dp like a switch's icon, so the texts line up); the "Most used" / "Tap i for what it
 does" line above them is gone (`SectionHead` lost its aside), and the Events tour says "One tap on its tile at the top".

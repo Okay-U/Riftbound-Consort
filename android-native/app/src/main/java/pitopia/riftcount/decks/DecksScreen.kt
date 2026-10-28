@@ -27,14 +27,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 import pitopia.riftcount.cards.CardImages
 import pitopia.riftcount.cards.CardStore
 import pitopia.riftcount.cards.ErrataStore
-import pitopia.riftcount.data.AppSettings
 import pitopia.riftcount.data.DeckText
 import pitopia.riftcount.data.Decklist
 import pitopia.riftcount.data.DecklistStore
 import pitopia.riftcount.data.GameRecord
 import pitopia.riftcount.data.GameRecordStore
 import pitopia.riftcount.score.LegendArt
-import pitopia.riftcount.tour.BuilderTip
 import pitopia.riftcount.ui.common.ToastHost
 import pitopia.riftcount.ui.common.Toaster
 import pitopia.riftcount.ui.theme.RiftEase
@@ -204,7 +202,6 @@ fun DecksScreen(ui: DecksUi, decks: DecklistStore, games: GameRecordStore, cards
                 onClose = ::closeBuilder,
             )
         }
-        if (builderShown && !AppSettings.didSeeBuilderTip.on) BuilderTip { AppSettings.didSeeBuilderTip.on = true }
         ToastHost(toaster)
     }
 

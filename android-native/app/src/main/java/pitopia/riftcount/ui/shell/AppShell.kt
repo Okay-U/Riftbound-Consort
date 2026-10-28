@@ -123,15 +123,29 @@ fun AppShell() {
     SideEffect { score.haptic = { view.haptic(it) } }
     StatusBarHidden(tab == Tab.Score)
     KeepAwake(AppSettings.keepScreenOn.on)
-    // The six-page tour on first launch; the Events tour the first time Events opens; both again from Settings.
-    var tour by remember { mutableStateOf(if (AppSettings.didOnboard.on) null else TourKind.Main) }
+    // The six-page tour on a new install, the 4.0 What's new card once after the update; the Events tour the first
+    // time Events opens; the tours again from Settings.
+    var tour by remember {
+        mutableStateOf(
+            when {
+                !AppSettings.didOnboard.on -> TourKind.Main
+                !AppSettings.didSeeWhatsNew40.on -> TourKind.WhatsNew
+                else -> null
+            },
+        )
+    }
     LaunchedEffect(tab) {
         if (tab == Tab.Events && tour == null && !AppSettings.didOnboardEvents.on) tour = TourKind.Events
     }
     fun endTour() {
         when (tour) {
-            TourKind.Main -> AppSettings.didOnboard.on = true
+            TourKind.Main -> {
+                AppSettings.didOnboard.on = true
+                // A new install starts on 4.0: there is no update to tell it about.
+                AppSettings.didSeeWhatsNew40.on = true
+            }
             TourKind.Events -> AppSettings.didOnboardEvents.on = true
+            TourKind.WhatsNew -> AppSettings.didSeeWhatsNew40.on = true
             null -> Unit
         }
         tour = null

@@ -178,7 +178,7 @@ private val TileInfo = listOf(
     "Pure #000 background. Saves battery on OLED screens and looks deepest.",
     "In a live tournament the scoreboard shows your table, opponent and a Report button.",
     "Your deck's legend and the opponent's as splash art behind their halves, once picked in the game setup.",
-    "2 is the face-to-face duel. 4 splits the table for free-for-all games.",
+    "2 player or 3-4 player mode.",
 )
 
 @Composable
