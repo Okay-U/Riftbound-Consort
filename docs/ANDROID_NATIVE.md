@@ -380,6 +380,10 @@ centred and cropped badly there. The table puts every deck's splash on disk ahea
 decodes it before the deck opens (300 ms at most), so the deck opens as its splash from the first frame; closing
 fades it back to the card as it lands on its pile. A splash still on its way fades in on the banner.
 
+Scoreboard, round 9 (2026-10-28, iOS the same): the opponent picker had no picture for the four legends printed only
+as Starters (Annie, Garen, Lux, Master Yi - Wuju Bladesman): the art map was keyed by the full card name, the rows by
+the name without its printing. `CardQuery.legendArt` keys it like `legendNames`, the plain printing first.
+
 Settings, round 2 (2026-10-27, iOS the same): Legend art and Players are small tiles like the others, the six two to a
 row (the Players number box 42dp like a switch's icon, so the texts line up); the "Most used" / "Tap i for what it
 does" line above them is gone (`SectionHead` lost its aside), and the Events tour says "One tap on its tile at the top".

@@ -100,7 +100,20 @@ object CardQuery {
 
     /** Opponent legends for the scoreboard: rare legends, one name per legend (no printing suffix). */
     fun legendNames(cards: List<Card>): List<String> =
-        cards.filter { it.isRareLegend }.map { it.name.replace(Regex("\\s*\\([^)]*\\)$"), "") }.distinct().sorted()
+        cards.filter { it.isRareLegend }.map { legendName(it.name) }.distinct().sorted()
+
+    /**
+     * A picture for each of [legendNames]: the plain printing over Overnumbered or Signature, and a legend printed
+     * only as a Starter (Annie, Garen, Lux, Master Yi) still has its own (iOS the same).
+     */
+    fun legendArt(cards: List<Card>): Map<String, Card> =
+        cards.filter { it.isRareLegend }.groupBy { legendName(it.name) }
+            .mapValues { (name, printings) -> printings.firstOrNull { it.name == name } ?: printings.first() }
+
+    /** "(Overnumbered)", "(Signature)" and "(Starter)" printings are the same legend for opponents and stats. */
+    fun legendName(cardName: String): String = cardName.replace(Printing, "")
+
+    private val Printing = Regex("\\s*\\([^)]*\\)$")
 
     /** A new feed must not be a broken build: at least 500 cards and half of what is shown now. */
     fun plausible(new: List<Card>, old: List<Card>) = new.size >= maxOf(500, old.size / 2)

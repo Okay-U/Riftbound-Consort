@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import pitopia.riftcount.cards.Card
+import pitopia.riftcount.cards.CardQuery
 import pitopia.riftcount.cards.SearchField
 import pitopia.riftcount.data.AppSettings
 import pitopia.riftcount.data.Decklist
@@ -76,7 +77,7 @@ fun DeckPickSheet(c: ScoreController, decks: List<Decklist>, index: Map<String, 
 @Composable
 fun OpponentPickSheet(c: ScoreController, legends: List<String>, pool: List<Card>, onDismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
-    val art = remember(pool) { pool.filter { it.isRareLegend }.associateBy { it.name } }
+    val art = remember(pool) { CardQuery.legendArt(pool) }
     Sheet("Opponent's legend", onDismiss) { close ->
         BasicText("Opponent's legend", style = SheetTitle)
         BasicText("Names their half and the game in the match log.", Modifier.padding(top = 4.dp), style = SheetText)

@@ -108,6 +108,15 @@ class CardQueryTest {
     }
 
     @Test
+    fun `every opponent legend has its picture, the plain printing first`() {
+        val art = CardQuery.legendArt(all)
+        assertEquals(CardQuery.legendNames(all).toSet(), art.keys)
+        assertEquals("Darius - Hand of Noxus", art["Darius - Hand of Noxus"]?.name)
+        val annie = Card(id = "ogs-017-024", name = "Annie - Dark Child (Starter)", classification = Card.Classification(type = "Legend", rarity = "Rare"))
+        assertEquals("ogs-017-024", CardQuery.legendArt(listOf(annie))["Annie - Dark Child"]?.id)
+    }
+
+    @Test
     fun `a broken feed is refused`() {
         assertFalse(CardQuery.plausible(all, emptyList()))
         val big = List(1400) { all[it % all.size] }
