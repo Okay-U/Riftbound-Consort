@@ -29,7 +29,7 @@ score halves end above it. System back on any tab other than Score returns to Sc
 | Debug build | suffix `.native`, label "Riftcount native": runs next to the old app on the emulator |
 | Staging build | release code (R8) with the debug key and the same `.native` suffix: judge speed on the emulator |
 | namespace | `pitopia.riftcount` |
-| versionCode / versionName | 10 / 3.5.0 (Skip app shipped 9 / 3.4.0) |
+| versionCode / versionName | 12 / 4.0.0 (Skip app shipped 9 / 3.4.0) |
 | minSdk / target / compile | 28 / 36 / 36 (same min as the Skip app) |
 | AGP / Kotlin / JVM | 9.2.0 (built-in Kotlin) / 2.3.0 + compose plugin / 17 |
 | Compose | BOM 2026.05.01 |
@@ -255,10 +255,10 @@ Release, Okay's steps:
    `storeFile` at the same `.jks` (both stay out of git).
 2. From `android-native/`: `./gradlew :app:bundleRelease`, then upload
    `app/build/outputs/bundle/release/app-release.aab` to Play as the next release of the existing app.
-3. Every later release raises `versionCode` (now 11) and `versionName` in `app/build.gradle.kts`. The first
-   release is 4.0.0 (Okay 2026-10-27: 4.0 on both platforms): versionCode 10 went to the Play Console as a draft on
-   2026-10-27 without the two fixes of 2026-10-28, so the release itself is versionCode 11 (a code once uploaded
-   cannot be uploaded again).
+3. Every later release raises `versionCode` (now 12) and `versionName` in `app/build.gradle.kts`. The first
+   release is 4.0.0 (Okay 2026-10-27: 4.0 on both platforms): versionCodes 10 (2026-10-27) and 11 (2026-10-28) went
+   to the Play Console unpublished, each before later changes, so the release itself is versionCode 12 (a code
+   once uploaded cannot be uploaded again).
 4. Play "What's new" for 4.0.0 (Okay approved 2026-10-27, 461 of 500 characters):
 
    > Riftcount 4.0 is a new app: rebuilt for Android, a fraction of the size and faster, with a new look.
